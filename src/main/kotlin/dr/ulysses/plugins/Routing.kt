@@ -1,12 +1,12 @@
 package dr.ulysses.plugins
 
-import dr.ulysses.entities.Song
+import dr.ulysses.controllers.DtoSong
+import dr.ulysses.controllers.Song
 import io.ktor.server.routing.*
 import io.ktor.http.*
 import io.ktor.server.http.content.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.webjars.*
-import java.time.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.request.*
@@ -31,8 +31,8 @@ fun Application.configureRouting() {
             call.respondText("Hello World!")
         }
         post("/add_song") {
-            val song = call.receive<Song>()
-            call.respondText(songStorage.add(song))
+            val song = call.receive<DtoSong>()
+            call.respondText(Song.add(song))
         }
         // Static plugin. Try to access `/static/index.html`
         static("/static") {

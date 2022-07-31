@@ -1,7 +1,10 @@
 package dr.ulysses.entities
 
+import org.jetbrains.exposed.dao.UUIDEntity
+import org.jetbrains.exposed.dao.UUIDEntityClass
+import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.UUIDTable
-import java.time.Duration
+import java.util.UUID
 
 enum class Status {
     Added,
@@ -9,33 +12,30 @@ enum class Status {
     Stored
 }
 
-class Tag (
-    val name: String
-)
+class Song(id: EntityID<UUID>): UUIDEntity(id) {
+    companion object : UUIDEntityClass<Song>(DbSong)
 
-class Song (
-    val title: String,
-    val album: String,
-    val artist: String,
-    val duration: Duration,
-    val path: String,
-    val tags: Tag,
-    val text: Text,
-    val status: Status,
-) {
+    var title    by DbSong.title
+    var album    by DbSong.album
+    var artist   by DbSong.artist
+    var duration by DbSong.duration
+    var path     by DbSong.path
+    var tags     by Tag via DbSongTags
+    var text     by Text optionalReferencedOn DbSong.text
+    var status   by DbSong.status
 }
 
 object DbSong : UUIDTable(name = "song", columnName = "id") {
-    val title = varchar("title", 255)
-    val album = varchar("album", 255)
-    val artist = varchar("artist", 255)
+    val title    = text("title")
+    val album    = text("album")
+    val artist   = text("artist")
     val duration = integer("duration")
-    val path = varchar("path", 255)
-    val tags = reference("tag", DbTag)
-    val text = reference("text", DbText)
-    val status = enumeration("status", Status::class)
+    val path     = text("path")
+    val text     = reference("text", DbText).nullable()
+    val status   = enumeration("status", Status::class)
 }
 
-object DbTag : UUIDTable(name = "tag", columnName = "id") {
-    val name = varchar("name", 255)
+object DbSongTags : UUIDTable(name = "song_tags", columnName = "id") {
+    val song = reference("song", DbSong)
+    val tag = reference("tag", DbTag)
 }
