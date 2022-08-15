@@ -1,7 +1,8 @@
 package dr.ulysses.plugins
 
-import dr.ulysses.controllers.DtoSong
 import dr.ulysses.controllers.Song
+import dr.ulysses.controllers.Tag
+import dr.ulysses.entities.DtoSong
 import io.ktor.server.routing.*
 import io.ktor.http.*
 import io.ktor.server.http.content.*
@@ -31,8 +32,26 @@ fun Application.configureRouting() {
             call.respondText("Hello World!")
         }
         post("/add_song") {
-            val song = call.receive<DtoSong>()
-            call.respondText(Song.add(song))
+            try {
+                val song = call.receive<DtoSong>()
+                call.respondText(Song.add(song))
+            } catch (e: ContentTransformationException) {
+                call.respond(
+                    status=HttpStatusCode.BadRequest,
+                    message="Got add song form failed: No file"
+                )
+            }
+        }
+        get("manage_tags") {
+            try {
+                val songName = call.receive<String>()
+                call.respond(Tag.getTags(songName))
+            } catch (e: Exception) {
+                call.respond(
+                    status=HttpStatusCode.BadRequest,
+                    message="Asked for add song form failed: No song name"
+                )
+            }
         }
         // Static plugin. Try to access `/static/index.html`
         static("/static") {

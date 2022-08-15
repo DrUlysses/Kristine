@@ -23,6 +23,30 @@ class Song(id: EntityID<UUID>): UUIDEntity(id) {
     var tags     by Tag via DbSongTags
     var text     by Text optionalReferencedOn DbSong.text
     var status   by DbSong.status
+
+    fun toDtoTagsEdit() : DtoSong =
+        DtoSong(
+            title = this.title,
+            album = this.album,
+            artist = this.artist,
+            duration = this.duration,
+            path = this.path,
+            tags = this.tags.map { it.toString() },
+            text = null,
+            status = this.status.toString(),
+        )
+
+    fun toDto() : DtoSong =
+        DtoSong(
+            title = this.title,
+            album = this.album,
+            artist = this.artist,
+            duration = this.duration,
+            path = this.path,
+            tags = this.tags.map { it.toString() },
+            text = this.text?.let { it.toDtoText() },
+            status = this.status.toString(),
+        )
 }
 
 object DbSong : UUIDTable(name = "song", columnName = "id") {
@@ -39,3 +63,14 @@ object DbSongTags : UUIDTable(name = "song_tags", columnName = "id") {
     val song = reference("song", DbSong)
     val tag = reference("tag", DbTag)
 }
+
+class DtoSong(
+    var title: String,
+    var album: String,
+    var artist: String,
+    var duration: Int,
+    var path: String,
+    var tags: List<String>,
+    var text: List<DtoText>?,
+    var status: String,
+)

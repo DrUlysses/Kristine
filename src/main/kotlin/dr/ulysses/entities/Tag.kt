@@ -11,8 +11,14 @@ class Tag (id: EntityID<UUID>): UUIDEntity(id) {
 
     var name  by DbTag.name
     var songs by Song via DbSongTags
+
+    override fun toString() : String = name
 }
 
 object DbTag : UUIDTable(name = "tag", columnName = "id") {
     val name = text("name")
 }
+
+class DtoTag(
+    var name: String,
+)

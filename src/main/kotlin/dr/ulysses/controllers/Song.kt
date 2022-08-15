@@ -1,22 +1,12 @@
 package dr.ulysses.controllers
 
 import dr.ulysses.entities.DbTag
+import dr.ulysses.entities.DtoSong
 import org.jetbrains.exposed.sql.SizedCollection
 import dr.ulysses.entities.Song as SongEntity
 import dr.ulysses.entities.Tag as TagEntity
 import dr.ulysses.entities.Status as StatusEnum
 import org.jetbrains.exposed.sql.transactions.transaction
-
-class DtoSong(
-    var title: String,
-    var album: String,
-    var artist: String,
-    var duration: Int,
-    var path: String,
-    var tags: List<String>,
-    var text: List<String>?,
-    var status: String,
-)
 
 object Song {
     fun add(song: DtoSong): String {
@@ -29,6 +19,8 @@ object Song {
                 }
             }
         }
+
+        //TODO: possibility to add text?
 
         transaction {
             SongEntity.new {
