@@ -15,10 +15,10 @@ import io.ktor.server.request.*
 fun Application.configureRouting() {
 
     install(StatusPages) {
-        exception<AuthenticationException> { call, cause ->
+        exception<AuthenticationException> { call, _ ->
             call.respond(HttpStatusCode.Unauthorized)
         }
-        exception<AuthorizationException> { call, cause ->
+        exception<AuthorizationException> { call, _ ->
             call.respond(HttpStatusCode.Forbidden)
         }
 
@@ -37,8 +37,8 @@ fun Application.configureRouting() {
                 call.respondText(Song.add(song))
             } catch (e: ContentTransformationException) {
                 call.respond(
-                    status=HttpStatusCode.BadRequest,
-                    message="Got add song form failed: No file"
+                    status = HttpStatusCode.BadRequest,
+                    message = "Got add song form failed: No file"
                 )
             }
         }
@@ -48,8 +48,8 @@ fun Application.configureRouting() {
                 call.respond(Tag.getTags(songName))
             } catch (e: Exception) {
                 call.respond(
-                    status=HttpStatusCode.BadRequest,
-                    message="Asked for add song form failed: No song name"
+                    status = HttpStatusCode.BadRequest,
+                    message = "Asked for add song form failed: No song name"
                 )
             }
         }
