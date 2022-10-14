@@ -4,6 +4,8 @@ import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.UUIDTable
+import org.jetbrains.exposed.sql.SizedCollection
+import org.jetbrains.exposed.sql.and
 import java.util.UUID
 
 enum class Status {
@@ -44,9 +46,32 @@ class Song(id: EntityID<UUID>): UUIDEntity(id) {
             duration = this.duration,
             path = this.path,
             tags = this.tags.map { it.toString() },
-            text = this.text?.let { it.toDtoText() },
+            text = this.text?.toDtoText(),
             status = this.status.toString(),
         )
+
+    fun fromDto(dtoSong: DtoSong) : Song =
+        Song.find {
+            DbSong.title eq dtoSong.title and (DbSong.artist eq dtoSong.artist)
+        }.firstOrNull()
+            ?:
+        Song.new {
+            title = dtoSong.title
+            album = dtoSong.album
+            artist = dtoSong.artist
+            duration = dtoSong.duration
+            path = dtoSong.path
+            tags = SizedCollection()
+            text = null
+            status = Status.valueOf(dtoSong.status)
+        }.apply {
+            dtoSong.text?.let {
+
+            }
+            if (dtoSong.tags.isNotEmpty()) {
+                TODO()
+            }
+        }
 }
 
 object DbSong : UUIDTable(name = "song", columnName = "id") {

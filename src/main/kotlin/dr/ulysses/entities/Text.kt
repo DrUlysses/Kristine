@@ -34,6 +34,14 @@ class Text(id: EntityID<UUID>): UUIDEntity(id) {
         }
         return res
     }
+
+    fun fromDto(dtoText: List<DtoText>) {
+        dtoText.forEach {
+            if (it.first == it.line) {
+                TODO()
+            }
+        }
+    }
 }
 
 object DbText : UUIDTable(name = "text", columnName = "id") {

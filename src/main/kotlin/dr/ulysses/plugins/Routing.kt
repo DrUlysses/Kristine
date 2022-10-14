@@ -2,7 +2,6 @@ package dr.ulysses.plugins
 
 import dr.ulysses.controllers.Song
 import dr.ulysses.controllers.Tag
-import dr.ulysses.entities.DtoSong
 import io.ktor.server.routing.*
 import io.ktor.http.*
 import io.ktor.server.http.content.*
@@ -11,6 +10,7 @@ import io.ktor.server.webjars.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.request.*
+import java.io.File
 
 fun Application.configureRouting() {
 
@@ -32,10 +32,9 @@ fun Application.configureRouting() {
             call.respondText("Hello World!")
         }
         post("/add_song") {
-            try {
-                val song = call.receive<DtoSong>()
-                call.respondText(Song.add(song))
-            } catch (e: ContentTransformationException) {
+            call.receiveOrNull<File>() ?.let {
+                call.respondText(Song.add(it))
+            } ?: run {
                 call.respond(
                     status = HttpStatusCode.BadRequest,
                     message = "Got add song form failed: No file"

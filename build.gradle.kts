@@ -3,6 +3,8 @@ val kotlinVersion: String by project
 val logbackVersion: String by project
 val exposedVersion: String by project
 val jqueryVersion: String by project
+val korauVersion: String by project
+val mp3agicVersion: String by project
 
 plugins {
     application
@@ -39,6 +41,8 @@ dependencies {
     implementation("io.ktor:ktor-server-websockets-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-netty-jvm:$ktorVersion")
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
+    implementation("com.soywiz.korlibs.korau:korau-jvm:$korauVersion")
+    implementation("com.mpatric:mp3agic:$mp3agicVersion")
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktorVersion")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
 }

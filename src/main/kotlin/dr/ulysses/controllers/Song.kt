@@ -2,14 +2,18 @@ package dr.ulysses.controllers
 
 import dr.ulysses.entities.DbTag
 import dr.ulysses.entities.DtoSong
+import dr.ulysses.misc.toDtoSong
 import org.jetbrains.exposed.sql.SizedCollection
 import dr.ulysses.entities.Song as SongEntity
 import dr.ulysses.entities.Tag as TagEntity
 import dr.ulysses.entities.Status as StatusEnum
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.io.File
 
 object Song {
-    fun add(song: DtoSong): String {
+    fun add(file: File): String {
+        val song: DtoSong = file.toDtoSong() ?: return "No content"
+
         val oldTags = TagEntity.find { DbTag.name.inList(song.tags) }
         val existing = oldTags.map { it.name }
         val newTags = song.tags.filter { it !in existing }.map {
@@ -19,8 +23,6 @@ object Song {
                 }
             }
         }
-
-        //TODO: possibility to add text?
 
         transaction {
             SongEntity.new {
