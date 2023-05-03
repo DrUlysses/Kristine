@@ -5,6 +5,7 @@ val exposedVersion: String by project
 val jqueryVersion: String by project
 val korauVersion: String by project
 val mp3agicVersion: String by project
+val korauVersion: String by project
 
 plugins {
     application

@@ -36,7 +36,8 @@ object Player {
                 params = PlaybackParameters(
                     volume = currentVolume,
                     startTime = currentSongPosition
-                )
+                ),
+                progress = (currentSongPosition)
             )
             isPlaying = false
         }
