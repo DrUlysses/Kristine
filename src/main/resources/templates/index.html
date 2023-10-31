@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <link rel="icon" th:href="@{../favicon.ico}"/>
+    <meta charset="UTF-8">
+    <title>Kristine</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+<div th:class="refresh-folder">
+    <button th:id="refresh-button" onclick="window.location.reload();">Refresh</button>
+</div>
+<div th:class="song-list">
+    <table>
+        <tr th:each="song : ${songList}">
+            <td th:text="${song}">Song path</td>
+        </tr>
+    </table>
+</div>
+<div th:class="audio-player">
+    <audio th:id="audio" controls>
+        <source th:src="your-audio-file.mp3" type="audio/mp3">
+        Your browser does not support the audio element.
+    </audio>
+    <div th:class="controls">
+        <button th:id="play-pause-button">Play</button>
+        <input type="range" th:id="volume-control" min="0" max="1" step="0.01" value="1">
+    </div>
+    <div th:class="progress">
+        <div th:class="progress-bar" th:id="progress-bar"></div>
+    </div>
+    <div th:id="current-time">0:00</div>
+    <div th:id="total-time">0:00</div>
+</div>
+
+<!--<script th:inline="javascrtipt">-->
+<!--    const audio = document.getElementById("audio");-->
+<!--    const playPauseButton = document.getElementById("play-pause-button");-->
+<!--    const volumeControl = document.getElementById("volume-control");-->
+<!--    const progressBar = document.getElementById("progress-bar");-->
+<!--    const currentTimeDisplay = document.getElementById("current-time");-->
+<!--    const totalTimeDisplay = document.getElementById("total-time");-->
+
+<!--    let isPlaying = false;-->
+
+<!--    playPauseButton.addEventListener("click", () => {-->
+<!--        if (isPlaying) {-->
+<!--            audio.pause();-->
+<!--            playPauseButton.textContent = "Play";-->
+<!--        } else {-->
+<!--            audio.play();-->
+<!--            playPauseButton.textContent = "Pause";-->
+<!--        }-->
+<!--        isPlaying = !isPlaying;-->
+<!--    });-->
+
+<!--    volumeControl.addEventListener("input", () => {-->
+<!--        audio.volume = volumeControl.value;-->
+<!--    });-->
+
+<!--    audio.addEventListener("timeupdate", () => {-->
+<!--        const currentTime = audio.currentTime;-->
+<!--        const duration = audio.duration;-->
+
+<!--        const currentMinutes = Math.floor(currentTime / 60);-->
+<!--        const currentSeconds = Math.floor(currentTime % 60);-->
+<!--        const totalMinutes = Math.floor(duration / 60);-->
+<!--        const totalSeconds = Math.floor(duration % 60);-->
+
+<!--        currentTimeDisplay.textContent = `${currentMinutes}:${currentSeconds < 10 ? '0' : ''}${currentSeconds}`;-->
+<!--        totalTimeDisplay.textContent = `${totalMinutes}:${totalSeconds < 10 ? '0' : ''}${totalSeconds}`;-->
+
+<!--        const progress = (currentTime / duration) * 100;-->
+<!--        progressBar.style.width = `${progress}%`;-->
+<!--    });-->
+<!--</script>-->
+</body>
+</html>

@@ -9,6 +9,7 @@ import dr.ulysses.entities.Tag as TagEntity
 import dr.ulysses.entities.Status as StatusEnum
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
+import kotlin.io.path.*
 
 object Song {
     fun add(file: File): String {
@@ -37,5 +38,14 @@ object Song {
             }
         }
         return "Success"
+    }
+
+    fun refreshSongs(): List<String> {
+//        val path = environment.config.propertyOrNull("ktor.deployment.port")?.getString() ?: "8080"
+
+//        return transaction {
+//            SongEntity.all().map { it.toDto() }
+//        }
+        return Path("./music").listDirectoryEntries().map { it.name }
     }
 }
