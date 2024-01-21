@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS songs(
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    title TEXT NOT NULL,
+    album TEXT,
+    artist TEXT NOT NULL,
+    path TEXT,
+    duration INTEGER,
+    status TEXT
+);

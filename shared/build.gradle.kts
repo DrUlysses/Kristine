@@ -1,16 +1,10 @@
-import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl
-
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.sqlDelight)
 }
 
 kotlin {
-    @OptIn(ExperimentalWasmDsl::class)
-    wasmJs {
-        browser()
-    }
-
     androidTarget {
         compilations.all {
             kotlinOptions {
@@ -21,9 +15,18 @@ kotlin {
 
     jvm()
 
+    jvmToolchain(libs.versions.jvmTarget.get().toInt())
+
     sourceSets {
+        androidMain.dependencies {
+            implementation(libs.sqldelight.android.driver)
+            implementation(libs.koin.android)
+        }
         commonMain.dependencies {
-            // put your Multiplatform dependencies here
+            implementation(libs.okio)
+        }
+        jvmMain.dependencies {
+            implementation(libs.sqldelight.driver)
         }
     }
 }
@@ -33,5 +36,13 @@ android {
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()
+    }
+}
+
+sqldelight {
+    databases {
+        create("Database") {
+            packageName.set("dr.ulysses")
+        }
     }
 }

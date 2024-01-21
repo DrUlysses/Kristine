@@ -1,3 +1,5 @@
+package dr.ulysses
+
 class Greeting {
     private val platform = getPlatform()
 
