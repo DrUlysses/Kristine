@@ -17,6 +17,7 @@ sqlDelight = "2.0.1"
 
 # Filesystem
 okio = "3.7.0"
+appdirs = "1.2.2"
 
 # AndroidX
 androidx-activityCompose = "1.8.2"
@@ -60,6 +61,7 @@ sqldelight-native-driver = { group = "app.cash.sqldelight", name = "native-drive
 sqldelight-js-driver = { group = "app.cash.sqldelight", name = "sqljs-driver", version.ref = "sqlDelight" }
 
 okio = { group = "com.squareup.okio", name = "okio", version.ref = "okio" }
+appdirs = { group = "net.harawata", name = "appdirs", version.ref = "appdirs" }
 
 koin-core = { group = "io.insert-koin", name = "koin-core", version.ref = "koin" }
 koin-android = { group = "io.insert-koin", name = "koin-android", version.ref = "koin" }

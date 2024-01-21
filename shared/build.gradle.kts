@@ -24,6 +24,7 @@ kotlin {
         }
         commonMain.dependencies {
             implementation(libs.okio)
+            implementation(libs.koin.core)
         }
         jvmMain.dependencies {
             implementation(libs.sqldelight.driver)
@@ -45,4 +46,5 @@ sqldelight {
             packageName.set("dr.ulysses")
         }
     }
+    linkSqlite = true
 }

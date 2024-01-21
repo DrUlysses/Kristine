@@ -8,9 +8,10 @@ import org.jetbrains.compose.resources.ExperimentalResourceApi
 
 @OptIn(ExperimentalResourceApi::class)
 @Composable
-internal fun App() = MaterialTheme(
+internal fun App(driver: DriverFactory) = MaterialTheme(
     colorScheme = darkColorScheme()
 ) {
+    val database = Database(driver.createDriver("kristine.db"))
 //        var showContent by remember { mutableStateOf(false) }
 //        val greeting = remember { Greeting().greet() }
 //        Column(
