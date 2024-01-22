@@ -1,6 +1,6 @@
 [versions]
 # Main
-kristine = "1.0.1"
+kristine = "1.0.2"
 kotlin = "1.9.21"
 ktor = "2.3.7"
 koin = "3.5.3"
@@ -14,10 +14,18 @@ jvmTarget = "17"
 
 # Database
 sqlDelight = "2.0.1"
+multiplatformSettings = "1.1.1"
+
+# Misc
+kotlinx-serialization = "1.6.2"
+kotlinx-coroutines = "1.7.3"
+kotlinx-datetime = "0.5.0"
+composeImageLoader = "1.7.1"
 
 # Filesystem
 okio = "3.7.0"
 appdirs = "1.2.2"
+napier = "2.7.0"
 
 # AndroidX
 androidx-activityCompose = "1.8.2"
@@ -58,30 +66,44 @@ sqldelight-gradle-plugin = { group = "app.cash.sqldelight", name = "gradle-plugi
 sqldelight-driver = { group = "app.cash.sqldelight", name = "sqlite-driver", version.ref = "sqlDelight" }
 sqldelight-android-driver = { group = "app.cash.sqldelight", name = "android-driver", version.ref = "sqlDelight" }
 sqldelight-native-driver = { group = "app.cash.sqldelight", name = "native-driver", version.ref = "sqlDelight" }
-sqldelight-js-driver = { group = "app.cash.sqldelight", name = "sqljs-driver", version.ref = "sqlDelight" }
+sqldelight-js-driver = { group = "app.cash.sqldelight", name = "web-worker-driver", version.ref = "sqlDelight" }
 
 okio = { group = "com.squareup.okio", name = "okio", version.ref = "okio" }
 appdirs = { group = "net.harawata", name = "appdirs", version.ref = "appdirs" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+napier = { group = "io.github.aakira", name = "napier", version.ref = "napier" }
+multiplatformSettings = { group = "com.russhwolf", name = "multiplatform-settings", version.ref = "multiplatformSettings" }
+kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinx-datetime" }
+composeImageLoader = { group = "io.github.qdsfdhvh", name = "image-loader", version.ref = "composeImageLoader" }
+
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-swing = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 
 koin-core = { group = "io.insert-koin", name = "koin-core", version.ref = "koin" }
 koin-android = { group = "io.insert-koin", name = "koin-android", version.ref = "koin" }
 
-ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
-ktor-server-netty = { module = "io.ktor:ktor-server-netty-jvm", version.ref = "ktor" }
+ktor-server-core = { group = "io.ktor", name = "ktor-server-core-jvm", version.ref = "ktor" }
+ktor-server-netty = { group = "io.ktor", name = "ktor-server-netty-jvm", version.ref = "ktor" }
 
-logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-js = { group = "io.ktor", name = "ktor-client-js", version.ref = "ktor" }
+
+logback = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
-kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
-kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
-ktor-server-tests = { module = "io.ktor:ktor-server-tests-jvm", version.ref = "ktor" }
+kotlin-test-junit = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit", version.ref = "kotlin" }
+kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }
+ktor-server-tests = { group = "io.ktor", name = "ktor-server-tests-jvm", version.ref = "ktor" }
 androidx-test-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-junit" }
 
 [plugins]
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
-kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+compose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
+sqlDelight = { id = "app.cash.sqldelight", version.ref = "sqlDelight" }
+kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
-jetbrainsCompose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
-sqlDelight = { id = "app.cash.sqldelight", version.ref = "sqlDelight" }

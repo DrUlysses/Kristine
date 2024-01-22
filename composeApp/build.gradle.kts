@@ -2,9 +2,11 @@ import org.jetbrains.compose.ExperimentalComposeLibrary
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.multiplatform)
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.jetbrainsCompose)
+    alias(libs.plugins.kotlinx.serialization)
+    alias(libs.plugins.compose)
+    alias(libs.plugins.sqlDelight)
 }
 
 kotlin {
@@ -16,17 +18,20 @@ kotlin {
         }
     }
 
-    jvm("desktop")
+    jvm()
+
+    jvmToolchain(libs.versions.jvmTarget.get().toInt())
+
+    js {
+        browser()
+        binaries.executable()
+    }
 
     sourceSets {
-        val desktopMain by getting
-
-        androidMain.dependencies {
-            implementation(libs.compose.ui.tooling.preview)
-            implementation(libs.androidx.activity.compose)
-            implementation(libs.androidx.appcompat)
-            implementation(libs.koin.core)
-            implementation(libs.koin.android)
+        all {
+            languageSettings {
+                optIn("org.jetbrains.compose.resources.ExperimentalResourceApi")
+            }
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -35,11 +40,37 @@ kotlin {
             implementation(compose.ui)
             @OptIn(ExperimentalComposeLibrary::class)
             implementation(compose.components.resources)
-            implementation(projects.shared)
+            implementation(libs.okio)
+            implementation(libs.composeImageLoader)
+            implementation(libs.napier)
+            implementation(libs.koin.core)
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
+            implementation(libs.multiplatformSettings)
         }
-        desktopMain.dependencies {
+        androidMain.dependencies {
+            implementation(libs.compose.ui.tooling.preview)
+            implementation(libs.kotlinx.coroutines.android)
+            implementation(libs.androidx.activity.compose)
+            implementation(libs.ktor.client.okhttp)
+            implementation(libs.androidx.appcompat)
+            implementation(libs.koin.core)
+            implementation(libs.koin.android)
+            implementation(libs.sqldelight.android.driver)
+        }
+        jvmMain.dependencies {
+            implementation(compose.desktop.common)
             implementation(compose.desktop.currentOs)
+            implementation(libs.kotlinx.coroutines.swing)
+            implementation(libs.ktor.client.okhttp)
+            implementation(libs.sqldelight.driver)
             implementation(libs.appdirs)
+        }
+        jsMain.dependencies {
+            implementation(compose.html.core)
+            implementation(libs.ktor.client.js)
+            implementation(libs.sqldelight.js.driver)
         }
     }
 }
@@ -48,12 +79,14 @@ android {
     namespace = "dr.ulysses"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
-    sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
-    sourceSets["main"].res.srcDirs("src/androidMain/res")
-    sourceSets["main"].resources.srcDirs("src/commonMain/resources")
+    sourceSets["main"].apply {
+        manifest.srcFile("src/androidMain/AndroidManifest.xml")
+        res.srcDirs("src/androidMain/resources")
+        resources.srcDirs("src/commonMain/resources")
+    }
 
     defaultConfig {
-        applicationId = "dr.ulysses"
+        applicationId = "dr.ulysses.androidApp"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
@@ -76,6 +109,12 @@ android {
     dependencies {
         debugImplementation(libs.compose.ui.tooling)
     }
+    buildFeatures {
+        compose = true
+    }
+    composeOptions { // TODO:
+        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
+    }
 }
 
 compose.desktop {
@@ -84,8 +123,21 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Exe, TargetFormat.Deb)
-            packageName = "dr.ulysses"
+            packageName = "dr.ulysses.desktopApp"
             packageVersion = libs.versions.kristine.get()
         }
     }
+}
+
+compose.experimental {
+    web.application {}
+}
+
+sqldelight {
+    databases {
+        create("Database") {
+            packageName.set("dr.ulysses")
+        }
+    }
+    linkSqlite = true
 }

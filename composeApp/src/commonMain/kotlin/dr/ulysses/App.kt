@@ -1,16 +1,13 @@
 package dr.ulysses
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import dr.ulysses.theme.AppTheme
 import dr.ulysses.views.Main
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 
 @OptIn(ExperimentalResourceApi::class)
 @Composable
-internal fun App(driver: DriverFactory) = MaterialTheme(
-    colorScheme = darkColorScheme()
-) {
+internal fun App(driver: DriverFactory) = AppTheme {
     val database = Database(driver.createDriver("kristine.db"))
 //        var showContent by remember { mutableStateOf(false) }
 //        val greeting = remember { Greeting().greet() }
@@ -30,3 +27,5 @@ internal fun App(driver: DriverFactory) = MaterialTheme(
 //        }
     Main()
 }
+
+internal expect fun openUrl(url: String?)

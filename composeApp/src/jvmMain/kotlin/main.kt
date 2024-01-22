@@ -11,9 +11,9 @@ import java.nio.file.Paths
 
 fun main() = application {
     Window(
+        title = "Kristine",
         onCloseRequest = ::exitApplication,
         state = rememberWindowState(width = 300.dp, height = 300.dp),
-        title = "Kristine"
     ) {
         window.minimumSize = Dimension(300, 300)
 //        val appPath = AppDirsFactory.getInstance().getUserDataDir("Kristine", "0.1", "dr.ulysses")
