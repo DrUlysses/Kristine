@@ -9,3 +9,5 @@ interface Directories {
     val userData: Path
     val userCache: Path
 }
+
+//expect fun getDirectories(): Directories

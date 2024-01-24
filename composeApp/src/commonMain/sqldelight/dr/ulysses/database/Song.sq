@@ -7,3 +7,9 @@ CREATE TABLE IF NOT EXISTS song(
     duration INTEGER,
     status TEXT
 );
+
+selectAll:
+SELECT * FROM song;
+
+insert:
+INSERT INTO song(title, album, artist, path, duration, status) VALUES(?, ?, ?, ?, ?, ?);

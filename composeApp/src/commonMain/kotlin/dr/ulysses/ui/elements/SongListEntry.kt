@@ -1,4 +1,4 @@
-package dr.ulysses.elements
+package dr.ulysses.ui.elements
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*

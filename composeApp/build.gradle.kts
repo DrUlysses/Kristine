@@ -48,6 +48,7 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.datetime)
             implementation(libs.multiplatformSettings)
+            implementation(libs.sqldelight.coroutines.extension)
         }
         androidMain.dependencies {
             implementation(libs.compose.ui.tooling.preview)
@@ -70,7 +71,11 @@ kotlin {
         jsMain.dependencies {
             implementation(compose.html.core)
             implementation(libs.ktor.client.js)
-            implementation(libs.sqldelight.js.driver)
+            implementation(libs.sqldelight.webworker.driver)
+            implementation(libs.okio.nodefilesystem)
+            implementation(npm("sql.js", libs.versions.sqlJs.get()))
+            implementation(npm("@cashapp/sqldelight-sqljs-worker", libs.versions.sqlDelight.get()))
+            implementation(devNpm("copy-webpack-plugin", libs.versions.webPackPlugin.get()))
         }
     }
 }
@@ -136,7 +141,7 @@ compose.experimental {
 sqldelight {
     databases {
         create("Database") {
-            packageName.set("dr.ulysses")
+            packageName.set("dr.ulysses.database")
         }
     }
     linkSqlite = true

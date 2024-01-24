@@ -14,6 +14,8 @@ jvmTarget = "17"
 
 # Database
 sqlDelight = "2.0.1"
+sqlJs = "1.10.2"
+webPackPlugin = "9.1.0"
 multiplatformSettings = "1.1.1"
 
 # Misc
@@ -66,9 +68,11 @@ sqldelight-gradle-plugin = { group = "app.cash.sqldelight", name = "gradle-plugi
 sqldelight-driver = { group = "app.cash.sqldelight", name = "sqlite-driver", version.ref = "sqlDelight" }
 sqldelight-android-driver = { group = "app.cash.sqldelight", name = "android-driver", version.ref = "sqlDelight" }
 sqldelight-native-driver = { group = "app.cash.sqldelight", name = "native-driver", version.ref = "sqlDelight" }
-sqldelight-js-driver = { group = "app.cash.sqldelight", name = "web-worker-driver", version.ref = "sqlDelight" }
+sqldelight-webworker-driver = { group = "app.cash.sqldelight", name = "web-worker-driver", version.ref = "sqlDelight" }
+sqldelight-js-driver = { group = "app.cash.sqldelight", name = "sqljs-driver", version.ref = "sqlDelight" }
 
 okio = { group = "com.squareup.okio", name = "okio", version.ref = "okio" }
+okio-nodefilesystem = { group = "com.squareup.okio", name = "okio-nodefilesystem", version.ref = "okio" }
 appdirs = { group = "net.harawata", name = "appdirs", version.ref = "appdirs" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 napier = { group = "io.github.aakira", name = "napier", version.ref = "napier" }

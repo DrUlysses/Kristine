@@ -1,4 +1,4 @@
-package dr.ulysses.views
+package dr.ulysses.ui.views
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,8 +7,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dr.ulysses.components.List
-import dr.ulysses.components.TabMenu
+import dr.ulysses.ui.components.SongList
+import dr.ulysses.ui.components.TabMenu
 
 @Composable
 fun Main() {
@@ -22,7 +22,7 @@ fun Main() {
                 .padding(innerPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            List()
+            SongList()
         }
     }
 }

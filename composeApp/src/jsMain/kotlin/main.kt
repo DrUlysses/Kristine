@@ -1,14 +1,14 @@
+
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.CanvasBasedWindow
 import dr.ulysses.App
-import dr.ulysses.DriverFactory
 import org.jetbrains.skiko.wasm.onWasmReady
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     onWasmReady {
         CanvasBasedWindow("Kristine") {
-            App(DriverFactory())
+            App()
         }
     }
 }
