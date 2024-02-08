@@ -1,10 +1,10 @@
 [versions]
 # Main
-kristine = "1.0.2"
+kristine = "1.0.3"
 kotlin = "1.9.21"
 ktor = "2.3.7"
 koin = "3.5.3"
-agp = "8.2.1"
+agp = "8.2.2"
 
 # Platform
 android-compileSdk = "34"
@@ -23,6 +23,7 @@ kotlinx-serialization = "1.6.2"
 kotlinx-coroutines = "1.7.3"
 kotlinx-datetime = "0.5.0"
 composeImageLoader = "1.7.1"
+accompanist = "0.35.0-alpha"
 
 # Filesystem
 okio = "3.7.0"
@@ -40,7 +41,7 @@ androidx-espresso-core = "3.5.1"
 androidx-material = "1.11.0"
 
 # Compose
-compose = "1.5.4"
+compose = "1.6.1"
 compose-compiler = "1.5.6"
 compose-plugin = "1.6.0-alpha01"
 
@@ -79,6 +80,7 @@ napier = { group = "io.github.aakira", name = "napier", version.ref = "napier" }
 multiplatformSettings = { group = "com.russhwolf", name = "multiplatform-settings", version.ref = "multiplatformSettings" }
 kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinx-datetime" }
 composeImageLoader = { group = "io.github.qdsfdhvh", name = "image-loader", version.ref = "composeImageLoader" }
+accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
 
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }

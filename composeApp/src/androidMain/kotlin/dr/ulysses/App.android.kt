@@ -10,11 +10,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import dr.ulysses.inject.initKoin
 import org.koin.android.ext.koin.androidContext
+import org.koin.android.ext.koin.androidLogger
+import org.koin.core.component.KoinComponent
 
-class AndroidApp : Application() {
+class AndroidApp : Application(), KoinComponent {
     override fun onCreate() {
         super.onCreate()
         val storageDir = filesDir.path
+        initKoin {
+            androidContext(this@AndroidApp)
+            androidLogger()
+        }
     }
 }
 
@@ -22,9 +28,6 @@ class AppActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { App() }
-        initKoin {
-            androidContext(this@AppActivity)
-        }
     }
 }
 

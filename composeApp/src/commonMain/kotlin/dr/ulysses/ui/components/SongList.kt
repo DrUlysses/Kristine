@@ -12,8 +12,6 @@ import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.refreshSongs
 import dr.ulysses.ui.elements.SongListEntry
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
 
 @Composable
 fun SongList(
@@ -21,15 +19,12 @@ fun SongList(
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         val listState = rememberLazyListState()
+        val viewScope = rememberCoroutineScope()
         var songs: List<Song> by remember { mutableStateOf(emptyList()) }
 
-        MainScope().launch {
+        LaunchedEffect(listState) {
             songs = refreshSongs()
             listState.animateScrollToItem(0)
-        }
-
-        LaunchedEffect(listState) {
-            listState.scrollToItem(0)
         }
 
         LazyColumn(

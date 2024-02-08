@@ -59,6 +59,7 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.koin.android)
             implementation(libs.sqldelight.android.driver)
+            implementation(libs.accompanist.permissions)
         }
         jvmMain.dependencies {
             implementation(compose.desktop.common)
@@ -117,7 +118,7 @@ android {
     buildFeatures {
         compose = true
     }
-    composeOptions { // TODO:
+    composeOptions {
         kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
     }
 }

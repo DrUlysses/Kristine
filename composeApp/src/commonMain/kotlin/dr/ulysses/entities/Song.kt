@@ -5,47 +5,54 @@ import kotlinx.serialization.Serializable
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/**
+ * Song entity, used for internal representation of songs.
+ *
+ * @param path URL if remote, path if local
+ * @param title Title of the song
+ * @param album Album of the song
+ * @param artist Artist of the song
+ * @param duration Duration of the song in seconds
+ * @param state State of the song, can be "downloaded"
+ */
 @Serializable
 data class Song(
-    val id: Int? = null,
+    val path: String,
     val title: String,
     val album: String? = null,
     val artist: String,
-    val path: String? = null,
     val duration: Int? = null,
-    val status: String
+    val state: String
 )
 
 class SongRepository : KoinComponent {
     private val sharedDatabase: SharedDatabase by inject()
 
     private fun mapSong(
-        id: Long,
+        path: String,
         title: String,
         album: String?,
         artist: String,
-        path: String?,
         duration: Long?,
-        status: String?,
+        state: String?,
     ): Song = Song(
-        id = id.toInt(),
+        path = path,
         title = title,
         album = album,
         artist = artist,
-        path = path,
         duration = duration?.toInt() ?: 0,
-        status = status ?: ""
+        state = state ?: ""
     )
 
     suspend fun insert(song: Song) = sharedDatabase { appDatabase ->
         appDatabase.songQueries.transactionWithResult {
             appDatabase.songQueries.insert(
+                path = song.path,
                 title = song.title,
                 album = song.album,
                 artist = song.artist,
-                path = song.path,
                 duration = song.duration?.toLong() ?: 0,
-                status = song.status
+                state = song.state,
             )
         }
     }

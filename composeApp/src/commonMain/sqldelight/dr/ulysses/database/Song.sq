@@ -1,15 +1,17 @@
 CREATE TABLE IF NOT EXISTS song(
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    path TEXT PRIMARY KEY NOT NULL,
     title TEXT NOT NULL,
     album TEXT,
     artist TEXT NOT NULL,
-    path TEXT,
     duration INTEGER,
-    status TEXT
+    state TEXT
 );
 
 selectAll:
 SELECT * FROM song;
 
 insert:
-INSERT INTO song(title, album, artist, path, duration, status) VALUES(?, ?, ?, ?, ?, ?);
+INSERT INTO song(title, album, artist, path, duration, state) VALUES(?, ?, ?, ?, ?, ?);
+
+deleteByPath:
+DELETE FROM song WHERE path = ?;
