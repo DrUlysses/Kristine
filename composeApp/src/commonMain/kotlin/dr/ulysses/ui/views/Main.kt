@@ -9,9 +9,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dr.ulysses.ui.components.SongList
 import dr.ulysses.ui.components.TabMenu
+import dr.ulysses.ui.permissions.PermissionsAlert
 
 @Composable
 fun Main() {
+    val permissionsGranted = remember { mutableStateOf(false) }
+    PermissionsAlert()
     Scaffold(
         topBar = {
             TabMenu()
