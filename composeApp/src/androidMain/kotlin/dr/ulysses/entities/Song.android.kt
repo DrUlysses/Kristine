@@ -40,7 +40,7 @@ actual suspend fun refreshSongs(): List<Song> {
     // Show only that are at least 1 minute in duration.
     val selection = "${MediaStore.Audio.Media.DURATION} >= ?"
     val selectionArgs = arrayOf(
-        TimeUnit.MILLISECONDS.convert(1, TimeUnit.MINUTES).toString()
+        TimeUnit.MILLISECONDS.convert(1, TimeUnit.SECONDS).toString()
     )
     val sortOrder = "${MediaStore.Audio.Media._ID} ASC"
 

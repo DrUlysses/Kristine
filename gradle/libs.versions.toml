@@ -1,7 +1,7 @@
 [versions]
 # Main
 kristine = "1.0.3"
-kotlin = "1.9.21"
+kotlin = "1.9.22"
 ktor = "2.3.7"
 koin = "3.5.3"
 agp = "8.2.2"
@@ -41,9 +41,9 @@ androidx-espresso-core = "3.5.1"
 androidx-material = "1.11.0"
 
 # Compose
-compose = "1.6.2"
+compose = "1.6.3"
 compose-compiler = "1.5.6"
-compose-plugin = "1.6.0-alpha01"
+compose-plugin = "1.6.0"
 
 # Logs
 logback = "1.4.14"

@@ -10,13 +10,15 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kristine.composeapp.generated.resources.Res
+import kristine.composeapp.generated.resources.compose_multiplatform
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
 
 @OptIn(ExperimentalResourceApi::class)
 @Composable
 fun SongListEntry(
-    image: String = "compose-multiplatform.xml",
+    image: String = "compose_multiplatform.xml",
     title: String = "Title",
     artist: String = "Unknown Artist",
     onClick: () -> Unit? = {}
@@ -27,7 +29,7 @@ fun SongListEntry(
 //            .clickable(onClick = onClick)
     ) {
         Image(
-            painter = painterResource(image),
+            painter = painterResource(Res.drawable.compose_multiplatform),
             contentDescription = "Art",
             modifier = Modifier
                 .padding(8.dp)

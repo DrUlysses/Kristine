@@ -10,20 +10,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
+import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.refreshSongs
 import dr.ulysses.ui.elements.SongListEntry
 
 @Composable
 fun SongList(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    songs: List<Song>,
+    onSongsChanged: (List<Song>) -> Unit
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         val listState = rememberLazyListState()
-        val viewScope = rememberCoroutineScope()
-        var songs: List<Song> by remember { mutableStateOf(emptyList()) }
 
         LaunchedEffect(listState) {
-            songs = refreshSongs()
+            onSongsChanged(SongRepository().getAll().ifEmpty { refreshSongs() })
             listState.animateScrollToItem(0)
         }
 
@@ -31,13 +32,14 @@ fun SongList(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             state = listState,
             modifier = Modifier.fillMaxSize(),
-        ) {
-            items(songs) { song ->
-                SongListEntry(
-                    title = song.title,
-                    artist = song.artist,
-                )
+            content = {
+                items(items = songs) { song ->
+                    SongListEntry(
+                        title = song.title,
+                        artist = song.artist,
+                    )
+                }
             }
-        }
+        )
     }
 }

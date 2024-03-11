@@ -13,7 +13,7 @@ fun main() {
             developmentMode = true
             connector {
                 host = "0.0.0.0"
-                port = SERVER_PORT
+                port = 8080
             }
             watchPaths = listOf("classes", "resources")
             module(Application::module)
@@ -24,7 +24,7 @@ fun main() {
 fun Application.module() {
     routing {
         get("/") {
-            call.respondText("Ktor: ${Greeting().greet()}")
+            call.respondText("Ktor:")
         }
     }
 }

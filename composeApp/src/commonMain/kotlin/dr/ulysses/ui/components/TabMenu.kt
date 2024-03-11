@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun TabMenu(
-    tabs: List<Pair<String, Boolean>> = listOf("Tab 1" to false, "Tab 2" to true, "Tab 3" to false),
+    tabs: List<Pair<String, Boolean>> = listOf("Artists" to false, "Songs" to true, "Albums" to false),
 ) {
     TabRow(
         containerColor = Color.Transparent,
