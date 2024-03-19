@@ -7,10 +7,10 @@ data class Progress(
     val time: Duration
 )
 
-class Player {
+object Player {
     private val position = 0
-    private val currentTrackNum = 0
-    var currentChosenArtist: String? = null
+    private var currentTrackNum = 0
+    var currentSong: Song? = null
     private val currentTrackSequence: LinkedHashMap<Int, Song>? = null
 
     //    private val preferences: SharedPreferences? = null
@@ -21,8 +21,13 @@ class Player {
     fun play() {
         val song = currentTrackSequence?.get(currentTrackNum)
         if (song != null) {
+            currentSong = song
             playSong(song)
         }
+    }
+
+    fun playing(): Boolean {
+        return isPlaying()
     }
 
     fun pause() {
@@ -35,6 +40,7 @@ class Player {
 
     fun stop() {
         stopCurrentSong()
+        currentSong = null
     }
 
     fun seekTo(position: Int) {
@@ -43,15 +49,21 @@ class Player {
 
     fun next() {
         if (currentTrackNum < currentTrackSequence!!.size - 1) {
-            currentTrackNum + 1
-            playSong(currentTrackSequence[currentTrackNum]!!)
+            currentTrackSequence[currentTrackNum]?.let {
+                currentSong = it
+                currentTrackNum += 1
+                playSong(it)
+            }
         }
     }
 
     fun previous() {
         if (currentTrackNum > 0) {
             currentTrackNum - 1
-            playSong(currentTrackSequence?.get(currentTrackNum)!!)
+            currentTrackSequence?.get(currentTrackNum)?.let {
+                currentSong = it
+                playSong(it)
+            }
         }
     }
 }
@@ -59,6 +71,8 @@ class Player {
 expect fun playSong(song: Song)
 
 expect fun pauseCurrentSong()
+
+expect fun isPlaying(): Boolean
 
 expect fun resumeCurrentSong()
 

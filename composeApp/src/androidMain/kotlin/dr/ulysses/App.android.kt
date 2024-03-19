@@ -40,9 +40,3 @@ internal actual fun openUrl(url: String?) {
     }
     AndroidApp().startActivity(intent)
 }
-
-@Preview
-@Composable
-fun AppAndroidPreview() {
-    App()
-}

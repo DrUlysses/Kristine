@@ -41,13 +41,24 @@ fun Main() {
                 HorizontalPager(
                     modifier = Modifier.fillMaxSize(),
                     state = pagerState,
-                ) {
-                    SongList(
-                        songs = songs,
-                        onSongsChanged = { songs = it }
-                    )
-                }
+//                    beyondBoundsPageCount = 2,
+                    pageContent = { page ->
+                        when (page) {
+                            0 -> {
+                                SongList(
+                                    songs = songs,
+                                    onSongsChanged = { songs = it }
+                                )
+                            }
+
+                            else -> listOf<Song>()
+                        }
+                    }
+                )
             }
+        },
+        bottomBar = {
+            Player()
         }
     )
 }

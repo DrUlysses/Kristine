@@ -14,3 +14,7 @@ actual fun stopCurrentSong() {
 
 actual fun seekTo(position: Int) {
 }
+
+actual fun isPlaying(): Boolean {
+    TODO("Not yet implemented")
+}
