@@ -1,6 +1,7 @@
 package dr.ulysses.ui.elements
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,12 +22,12 @@ fun SongListEntry(
     image: String = "compose_multiplatform.xml",
     title: String = "Title",
     artist: String = "Unknown Artist",
-    onClick: () -> Unit? = {}
+    onClick: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-//            .clickable(onClick = onClick)
+            .clickable(onClick = onClick)
     ) {
         Image(
             painter = painterResource(Res.drawable.compose_multiplatform),

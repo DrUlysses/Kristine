@@ -18,6 +18,11 @@ object Player {
 //    private val currentContext: Context? = null
     private val isRemotePlaying = false
 
+    fun setAndPlay(song: Song) {
+        currentSong = song
+        playSong(song)
+    }
+
     fun play() {
         val song = currentTrackSequence?.get(currentTrackNum)
         if (song != null) {

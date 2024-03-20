@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dr.ulysses.entities.Player
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.refreshSongs
@@ -37,6 +39,7 @@ fun SongList(
                     SongListEntry(
                         title = song.title,
                         artist = song.artist,
+                        onClick = { Player.setAndPlay(song) }
                     )
                 }
             }

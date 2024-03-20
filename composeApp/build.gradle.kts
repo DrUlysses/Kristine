@@ -1,4 +1,3 @@
-import org.jetbrains.compose.ExperimentalComposeLibrary
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
@@ -13,14 +12,16 @@ kotlin {
     androidTarget {
         compilations.all {
             kotlinOptions {
-                jvmTarget = libs.versions.jvmTarget.get()
+                jvmTarget = "1.8"
             }
         }
     }
 
     jvm()
 
-    jvmToolchain(libs.versions.jvmTarget.get().toInt())
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of("8"))
+    }
 
     js {
         browser()
@@ -59,6 +60,9 @@ kotlin {
             implementation(libs.koin.android)
             implementation(libs.sqldelight.android.driver)
             implementation(libs.accompanist.permissions)
+            implementation(libs.androidx.media3.exoplayer)
+            implementation(libs.androidx.media3.exoplayer.dash)
+            implementation(libs.androidx.media3.ui)
         }
         jvmMain.dependencies {
             implementation(compose.desktop.common)
@@ -108,8 +112,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
     dependencies {
         debugImplementation(libs.compose.ui.tooling)
