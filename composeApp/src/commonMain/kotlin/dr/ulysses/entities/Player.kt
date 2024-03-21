@@ -1,21 +1,10 @@
 package dr.ulysses.entities
 
-import kotlin.time.Duration
-
-data class Progress(
-    val fraction: Float,
-    val time: Duration
-)
-
 object Player {
     private val position = 0
     private var currentTrackNum = 0
     var currentSong: Song? = null
     private val currentTrackSequence: LinkedHashMap<Int, Song>? = null
-
-    //    private val preferences: SharedPreferences? = null
-//    private val preferencesEditor: SharedPreferences.Editor? = null
-//    private val currentContext: Context? = null
     private val isRemotePlaying = false
 
     fun setAndPlay(song: Song) {
@@ -31,16 +20,16 @@ object Player {
         }
     }
 
-    fun playing(): Boolean {
-        return isPlaying()
-    }
-
     fun pause() {
         pauseCurrentSong()
     }
 
     fun resume() {
         resumeCurrentSong()
+    }
+
+    fun pauseOrResume() {
+        if (isPlaying()) pause() else resume()
     }
 
     fun stop() {

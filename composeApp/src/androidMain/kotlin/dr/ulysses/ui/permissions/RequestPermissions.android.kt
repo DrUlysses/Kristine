@@ -2,22 +2,19 @@ package dr.ulysses.ui.permissions
 
 import android.Manifest
 import android.os.Build
-import androidx.annotation.RequiresApi
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 
-@OptIn(ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 actual fun PermissionsAlert(
     permissionsGranted: Boolean,
@@ -32,13 +29,18 @@ actual fun PermissionsAlert(
         else
             listOf(
                 Manifest.permission.READ_EXTERNAL_STORAGE,
-            )
+            ),
+        onPermissionsResult = { permissions ->
+            onPermissionsChange(permissions.values.all { it })
+        }
     )
 
     onPermissionsChange(permissionsState.allPermissionsGranted)
 
     if (!permissionsGranted) {
-        Column {
+        AlertDialog(
+            onDismissRequest = { },
+        ) {
             val allPermissionsRevoked =
                 permissionsState.permissions.size ==
                         permissionsState.revokedPermissions.size
