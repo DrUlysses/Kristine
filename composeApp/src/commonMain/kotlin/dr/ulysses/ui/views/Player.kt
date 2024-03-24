@@ -4,19 +4,29 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import dr.ulysses.entities.Song
 import dr.ulysses.ui.components.PlayerButtons
-import dr.ulysses.entities.Player as PlayerEntity
 
 @Composable
-fun Player() {
+fun Player(
+    currentSong: Song?,
+    isPlaying: Boolean,
+    onPreviousCommand: () -> Unit,
+    onNextCommand: () -> Unit,
+    onPlayOrPauseCommand: () -> Unit
+) {
     BottomAppBar {
         Row {
             // TODO: Icon and song info
-            val song = remember { mutableStateOf(PlayerEntity.currentSong?.title ?: "No song") }
-            Text(song.value)
-            PlayerButtons()
+            Text(
+                currentSong?.title ?: "No song selected"
+            )
+            PlayerButtons(
+                isPlaying = isPlaying,
+                onPlayOrPauseCommand = onPlayOrPauseCommand,
+                onPreviousCommand = onPreviousCommand,
+                onNextCommand = onNextCommand
+            )
         }
     }
 }

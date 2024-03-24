@@ -4,7 +4,7 @@ import android.Manifest
 import android.os.Build
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
@@ -38,7 +38,7 @@ actual fun PermissionsAlert(
     onPermissionsChange(permissionsState.allPermissionsGranted)
 
     if (!permissionsGranted) {
-        AlertDialog(
+        BasicAlertDialog(
             onDismissRequest = { },
         ) {
             val allPermissionsRevoked =

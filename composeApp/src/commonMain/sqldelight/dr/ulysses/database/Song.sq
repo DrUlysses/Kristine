@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS song(
 selectAll:
 SELECT * FROM song;
 
+selectAllArtists:
+SELECT DISTINCT artist FROM song;
+
 insert:
 INSERT INTO song(title, album, artist, path, duration, state) VALUES(?, ?, ?, ?, ?, ?);
 

@@ -32,7 +32,7 @@ actual suspend fun refreshSongs(): List<Song> {
         // Artist data
         ARTIST,
         ALBUM_ARTIST,
-        AUTHOR,
+//        AUTHOR,
         COMPOSER,
         ALBUM,
     )
@@ -53,7 +53,7 @@ actual suspend fun refreshSongs(): List<Song> {
         val colDuration = cursor.getColumnIndexOrThrow(DURATION)
         val colArtist = cursor.getColumnIndexOrThrow(ARTIST)
         val colAlbumArtist = cursor.getColumnIndexOrThrow(ALBUM_ARTIST)
-        val colAuthor = cursor.getColumnIndexOrThrow(AUTHOR)
+//        val colAuthor = cursor.getColumnIndexOrThrow(AUTHOR)
         val colComposer = cursor.getColumnIndexOrThrow(COMPOSER)
         while (cursor.moveToNext()) {
             try {
@@ -69,7 +69,7 @@ actual suspend fun refreshSongs(): List<Song> {
                         artist = with(cursor) {
                             getStringOrNull(colArtist) ?: //
                             getStringOrNull(colAlbumArtist) ?: //
-                            getStringOrNull(colAuthor) ?: //
+//                            getStringOrNull(colAuthor) ?: //
                             getStringOrNull(colComposer) ?: //
                             ""
                         },

@@ -60,6 +60,10 @@ class SongRepository : KoinComponent {
     suspend fun getAll(): List<Song> = sharedDatabase { appDatabase ->
         appDatabase.songQueries.selectAll(::mapSong).executeAsList()
     }
+
+    suspend fun getAllArtists(): List<String> = sharedDatabase { appDatabase ->
+        appDatabase.songQueries.selectAllArtists().executeAsList()
+    }
 }
 
 expect suspend fun refreshSongs(): List<Song>

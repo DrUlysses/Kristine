@@ -9,15 +9,17 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import dr.ulysses.entities.Player
 
 @Composable
-fun PlayerButtons() {
+fun PlayerButtons(
+    isPlaying: Boolean,
+    onPlayOrPauseCommand: () -> Unit,
+    onPreviousCommand: () -> Unit,
+    onNextCommand: () -> Unit,
+) {
     Row {
         IconButton(
-            onClick = { Player.previous() },
+            onClick = onPreviousCommand,
             content = {
                 Icon(
                     Icons.AutoMirrored.Outlined.ArrowBack,
@@ -25,18 +27,17 @@ fun PlayerButtons() {
                 )
             }
         )
-        val isPlaying = remember { mutableStateOf(Player.currentSong != null) }
         IconButton(
-            onClick = { Player.pauseOrResume() },
+            onClick = onPlayOrPauseCommand,
             content = {
                 Icon(
-                    imageVector = if (isPlaying.value) Icons.Outlined.Info else Icons.Outlined.PlayArrow,
+                    imageVector = if (isPlaying) Icons.Outlined.Info else Icons.Outlined.PlayArrow,
                     contentDescription = "Play/Pause"
                 )
             }
         )
         IconButton(
-            onClick = { Player.next() },
+            onClick = onNextCommand,
             content = {
                 Icon(
                     Icons.AutoMirrored.Outlined.ArrowForward,
