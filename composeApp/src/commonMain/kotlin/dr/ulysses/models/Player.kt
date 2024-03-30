@@ -29,7 +29,7 @@ internal object PlayerService {
             }
             setPlayListOnDevice(state.currentTrackSequence.values.map { it.path })
         }
-        onPlayCommand()
+        onResumeCommand()
     }
 
     fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -71,9 +71,9 @@ internal object PlayerService {
 
     fun onNextCommand() {
         if (state.currentTrackNum < state.currentTrackSequence.size - 1) {
-            state.currentTrackSequence[state.currentTrackNum]?.let {
+            state.currentTrackSequence[state.currentTrackNum + 1]?.let {
                 setState { copy(currentSong = it, currentTrackNum = state.currentTrackNum + 1) }
-                setPlayListOnDevice(listOf(it.path))
+                playNextOnDevice()
             }
         }
     }
@@ -82,7 +82,7 @@ internal object PlayerService {
         if (state.currentTrackNum > 0) {
             state.currentTrackSequence[state.currentTrackNum - 1]?.let {
                 setState { copy(currentSong = it, currentTrackNum = state.currentTrackNum - 1) }
-                setPlayListOnDevice(listOf(it.path))
+                playPreviousOnDevice()
             }
         }
     }
@@ -133,6 +133,10 @@ expect fun setPlayListOnDevice(paths: List<String>)
 expect fun setCurrentTrackNumOnDevice(trackNum: Int)
 
 expect fun pauseCurrentSongOnDevice()
+
+expect fun playNextOnDevice()
+
+expect fun playPreviousOnDevice()
 
 expect fun isPlayingOnDevice(): Boolean
 

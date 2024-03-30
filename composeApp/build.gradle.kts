@@ -51,7 +51,6 @@ kotlin {
             implementation(libs.sqldelight.coroutines.extension)
         }
         androidMain.dependencies {
-            implementation(libs.compose.ui.tooling.preview)
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.okhttp)
@@ -114,9 +113,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
-    }
-    dependencies {
-        debugImplementation(libs.compose.ui.tooling)
     }
     buildFeatures {
         compose = true

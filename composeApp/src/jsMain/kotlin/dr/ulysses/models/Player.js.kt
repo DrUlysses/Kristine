@@ -27,3 +27,9 @@ actual fun currentPlayingChangedOnDevice(onChange: (String?) -> Unit) {
 
 actual fun setCurrentTrackNumOnDevice(trackNum: Int) {
 }
+
+actual fun playNextOnDevice() {
+}
+
+actual fun playPreviousOnDevice() {
+}

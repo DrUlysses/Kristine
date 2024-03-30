@@ -40,7 +40,6 @@ actual fun currentPlayingChangedOnDevice(onChange: (String?) -> Unit) {
 actual fun setPlayListOnDevice(paths: List<String>) {
     val mediaItems = paths.map { MediaItem.fromUri(Uri.parse(it)) }
     PlayerObject.exo.setMediaItems(mediaItems)
-    PlayerObject.exo.prepare()
 }
 
 @UnstableApi
@@ -50,6 +49,7 @@ actual fun pauseCurrentSongOnDevice() {
 
 @UnstableApi
 actual fun resumeCurrentSongOnDevice() {
+    PlayerObject.exo.prepare()
     PlayerObject.exo.play()
 }
 
@@ -71,4 +71,14 @@ actual fun isPlayingOnDevice(): Boolean {
 @UnstableApi
 actual fun setCurrentTrackNumOnDevice(trackNum: Int) {
     PlayerObject.exo.seekTo(trackNum, 0)
+}
+
+@UnstableApi
+actual fun playNextOnDevice() {
+    PlayerObject.exo.seekToNextMediaItem()
+}
+
+@UnstableApi
+actual fun playPreviousOnDevice() {
+    PlayerObject.exo.seekToPreviousMediaItem()
 }

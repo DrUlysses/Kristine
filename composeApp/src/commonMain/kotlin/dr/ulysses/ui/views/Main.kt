@@ -9,14 +9,11 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
-import dr.ulysses.entities.SongRepository
-import dr.ulysses.entities.refreshSongs
 import dr.ulysses.models.PlayerService
 import dr.ulysses.ui.components.ArtistsList
 import dr.ulysses.ui.components.SongList
@@ -52,7 +49,6 @@ fun Main() {
                 HorizontalPager(
                     modifier = Modifier.fillMaxSize(),
                     state = pagerState,
-//                    beyondBoundsPageCount = 2,
                     pageContent = { page ->
                         when (page) {
                             0 -> {
