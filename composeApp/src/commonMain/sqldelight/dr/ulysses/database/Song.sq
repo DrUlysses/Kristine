@@ -16,5 +16,8 @@ SELECT DISTINCT artist FROM song;
 insert:
 INSERT INTO song(title, album, artist, path, duration, state) VALUES(?, ?, ?, ?, ?, ?);
 
+update:
+UPDATE song SET title = ?, album = ?, artist = ?, duration = ?, state = ? WHERE path = ?;
+
 deleteByPath:
 DELETE FROM song WHERE path = ?;

@@ -30,7 +30,7 @@ fun SongList(
         val listState = rememberLazyListState()
 
         LaunchedEffect(listState) {
-            onSongsChanged(SongRepository().getAll().ifEmpty { refreshSongs() })
+            onSongsChanged(SongRepository.getAll().ifEmpty { refreshSongs() })
             listState.animateScrollToItem(0)
         }
 

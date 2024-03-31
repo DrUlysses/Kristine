@@ -57,7 +57,7 @@ actual suspend fun refreshSongs(): List<Song> {
         val colComposer = cursor.getColumnIndexOrThrow(COMPOSER)
         while (cursor.moveToNext()) {
             try {
-                SongRepository().insert(
+                SongRepository.upsert(
                     Song(
                         title = cursor.getStringOrNull(colTitle) ?: "Unknown",
                         path = cursor.getStringOrNull(colLocation).also {
@@ -84,5 +84,5 @@ actual suspend fun refreshSongs(): List<Song> {
         cursor.close()
     }
 
-    return SongRepository().getAll()
+    return SongRepository.getAll()
 }

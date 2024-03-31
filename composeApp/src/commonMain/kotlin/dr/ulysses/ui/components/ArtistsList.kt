@@ -25,8 +25,8 @@ fun ArtistsList(
 
         LaunchedEffect(listState) {
             onArtistsChanged(
-                SongRepository().getAllArtists().ifEmpty {
-                    refreshSongs().run { SongRepository().getAllArtists() }
+                SongRepository.getAllArtists().ifEmpty {
+                    refreshSongs().run { SongRepository.getAllArtists() }
                 }
             )
             listState.animateScrollToItem(0)

@@ -25,7 +25,7 @@ data class Song(
     val state: String
 )
 
-class SongRepository : KoinComponent {
+object SongRepository : KoinComponent {
     private val sharedDatabase: SharedDatabase by inject()
 
     private fun mapSong(
@@ -44,16 +44,27 @@ class SongRepository : KoinComponent {
         state = state ?: ""
     )
 
-    suspend fun insert(song: Song) = sharedDatabase { appDatabase ->
+    suspend fun upsert(song: Song) = sharedDatabase { appDatabase ->
         appDatabase.songQueries.transactionWithResult {
-            appDatabase.songQueries.insert(
-                path = song.path,
-                title = song.title,
-                album = song.album,
-                artist = song.artist,
-                duration = song.duration?.toLong() ?: 0,
-                state = song.state,
-            )
+            try {
+                appDatabase.songQueries.insert(
+                    path = song.path,
+                    title = song.title,
+                    album = song.album,
+                    artist = song.artist,
+                    duration = song.duration?.toLong() ?: 0,
+                    state = song.state,
+                )
+            } catch (e: Exception) {
+                appDatabase.songQueries.update(
+                    path = song.path,
+                    title = song.title,
+                    album = song.album,
+                    artist = song.artist,
+                    duration = song.duration?.toLong() ?: 0,
+                    state = song.state,
+                )
+            }
         }
     }
 

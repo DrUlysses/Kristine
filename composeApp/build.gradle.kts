@@ -70,6 +70,7 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.sqldelight.driver)
             implementation(libs.appdirs)
+            implementation(libs.caprica.vlcj)
         }
         jsMain.dependencies {
             implementation(compose.html.core)
@@ -128,7 +129,7 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Exe, TargetFormat.Deb)
-            packageName = "dr.ulysses.desktopApp"
+            packageName = "Kristine"
             packageVersion = libs.versions.kristine.get()
         }
     }

@@ -3,6 +3,7 @@ package dr.ulysses.models
 import android.content.Context
 import android.net.Uri
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -13,6 +14,13 @@ object PlayerObject {
     private val context: Context by KoinJavaComponent.inject(Context::class.java)
     val exo = ExoPlayer.Builder(context).build().apply {
         skipSilenceEnabled = true
+        addListener(object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                super.onPlayerError(error)
+                if (error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED)
+                    playNextOnDevice()
+            }
+        })
     }
 }
 
@@ -76,9 +84,11 @@ actual fun setCurrentTrackNumOnDevice(trackNum: Int) {
 @UnstableApi
 actual fun playNextOnDevice() {
     PlayerObject.exo.seekToNextMediaItem()
+    resumeCurrentSongOnDevice()
 }
 
 @UnstableApi
 actual fun playPreviousOnDevice() {
     PlayerObject.exo.seekToPreviousMediaItem()
+    resumeCurrentSongOnDevice()
 }
