@@ -1,7 +1,9 @@
 package dr.ulysses.models
 
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
-import uk.co.caprica.vlcj.media.*
+import uk.co.caprica.vlcj.media.Media
+import uk.co.caprica.vlcj.media.MediaEventAdapter
+import uk.co.caprica.vlcj.media.Meta
 import uk.co.caprica.vlcj.player.base.State
 import uk.co.caprica.vlcj.player.component.AudioListPlayerComponent
 import uk.co.caprica.vlcj.player.list.ListApi
@@ -12,11 +14,25 @@ object PlayerObject {
     val playerList: ListApi
     val player: MediaPlayerApi
 
+    lateinit var onMediaStateChanged: (Boolean) -> Unit
+    lateinit var onMediaChanged: (String?) -> Unit
+
     init {
         NativeDiscovery().discover()
         playerComponent = AudioListPlayerComponent()
         playerList = playerComponent.mediaListPlayer().list()
         player = playerComponent.mediaListPlayer().mediaPlayer()
+    }
+
+    val stateListener = object : MediaEventAdapter() {
+        override fun mediaStateChanged(media: Media?, newState: State?) {
+            onMediaStateChanged(newState == State.PLAYING)
+            onMediaChanged(media?.info()?.mrl())
+        }
+
+        override fun mediaMetaChanged(media: Media, metaType: Meta) {
+            onMediaChanged(media.info()?.mrl())
+        }
     }
 }
 
@@ -48,35 +64,11 @@ actual fun isPlayingOnDevice(): Boolean {
 }
 
 actual fun isPlayingChangedOnDevice(onChange: (Boolean) -> Unit) {
-    PlayerObject.player.mediaPlayer()?.events()?.addMediaEventListener(object : MediaEventListener {
-        override fun mediaMetaChanged(media: Media?, metaType: Meta?) {}
-        override fun mediaSubItemAdded(media: Media?, newChild: MediaRef?) {}
-        override fun mediaDurationChanged(media: Media?, newDuration: Long) {}
-        override fun mediaParsedChanged(media: Media?, newStatus: MediaParsedStatus?) {}
-        override fun mediaFreed(media: Media?, mediaFreed: MediaRef?) {}
-        override fun mediaSubItemTreeAdded(media: Media?, item: MediaRef?) {}
-        override fun mediaThumbnailGenerated(media: Media?, picture: Picture?) {}
-
-        override fun mediaStateChanged(media: Media?, newState: State?) {
-            onChange(newState == State.PLAYING)
-        }
-    })
+    PlayerObject.onMediaStateChanged = onChange
 }
 
 actual fun currentPlayingChangedOnDevice(onChange: (String?) -> Unit) {
-    PlayerObject.player.mediaPlayer()?.events()?.addMediaEventListener(object : MediaEventListener {
-        override fun mediaMetaChanged(media: Media?, metaType: Meta?) {}
-        override fun mediaSubItemAdded(media: Media?, newChild: MediaRef?) {}
-        override fun mediaDurationChanged(media: Media?, newDuration: Long) {}
-        override fun mediaParsedChanged(media: Media?, newStatus: MediaParsedStatus?) {}
-        override fun mediaFreed(media: Media?, mediaFreed: MediaRef?) {}
-        override fun mediaSubItemTreeAdded(media: Media?, item: MediaRef?) {}
-        override fun mediaThumbnailGenerated(media: Media?, picture: Picture?) {}
-
-        override fun mediaStateChanged(media: Media?, newState: State?) {
-            onChange(media?.info()?.mrl())
-        }
-    })
+    PlayerObject.onMediaChanged = onChange
 }
 
 actual fun setCurrentTrackNumOnDevice(trackNum: Int) {
