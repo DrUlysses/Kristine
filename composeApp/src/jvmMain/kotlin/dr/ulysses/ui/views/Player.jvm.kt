@@ -38,7 +38,9 @@ actual fun VideoPlayer(
 private fun initializeMediaPlayerComponent(): EmbeddedMediaPlayerComponent {
     NativeDiscovery().discover()
     val component = EmbeddedMediaPlayerComponent()
-    PlayerObject.player.setMediaPlayer(component.mediaPlayer()
-        .apply { events().addMediaEventListener(PlayerObject.stateListener) })
+    PlayerObject.player.mediaPlayer().setMediaPlayer(component.mediaPlayer()
+        .apply { events().addMediaEventListener(PlayerObject.stateListener) }
+        .apply { events().addMediaPlayerEventListener(PlayerObject.stateListener) })
+    PlayerObject.player.events().addMediaListPlayerEventListener(PlayerObject.listListener)
     return component
 }
