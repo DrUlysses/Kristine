@@ -18,18 +18,26 @@ internal object PlayerService {
         }
         // If the song is not in the current track sequence, set it as the first track
         else {
+            state.currentTrackSequence[0] = song
             setState {
                 copy(
-                    currentTrackSequence = linkedMapOf<Int, Song>().apply {
-                        put(0, song)
-                        putAll(state.currentTrackSequence)
-                    },
+                    currentTrackSequence = state.currentTrackSequence,
                     currentTrackNum = 0
                 )
             }
             setPlayListOnDevice(state.currentTrackSequence.values.map { it.path })
         }
         onResumeCommand()
+    }
+
+    fun onFindSongCommand(query: String): List<Song> {
+        return state.currentTrackSequence.values.filter {
+            it.title.contains(
+                query, ignoreCase = true
+            ) || it.artist.contains(query, ignoreCase = true) || it.album?.contains(
+                query, ignoreCase = true
+            ) == true || it.path.contains(query, ignoreCase = true)
+        }
     }
 
     fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -125,6 +133,7 @@ internal object PlayerService {
         val currentTrackSequence: LinkedHashMap<Int, Song> = linkedMapOf(),
         val currentTrackNum: Int = 0,
         val isRemotePlaying: Boolean = false,
+        val onPlayingChangedOnDevice: (Boolean) -> Unit = {},
     )
 }
 
