@@ -1,9 +1,9 @@
 [versions]
 # Main
 kristine = "1.0.3"
-kotlin = "1.9.23"
+kotlin = "2.0.0"
 ktor = "2.3.7"
-koin = "3.5.3"
+koin = "3.6.0-wasm-alpha2"
 agp = "8.2.2"
 
 # Platform
@@ -13,7 +13,7 @@ android-targetSdk = "31"
 jvmTarget = "1.8"
 
 # Database
-sqlDelight = "2.0.1"
+sqlDelight = "2.0.2"
 sqlJs = "1.10.2"
 webPackPlugin = "9.1.0"
 multiplatformSettings = "1.1.1"
@@ -31,8 +31,8 @@ appdirs = "1.2.2"
 napier = "2.7.0"
 
 # AndroidX
-androidx-activityCompose = "1.8.2"
-androidx-appcompat = "1.6.1"
+androidx-activityCompose = "1.9.0"
+androidx-appcompat = "1.7.0"
 androidx-constraintlayout = "2.1.4"
 androidx-core-ktx = "1.12.0"
 androidx-espresso-core = "3.5.1"
@@ -46,7 +46,7 @@ androidx-material = "1.11.0"
 
 # Compose
 compose-compiler = "1.5.6"
-compose-plugin = "1.6.1"
+compose-plugin = "1.6.11"
 
 # Logs
 logback = "1.4.14"
@@ -109,11 +109,14 @@ androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "andro
 
 [plugins]
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+
 compose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
-sqlDelight = { id = "app.cash.sqldelight", version.ref = "sqlDelight" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+sqlDelight = { id = "app.cash.sqldelight", version.ref = "sqlDelight" }
 
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }

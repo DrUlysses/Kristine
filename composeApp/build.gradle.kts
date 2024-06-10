@@ -1,18 +1,23 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.multiplatform)
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.compose)
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinx.serialization)
-    alias(libs.plugins.compose)
     alias(libs.plugins.sqlDelight)
 }
 
 kotlin {
     androidTarget {
         compilations.all {
-            kotlinOptions {
-                jvmTarget = "1.8"
+            compileTaskProvider {
+                compilerOptions {
+                    jvmTarget.set(JvmTarget.JVM_1_8)
+//                    freeCompilerArgs.add("-Xjdk-release=${JavaVersion.VERSION_1_8}")
+                }
             }
         }
     }
@@ -86,8 +91,11 @@ kotlin {
 }
 
 android {
+    val projMinSdk = libs.versions.android.minSdk.get().toInt()
+    val projCompileSdk = libs.versions.android.compileSdk.get().toInt()
+    val projTargetSdk = libs.versions.android.targetSdk.get().toInt()
     namespace = "dr.ulysses"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    compileSdk = projCompileSdk
 
     sourceSets["main"].apply {
         manifest.srcFile("src/androidMain/AndroidManifest.xml")
@@ -97,8 +105,8 @@ android {
 
     defaultConfig {
         applicationId = "dr.ulysses.androidApp"
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
+        minSdk = projMinSdk
+        targetSdk = projTargetSdk
         versionCode = 1
         versionName = libs.versions.kristine.get()
     }
@@ -136,8 +144,7 @@ compose.desktop {
     }
 }
 
-compose.experimental {
-    web.application {}
+compose.web {
 }
 
 sqldelight {
