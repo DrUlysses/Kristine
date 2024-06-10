@@ -32,20 +32,18 @@ actual suspend fun refreshSongs(): List<Song> {
         // Artist data
         ARTIST,
         ALBUM_ARTIST,
-//        AUTHOR,
         COMPOSER,
         ALBUM,
     )
 
-    // Show only that are at least 1 minute in duration.
-    val selection = "${MediaStore.Audio.Media.DURATION} >= ?"
-    val selectionArgs = arrayOf(
-        TimeUnit.MILLISECONDS.convert(1, TimeUnit.SECONDS).toString()
-    )
-    val sortOrder = "${MediaStore.Audio.Media._ID} ASC"
-
     contentResolver.query(
-        collection, projection, selection, selectionArgs, sortOrder
+        /* uri = */collection,
+        /* projection = */projection,
+        /* selection = */"${MediaStore.Audio.Media.DURATION} >= ?",
+        /* selectionArgs = */arrayOf(
+            TimeUnit.MILLISECONDS.convert(10, TimeUnit.SECONDS).toString()
+        ),
+        /* sortOrder = */"${MediaStore.Audio.Media._ID} ASC"
     )?.use { cursor ->
         val colTitle = cursor.getColumnIndexOrThrow(TITLE)
         val colLocation = cursor.getColumnIndexOrThrow(DATA)
@@ -53,7 +51,6 @@ actual suspend fun refreshSongs(): List<Song> {
         val colDuration = cursor.getColumnIndexOrThrow(DURATION)
         val colArtist = cursor.getColumnIndexOrThrow(ARTIST)
         val colAlbumArtist = cursor.getColumnIndexOrThrow(ALBUM_ARTIST)
-//        val colAuthor = cursor.getColumnIndexOrThrow(AUTHOR)
         val colComposer = cursor.getColumnIndexOrThrow(COMPOSER)
         while (cursor.moveToNext()) {
             try {
@@ -69,7 +66,6 @@ actual suspend fun refreshSongs(): List<Song> {
                         artist = with(cursor) {
                             getStringOrNull(colArtist) ?: //
                             getStringOrNull(colAlbumArtist) ?: //
-//                            getStringOrNull(colAuthor) ?: //
                             getStringOrNull(colComposer) ?: //
                             ""
                         },
@@ -84,5 +80,5 @@ actual suspend fun refreshSongs(): List<Song> {
         cursor.close()
     }
 
-    return SongRepository.getAll()
+    return SongRepository.getAll().sortedBy { it.title }
 }

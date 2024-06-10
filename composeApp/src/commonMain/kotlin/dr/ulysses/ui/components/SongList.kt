@@ -47,7 +47,7 @@ fun SongList(
                 .fillMaxSize()
                 .overscroll(overscrollEffect),
             content = {
-                items(items = songs.sortedBy { it.title }) { song ->
+                items(items = songs) { song ->
                     SongListEntry(
                         title = song.title,
                         artist = song.artist,

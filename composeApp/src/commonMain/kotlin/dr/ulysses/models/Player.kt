@@ -12,13 +12,14 @@ internal object PlayerService {
     fun onPlaySongCommand(song: Song) {
         val currentTrackNum = state.currentTrackSequence.entries.find { it.value == song }?.key
         // If the song is already in the current track sequence, set it as the current track
-        if (currentTrackNum != null && state.currentSong != null) {
+        if (currentTrackNum != null) {
             setState { copy(currentTrackNum = currentTrackNum) }
+            if (state.currentSong == null)
+                setPlayListOnDevice(state.currentTrackSequence.values.map { it.path })
             setCurrentTrackNumOnDevice(currentTrackNum)
         }
         // If the song is not in the current track sequence, set it as the first track
         else {
-            state.currentTrackSequence[0] = song
             setState {
                 copy(
                     currentTrackSequence = state.currentTrackSequence,

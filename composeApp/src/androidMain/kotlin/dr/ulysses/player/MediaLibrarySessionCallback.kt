@@ -1,7 +1,6 @@
 package dr.ulysses.player
 
 import android.content.Context
-import android.content.Intent
 import android.os.Bundle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
@@ -182,15 +181,6 @@ open class MediaLibrarySessionCallback(context: Context) :
                 PlayerService.onFindSongCommand(query).map { MediaItem.fromUri(it.path) }, params
             )
         )
-    }
-
-    @UnstableApi
-    override fun onMediaButtonEvent(
-        session: MediaSession,
-        controllerInfo: MediaSession.ControllerInfo,
-        intent: Intent
-    ): Boolean {
-        return super.onMediaButtonEvent(session, controllerInfo, intent)
     }
 
     companion object {
