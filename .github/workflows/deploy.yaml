@@ -26,19 +26,19 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Retrieve the secret and decode it to a file
-        env:
-          SECRETS_BASE64: ${{ secrets.SECRETS_BASE64 }}
+      - name: Enable KVM group perms
         run: |
-          echo $SECRETS_BASE64 | base64 --decode > secrets.properties
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
       - name: Build
         run: |
           chmod +x gradlew
-          ./gradlew jsBrowserProductionWebpack --no-configuration-cache
+          ./gradlew jsBrowserDistribution --no-configuration-cache
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@4.1.5
         with:
           branch: gh-pages
-          folder: composeApp/build/dist/wasmJs/productionExecutable
+          folder: composeApp/build/dist/js/productionExecutable
