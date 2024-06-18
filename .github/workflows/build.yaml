@@ -29,9 +29,9 @@ jobs:
           cache: 'gradle'
 
       - name: Run gradle assemble task
-        uses: gradle/gradle-build-action@v2.4.2
-        with:
-          arguments: assemble --no-daemon
+        run: |
+          chmod +x gradlew 
+          ./gradlew assemble --stacktrace
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
@@ -39,6 +39,7 @@ jobs:
           name: APK distribution
           path: ./androidApp/build/outputs/apk/debug/composeApp-debug.apk
   build-linux-app:
+    name: Build Linux app
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -52,9 +53,9 @@ jobs:
           cache: 'gradle'
 
       - name: Run gradle package task
-        uses: gradle/gradle-build-action@v2.4.2
-        with:
-          arguments: packageDistributionForCurrentOS --no-daemon
+        run: |
+          chmod +x gradlew 
+          ./gradlew packageDistributionForCurrentOS --no-daemon
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
@@ -62,6 +63,7 @@ jobs:
           name: Deb distribution
           path: ./desktop/build/compose/binaries/main/deb/*
   build-windows-app:
+    name: Build Windows app
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
