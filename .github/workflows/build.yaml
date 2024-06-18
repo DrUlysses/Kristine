@@ -29,7 +29,9 @@ jobs:
 
       - name: Build apk
         working-directory: ./Kristine
-        run: ./gradlew assemble --stacktrace
+        run: |
+          chmod +x gradlew 
+          ./gradlew assemble --stacktrace
         uses: actions/upload-artifact@v2.2.4
         with:
           name: APK distribution
