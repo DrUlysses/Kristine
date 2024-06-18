@@ -36,7 +36,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
         with:
-          name: APK distribution
+          name: Apk distribution
           path: ./composeApp/build/outputs/apk/debug/*
   build-linux-app:
     name: Build Linux app
@@ -65,7 +65,6 @@ jobs:
   build-windows-app:
     name: Build Windows app
     runs-on: windows-latest
-    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-java@v3.5.1
