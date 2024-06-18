@@ -28,11 +28,12 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Build apk
-        working-directory: ./Kristine
-        run: |
-          chmod +x gradlew 
-          ./gradlew assemble --stacktrace
+      - name: Run gradle assemble task
+        uses: gradle/gradle-build-action@v2.4.2
+        with:
+          arguments: assemble --no-daemon
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
         with:
           name: APK distribution
@@ -51,9 +52,11 @@ jobs:
           cache: 'gradle'
 
       - name: Run gradle package task
-        run: |
-          chmod +x gradlew
-          ./gradlew packageDistributionForCurrentOS --no-daemon
+        uses: gradle/gradle-build-action@v2.4.2
+        with:
+          arguments: packageDistributionForCurrentOS --no-daemon
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
         with:
           name: Deb distribution
@@ -80,5 +83,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
         with:
-          name: Deb distribution
+          name: Exe distribution
           path: ./desktop/build/compose/binaries/main/exe/*
