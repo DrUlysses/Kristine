@@ -1,0 +1,80 @@
+name: Build Kristine
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-android-app:
+    name: Build Android app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v1
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: 17
+
+      - name: Build apk
+        working-directory: ./Kristine
+        run: ./gradlew assemble --stacktrace
+        uses: actions/upload-artifact@v2.2.4
+        with:
+          name: APK distribution
+          path: ./androidApp/build/outputs/apk/debug/composeApp-debug.apk
+  build-linux-app:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v2.3.1
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Run gradle package task
+        run: |
+          chmod +x gradlew
+          ./gradlew packageDistributionForCurrentOS --no-daemon
+        uses: actions/upload-artifact@v2.2.4
+        with:
+          name: Deb distribution
+          path: ./desktop/build/compose/binaries/main/deb/*
+  build-windows-app:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3.5.1
+        with:
+          distribution: 'zulu'
+          java-version: '17
+          cache: 'gradle'
+
+      - name: Gradle Wrapper Validation
+        uses: gradle/wrapper-validation-action@v1.0.4
+
+      - name: Gradle Build
+        uses: gradle/gradle-build-action@v2.4.2
+        with:
+          arguments: packageDistributionForCurrentOS --no-daemon
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2.2.4
+        with:
+          name: Deb distribution
+          path: ./desktop/build/compose/binaries/main/exe/*
