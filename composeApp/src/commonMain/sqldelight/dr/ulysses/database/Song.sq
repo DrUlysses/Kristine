@@ -13,6 +13,9 @@ SELECT * FROM song;
 selectAllArtists:
 SELECT DISTINCT artist FROM song;
 
+selectAllAlbums:
+SELECT DISTINCT album FROM song;
+
 insert:
 INSERT INTO song(title, album, artist, path, duration, state) VALUES(?, ?, ?, ?, ?, ?);
 

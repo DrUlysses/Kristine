@@ -12,22 +12,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.refreshSongs
-import dr.ulysses.ui.elements.ArtistListEntry
+import dr.ulysses.ui.elements.AlbumListEntry
 
 @Composable
-fun ArtistsList(
+fun AlbumsList(
     modifier: Modifier = Modifier,
-    artists: List<String>,
-    onArtistsChanged: (List<String>) -> Unit,
-    onArtistClicked: (String) -> Unit
+    albums: List<String>,
+    onAlbumsChanged: (List<String>) -> Unit,
+    onAlbumClicked: (String) -> Unit
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         val listState = rememberLazyListState()
 
         LaunchedEffect(listState) {
-            onArtistsChanged(
-                SongRepository.getAllArtists().ifEmpty {
-                    refreshSongs().run { SongRepository.getAllArtists() }
+            onAlbumsChanged(
+                SongRepository.getAllAlbums().ifEmpty {
+                    refreshSongs().run { SongRepository.getAllAlbums() }
                 }
             )
             listState.animateScrollToItem(0)
@@ -38,11 +38,11 @@ fun ArtistsList(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             content = {
-                items(items = artists.sortedBy { it }) { artist ->
-                    ArtistListEntry(
-                        artist = artist,
+                items(items = albums.sortedBy { it }) { album ->
+                    AlbumListEntry(
+                        album = album,
                         onClick = {
-                            onArtistClicked(artist)
+                            onAlbumClicked(album)
                         }
                     )
                 }

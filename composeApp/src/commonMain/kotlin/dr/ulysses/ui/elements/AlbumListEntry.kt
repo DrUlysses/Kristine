@@ -16,10 +16,9 @@ import kristine.composeapp.generated.resources.compose_multiplatform
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
-fun SongListEntry(
+fun AlbumListEntry(
     image: String = "compose_multiplatform.xml",
-    title: String = "Title",
-    artist: String = "Unknown Artist",
+    album: String = "Unknown Album",
     onClick: () -> Unit = {}
 ) {
     Row(
@@ -42,14 +41,7 @@ fun SongListEntry(
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
             Text(
-                text = title,
-                style = TextStyle(
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            )
-            Text(
-                text = artist,
+                text = album,
                 style = TextStyle(
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal

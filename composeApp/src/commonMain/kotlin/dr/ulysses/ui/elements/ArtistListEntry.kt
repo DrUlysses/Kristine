@@ -13,12 +13,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kristine.composeapp.generated.resources.Res
 import kristine.composeapp.generated.resources.compose_multiplatform
-import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
 
-@OptIn(ExperimentalResourceApi::class)
 @Composable
-fun ArtistsListEntry(
+fun ArtistListEntry(
     image: String = "compose_multiplatform.xml",
     artist: String = "Unknown Artist",
     onClick: () -> Unit = {}

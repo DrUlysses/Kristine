@@ -9,6 +9,11 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import kristine.composeapp.generated.resources.Res
+import kristine.composeapp.generated.resources.next
+import kristine.composeapp.generated.resources.play_pause
+import kristine.composeapp.generated.resources.previous
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun PlayerButtons(
@@ -22,8 +27,8 @@ fun PlayerButtons(
             onClick = onPreviousCommand,
             content = {
                 Icon(
-                    Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = "Previous"
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = stringResource(Res.string.previous)
                 )
             }
         )
@@ -32,7 +37,7 @@ fun PlayerButtons(
             content = {
                 Icon(
                     imageVector = if (isPlaying) Icons.Outlined.Info else Icons.Outlined.PlayArrow,
-                    contentDescription = "Play/Pause"
+                    contentDescription = stringResource(Res.string.play_pause)
                 )
             }
         )
@@ -41,7 +46,7 @@ fun PlayerButtons(
             content = {
                 Icon(
                     Icons.AutoMirrored.Outlined.ArrowForward,
-                    contentDescription = "Next"
+                    contentDescription = stringResource(Res.string.next)
                 )
             }
         )

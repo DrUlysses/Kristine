@@ -54,9 +54,9 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             implementation(libs.multiplatformSettings)
             implementation(libs.sqldelight.coroutines.extension)
+            implementation(libs.navigation.compose)
         }
         androidMain.dependencies {
-            implementation(libs.kotlinx.coroutines.android)
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.okhttp)
             implementation(libs.androidx.appcompat)
@@ -72,7 +72,6 @@ kotlin {
         jvmMain.dependencies {
             implementation(compose.desktop.common)
             implementation(compose.desktop.currentOs)
-            implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.ktor.client.okhttp)
             implementation(libs.sqldelight.driver)
             implementation(libs.appdirs)

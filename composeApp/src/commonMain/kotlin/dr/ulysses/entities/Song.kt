@@ -75,6 +75,10 @@ object SongRepository : KoinComponent {
     suspend fun getAllArtists(): List<String> = sharedDatabase { appDatabase ->
         appDatabase.songQueries.selectAllArtists().executeAsList()
     }
+
+    suspend fun getAllAlbums(): List<String> = sharedDatabase { appDatabase ->
+        appDatabase.songQueries.selectAllAlbums().executeAsList().mapNotNull { it.album }
+    }
 }
 
 expect suspend fun refreshSongs(): List<Song>

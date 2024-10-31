@@ -15,10 +15,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
-import dr.ulysses.R
 import dr.ulysses.models.PlayerObject.onCurrentPlayingChangedOnDevice
 import dr.ulysses.models.PlayerObject.onIsPlayingChangedOnDevice
 import dr.ulysses.models.playNextOnDevice
+import kristine.composeapp.generated.resources.Res
+import kristine.composeapp.generated.resources.play
 
 class PlaybackService : MediaLibraryService() {
 
@@ -152,9 +153,9 @@ class PlaybackService : MediaLibraryService() {
             val builder =
                 NotificationCompat.Builder(this@PlaybackService, CHANNEL_ID)
                     .setSmallIcon(androidx.media3.ui.R.drawable.exo_notification_small_icon)
-                    .setContentTitle(getString(R.string.play))
+                    .setContentTitle(Res.string.play.toString())
                     .setStyle(
-                        NotificationCompat.BigTextStyle().bigText(getString(R.string.play))
+                        NotificationCompat.BigTextStyle().bigText(Res.string.play.toString())
                     )
                     .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                     .setAutoCancel(true)

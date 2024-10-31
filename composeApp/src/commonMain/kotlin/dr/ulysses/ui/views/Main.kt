@@ -1,6 +1,5 @@
 package dr.ulysses.ui.views
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,19 +7,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import dr.ulysses.entities.Song
 import dr.ulysses.models.PlayerService
+import dr.ulysses.ui.components.AlbumsList
 import dr.ulysses.ui.components.ArtistsList
 import dr.ulysses.ui.components.SongList
 import dr.ulysses.ui.components.TabMenu
 import dr.ulysses.ui.permissions.PermissionsAlert
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Main() {
     val pagerState = rememberPagerState(
@@ -30,6 +30,8 @@ fun Main() {
     val permissionsGranted = remember { mutableStateOf(false) }
     val playerModel = remember { PlayerService }
     val playerState = playerModel.state
+    var topBarText by remember { mutableStateOf<String?>(null) }
+    val navBarController = rememberNavController()
     PermissionsAlert(
         permissionsGranted = permissionsGranted.value,
         onPermissionsChange = {
@@ -38,7 +40,14 @@ fun Main() {
     )
     Scaffold(
         topBar = {
-            TabMenu()
+            TabMenu(
+                pagerState = pagerState,
+                topText = topBarText,
+                navigateUp = {
+                    navBarController.navigateUp()
+                    topBarText = null
+                }
+            )
         },
         content = { innerPadding ->
             Column(
@@ -49,13 +58,35 @@ fun Main() {
                 HorizontalPager(
                     modifier = Modifier.fillMaxSize(),
                     state = pagerState,
-                    pageContent = { page ->
-                        when (page) {
+                    beyondViewportPageCount = 10,
+                    pageContent = {
+                        when (pagerState.currentPage) {
                             0 -> {
-                                ArtistsList(
-                                    artists = playerState.currentTrackSequence.values.map { it.artist }.distinct(),
-                                    onArtistsChanged = {} // playerModel::onArtistsChanged
-                                )
+                                NavHost(
+                                    navController = navBarController,
+                                    startDestination = "artists",
+                                ) {
+                                    composable("artists") {
+                                        ArtistsList(
+                                            artists = playerState.currentTrackSequence.values.map { it.artist }
+                                                .distinct(),
+                                            onArtistsChanged = {},
+                                            onArtistClicked = { artist ->
+                                                topBarText = artist
+                                                navBarController.navigate("artist")
+                                            }
+                                        )
+                                    }
+                                    composable("artist") {
+                                        SongList(
+                                            songs = playerState.currentTrackSequence.values.filter {
+                                                it.artist == topBarText
+                                            }.distinct().toList(),
+                                            onSongsChanged = playerModel::onSongsChanged,
+                                            onPlaySongCommand = playerModel::onPlaySongCommand,
+                                        )
+                                    }
+                                }
                             }
 
                             1 -> {
@@ -64,6 +95,34 @@ fun Main() {
                                     onSongsChanged = playerModel::onSongsChanged,
                                     onPlaySongCommand = playerModel::onPlaySongCommand,
                                 )
+                            }
+
+                            2 -> {
+                                NavHost(
+                                    navController = navBarController,
+                                    startDestination = "albums",
+                                ) {
+                                    composable("albums") {
+                                        AlbumsList(
+                                            albums = playerState.currentTrackSequence.values.mapNotNull { it.album }
+                                                .distinct(),
+                                            onAlbumsChanged = {},
+                                            onAlbumClicked = { album ->
+                                                topBarText = album
+                                                navBarController.navigate("album")
+                                            }
+                                        )
+                                    }
+                                    composable("album") {
+                                        SongList(
+                                            songs = playerState.currentTrackSequence.values.filter {
+                                                it.album == topBarText
+                                            }.distinct().toList(),
+                                            onSongsChanged = playerModel::onSongsChanged,
+                                            onPlaySongCommand = playerModel::onPlaySongCommand,
+                                        )
+                                    }
+                                }
                             }
 
                             else -> listOf<Song>()
