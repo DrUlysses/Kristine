@@ -1,5 +1,8 @@
 package dr.ulysses.ui.views
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +13,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastDistinctBy
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -65,11 +69,16 @@ fun Main() {
                                 NavHost(
                                     navController = navBarController,
                                     startDestination = "artists",
+                                    enterTransition = { fadeIn(animationSpec = tween(300)) },
+                                    exitTransition = { fadeOut(animationSpec = tween(300)) },
                                 ) {
                                     composable("artists") {
                                         ArtistsList(
-                                            artists = playerState.currentTrackSequence.values.map { it.artist }
-                                                .distinct(),
+                                            artists = playerState
+                                                .currentTrackSequence
+                                                .values
+                                                .map { it.artist }
+                                                .fastDistinctBy(String::lowercase),
                                             onArtistsChanged = {},
                                             onArtistClicked = { artist ->
                                                 topBarText = artist
@@ -80,8 +89,9 @@ fun Main() {
                                     composable("artist") {
                                         SongList(
                                             songs = playerState.currentTrackSequence.values.filter {
-                                                it.artist == topBarText
-                                            }.distinct().toList(),
+                                                topBarText != null &&
+                                                        it.artist.lowercase() == topBarText!!.lowercase()
+                                            },
                                             onSongsChanged = playerModel::onSongsChanged,
                                             onPlaySongCommand = playerModel::onPlaySongCommand,
                                         )
@@ -105,7 +115,7 @@ fun Main() {
                                     composable("albums") {
                                         AlbumsList(
                                             albums = playerState.currentTrackSequence.values.mapNotNull { it.album }
-                                                .distinct(),
+                                                .fastDistinctBy(String::lowercase),
                                             onAlbumsChanged = {},
                                             onAlbumClicked = { album ->
                                                 topBarText = album
@@ -116,8 +126,9 @@ fun Main() {
                                     composable("album") {
                                         SongList(
                                             songs = playerState.currentTrackSequence.values.filter {
-                                                it.album == topBarText
-                                            }.distinct().toList(),
+                                                it.album != null && topBarText != null &&
+                                                        it.album.lowercase() == topBarText!!.lowercase()
+                                            },
                                             onSongsChanged = playerModel::onSongsChanged,
                                             onPlaySongCommand = playerModel::onPlaySongCommand,
                                         )

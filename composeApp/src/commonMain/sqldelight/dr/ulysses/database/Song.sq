@@ -4,11 +4,15 @@ CREATE TABLE IF NOT EXISTS song(
     album TEXT,
     artist TEXT NOT NULL,
     duration INTEGER,
+    artwork BLOB,
     state TEXT
 );
 
 selectAll:
 SELECT * FROM song;
+
+selectAllSongs:
+SELECT path, title, artist, album FROM song;
 
 selectAllArtists:
 SELECT DISTINCT artist FROM song;
@@ -16,11 +20,14 @@ SELECT DISTINCT artist FROM song;
 selectAllAlbums:
 SELECT DISTINCT album FROM song;
 
+selectArtworkByPath:
+SELECT artwork FROM song WHERE path = ?;
+
 insert:
-INSERT INTO song(title, album, artist, path, duration, state) VALUES(?, ?, ?, ?, ?, ?);
+INSERT INTO song(title, album, artist, path, duration, state, artwork) VALUES(?, ?, ?, ?, ?, ?, ?);
 
 update:
-UPDATE song SET title = ?, album = ?, artist = ?, duration = ?, state = ? WHERE path = ?;
+UPDATE song SET title = ?, album = ?, artist = ?, duration = ?, state = ?, artwork = ? WHERE path = ?;
 
 deleteByPath:
 DELETE FROM song WHERE path = ?;

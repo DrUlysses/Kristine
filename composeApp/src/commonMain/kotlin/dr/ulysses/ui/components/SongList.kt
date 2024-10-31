@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.overscroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
@@ -30,7 +31,7 @@ fun SongList(
         val listState = rememberLazyListState()
 
         LaunchedEffect(listState) {
-            onSongsChanged(SongRepository.getAll().ifEmpty { refreshSongs() })
+            onSongsChanged(SongRepository.getAllSongs().ifEmpty { refreshSongs() })
             listState.animateScrollToItem(0)
         }
 
@@ -48,7 +49,12 @@ fun SongList(
                 .overscroll(overscrollEffect),
             content = {
                 items(items = songs) { song ->
+                    val image: ByteArray? = remember { song.artwork }
+                    image ?: LaunchedEffect(image) {
+                        SongRepository.getArtwork(song.path)
+                    }
                     SongListEntry(
+                        image = image,
                         title = song.title,
                         artist = song.artist,
                         onClick = { onPlaySongCommand(song) }

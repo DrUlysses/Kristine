@@ -21,9 +21,32 @@ data class Song(
     val title: String,
     val album: String? = null,
     val artist: String,
+    val artwork: ByteArray? = null,
     val duration: Int? = null,
     val state: String
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as Song
+
+        if (path != other.path) return false
+        if (title != other.title) return false
+        if (album != other.album) return false
+        if (artist != other.artist) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = path.hashCode()
+        result = 31 * result + title.hashCode()
+        result = 31 * result + (album?.hashCode() ?: 0)
+        result = 31 * result + artist.hashCode()
+        return result
+    }
+}
 
 object SongRepository : KoinComponent {
     private val sharedDatabase: SharedDatabase by inject()
@@ -34,12 +57,14 @@ object SongRepository : KoinComponent {
         album: String?,
         artist: String,
         duration: Long?,
+        artwork: ByteArray?,
         state: String?,
     ): Song = Song(
         path = path,
         title = title,
         album = album,
         artist = artist,
+        artwork = artwork,
         duration = duration?.toInt() ?: 0,
         state = state ?: ""
     )
@@ -52,6 +77,7 @@ object SongRepository : KoinComponent {
                     title = song.title,
                     album = song.album,
                     artist = song.artist,
+                    artwork = song.artwork,
                     duration = song.duration?.toLong() ?: 0,
                     state = song.state,
                 )
@@ -61,6 +87,7 @@ object SongRepository : KoinComponent {
                     title = song.title,
                     album = song.album,
                     artist = song.artist,
+                    artwork = song.artwork,
                     duration = song.duration?.toLong() ?: 0,
                     state = song.state,
                 )
@@ -72,12 +99,28 @@ object SongRepository : KoinComponent {
         appDatabase.songQueries.selectAll(::mapSong).executeAsList()
     }
 
+    suspend fun getAllSongs(): List<Song> = sharedDatabase { appDatabase ->
+        appDatabase.songQueries.selectAllSongs().executeAsList().map {
+            Song(
+                path = it.path,
+                title = it.title,
+                artist = it.artist,
+                album = it.album,
+                state = ""
+            )
+        }
+    }
+
     suspend fun getAllArtists(): List<String> = sharedDatabase { appDatabase ->
         appDatabase.songQueries.selectAllArtists().executeAsList()
     }
 
     suspend fun getAllAlbums(): List<String> = sharedDatabase { appDatabase ->
         appDatabase.songQueries.selectAllAlbums().executeAsList().mapNotNull { it.album }
+    }
+
+    suspend fun getArtwork(path: String): ByteArray? = sharedDatabase { appDatabase ->
+        appDatabase.songQueries.selectArtworkByPath(path).executeAsOneOrNull()?.artwork
     }
 }
 

@@ -39,10 +39,15 @@ actual suspend fun refreshSongs(): List<Song> {
     contentResolver.query(
         /* uri = */collection,
         /* projection = */projection,
-        /* selection = */"${MediaStore.Audio.Media.DURATION} >= ?",
-        /* selectionArgs = */arrayOf(
-            TimeUnit.MILLISECONDS.convert(10, TimeUnit.SECONDS).toString()
-        ),
+        /* selection = */
+        "${MediaStore.Audio.AudioColumns.IS_MUSIC}=1 AND ${MediaStore.Audio.AudioColumns.TITLE} != '' AND " +
+                "${MediaStore.Audio.Media.DURATION}>= ${
+                    TimeUnit.MILLISECONDS.convert(
+                        10,
+                        TimeUnit.SECONDS
+                    )
+                }",
+        /* selectionArgs = */arrayOf(),
         /* sortOrder = */"${MediaStore.Audio.Media._ID} ASC"
     )?.use { cursor ->
         val colTitle = cursor.getColumnIndexOrThrow(TITLE)
@@ -54,12 +59,29 @@ actual suspend fun refreshSongs(): List<Song> {
         val colComposer = cursor.getColumnIndexOrThrow(COMPOSER)
         while (cursor.moveToNext()) {
             try {
+                val path = cursor.getStringOrNull(colLocation) ?: ""
                 SongRepository.upsert(
                     Song(
                         title = cursor.getStringOrNull(colTitle) ?: "Unknown",
-                        path = cursor.getStringOrNull(colLocation).also {
-                            println("Path: $it")
-                        } ?: "",
+                        path = path.also { println("Path: $it") },
+                        artwork = try {
+//                            ByteArrayOutputStream().use { stream ->
+//                                ThumbnailUtils.createAudioThumbnail(
+//                                    File(path),
+//                                    Size(/* width = */
+//                                        context.resources.getDimensionPixelSize(R.dimen.thumbnail_width),
+//                                        /* height = */
+//                                        context.resources.getDimensionPixelSize(R.dimen.thumbnail_height)
+//                                    ),
+//                                    null
+//                                ).compress(Bitmap.CompressFormat.PNG, 100, stream)
+//                                stream.toByteArray()
+//                            }
+                            null // TODO: Slows down the app
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            null
+                        },
                         album = cursor.getStringOrNull(colAlbum),
                         duration = cursor.getIntOrNull(colDuration),
                         state = "downloaded",
@@ -80,5 +102,5 @@ actual suspend fun refreshSongs(): List<Song> {
         cursor.close()
     }
 
-    return SongRepository.getAll().sortedBy { it.title }
+    return SongRepository.getAllSongs().sortedBy { it.title }
 }

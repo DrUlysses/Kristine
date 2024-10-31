@@ -1,13 +1,11 @@
 package dr.ulysses.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 private val lightScheme = lightColorScheme(
@@ -238,14 +236,6 @@ private val highContrastDarkColorScheme = darkColorScheme(
     surfaceContainerHighest = surfaceContainerHighestDarkHighContrast,
 )
 
-private val AppShapes = Shapes(
-    extraSmall = RoundedCornerShape(2.dp),
-    small = RoundedCornerShape(4.dp),
-    medium = RoundedCornerShape(8.dp),
-    large = RoundedCornerShape(16.dp),
-    extraLarge = RoundedCornerShape(32.dp)
-)
-
 private val AppTypography = Typography(
     bodyMedium = TextStyle(
         fontFamily = FontFamily.Default,
@@ -254,28 +244,20 @@ private val AppTypography = Typography(
     )
 )
 
-internal val LocalThemeIsDark = compositionLocalOf { mutableStateOf(true) }
-
 @Composable
 internal fun AppTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val systemIsDark = isSystemInDarkTheme()
-    val isDarkState = remember { mutableStateOf(systemIsDark) }
-    CompositionLocalProvider(
-        LocalThemeIsDark provides isDarkState
-    ) {
-        val isDark by isDarkState
-        SystemAppearance(isDark)
-        MaterialTheme(
-            colorScheme = if (isDark) mediumContrastDarkColorScheme else mediumContrastLightColorScheme,
-            typography = AppTypography,
-            shapes = AppShapes,
-            content = {
-                Surface(content = content)
-            }
-        )
+    val colorScheme = when {
+        darkTheme -> mediumContrastDarkColorScheme
+        else -> mediumContrastLightColorScheme
     }
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = AppTypography,
+        content = content
+    )
 }
 
 @Composable
