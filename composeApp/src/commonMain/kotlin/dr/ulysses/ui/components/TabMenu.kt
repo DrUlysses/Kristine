@@ -21,10 +21,10 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun TabMenu(
     pagerState: PagerState,
-    tabs: List<Pair<String, Boolean>> = listOf(
-        "Artists" to false,
-        "Songs" to true,
-        "Albums" to false
+    tabs: List<String> = listOf(
+        "Artists",
+        "Songs",
+        "Albums"
     ),
     topText: String? = null,
     modifier: Modifier = Modifier,
@@ -50,12 +50,12 @@ fun TabMenu(
             }
         )
     else
-        TabRow(
+        ScrollableTabRow(
             containerColor = Color.Transparent,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
-            selectedTabIndex = 2,
+            selectedTabIndex = pagerState.currentPage,
         ) {
             for (tab in tabs) {
                 Tab(
@@ -79,14 +79,14 @@ fun TabMenu(
                                 .size(10.dp)
                                 .align(Alignment.CenterHorizontally)
                                 .background(
-                                    color = if (tab.second)
+                                    color = if (pagerState.currentPage == tabs.indexOf(tab))
                                         MaterialTheme.colorScheme.primary
                                     else
                                         MaterialTheme.colorScheme.background
                                 )
                         )
                         Text(
-                            text = tab.first,
+                            text = tab,
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.align(Alignment.CenterHorizontally)
                         )

@@ -35,18 +35,12 @@ fun SongList(
             listState.animateScrollToItem(0)
         }
 
-        val overscrollEffect = ScrollableDefaults.overscrollEffect()
-
-        LaunchedEffect(overscrollEffect) {
-            refreshSongs()
-        }
-
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .overscroll(overscrollEffect),
+                .overscroll(ScrollableDefaults.overscrollEffect()),
             content = {
                 items(items = songs) { song ->
                     val image: ByteArray? = remember { song.artwork }

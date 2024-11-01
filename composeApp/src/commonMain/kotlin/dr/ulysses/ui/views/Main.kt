@@ -62,7 +62,7 @@ fun Main() {
                 HorizontalPager(
                     modifier = Modifier.fillMaxSize(),
                     state = pagerState,
-                    beyondViewportPageCount = 10,
+                    beyondViewportPageCount = 5,
                     pageContent = {
                         when (pagerState.currentPage) {
                             0 -> {
