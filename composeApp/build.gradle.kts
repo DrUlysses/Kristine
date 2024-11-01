@@ -1,5 +1,8 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.net.HttpURLConnection
+import java.net.URL
+import java.nio.file.Files
 
 plugins {
     alias(libs.plugins.multiplatform)
@@ -15,8 +18,7 @@ kotlin {
         compilations.all {
             compileTaskProvider {
                 compilerOptions {
-                    jvmTarget.set(JvmTarget.JVM_1_8)
-//                    freeCompilerArgs.add("-Xjdk-release=${JavaVersion.VERSION_1_8}")
+                    jvmTarget = JvmTarget.fromTarget(libs.versions.android.jvmTarget.get())
                 }
             }
         }
@@ -25,7 +27,7 @@ kotlin {
     jvm()
 
     jvmToolchain {
-        languageVersion.set(JavaLanguageVersion.of("17"))
+        languageVersion.set(JavaLanguageVersion.of(libs.versions.jvmTarget.get()))
     }
 
     js {
@@ -45,7 +47,6 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.ui)
             implementation(compose.components.resources)
-            implementation(libs.composeImageLoader)
             implementation(libs.napier)
             implementation(libs.koin.core)
             implementation(libs.kotlinx.coroutines.core)
@@ -118,8 +119,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.toVersion(libs.versions.android.jvmTarget.get())
+        targetCompatibility = JavaVersion.toVersion(libs.versions.android.jvmTarget.get())
     }
     buildFeatures {
         compose = true
@@ -141,14 +142,66 @@ compose.desktop {
     }
 }
 
-compose.web {
-}
-
 sqldelight {
     databases {
         create("Database") {
             packageName.set("dr.ulysses.database")
+            generateAsync.set(true)
         }
     }
     linkSqlite = true
+}
+
+// See https://sqlite.org/download.html for the latest wasm build version
+val sqlite = 3470000
+
+val sqliteDownload = tasks.register("sqliteDownload") {
+    val fileUrl = "https://sqlite.org/2024/sqlite-wasm-$sqlite.zip" // Replace with your file URL
+    val outputDir = layout.buildDirectory.dir("tmp") // Replace with your desired output path
+    val outputFile = outputDir.get().asFile.resolve("sqlite-wasm-$sqlite.zip")
+
+    // Check if file already exists
+    if (outputFile.exists()) {
+        // Open a connection to check for modification date
+        val connection = URL(fileUrl).openConnection() as HttpURLConnection
+        connection.requestMethod = "HEAD"
+        val serverLastModified = connection.lastModified
+
+        if (outputFile.lastModified() >= serverLastModified) {
+            println("File is up-to-date, skipping download.")
+            return@register
+        }
+    }
+
+    outputs.file(outputFile)
+
+    doLast {
+        val url = URL(fileUrl)
+        val connection = url.openConnection()
+        connection.connect()
+
+        if (!outputDir.isPresent)
+            outputDir.get().asFile.mkdirs()
+        url.openStream().use { input ->
+            Files.copy(input, outputFile.toPath())
+        }
+    }
+}
+
+val sqliteUnzip = tasks.register("sqliteUnzip", Copy::class.java) {
+    dependsOn(sqliteDownload)
+    from(zipTree(layout.buildDirectory.dir("tmp/sqlite-wasm-$sqlite.zip"))) {
+        include("sqlite-wasm-$sqlite/jswasm/**")
+        exclude("**/*worker1*")
+
+        eachFile {
+            relativePath = RelativePath(true, *relativePath.segments.drop(2).toTypedArray())
+        }
+    }
+    into(layout.buildDirectory.dir("sqlite"))
+    includeEmptyDirs = false
+}
+
+tasks.named("jsProcessResources").configure {
+    dependsOn(sqliteUnzip)
 }

@@ -20,7 +20,7 @@ function handleMessage() {
 
             return postMessage({
                 id: data.id,
-                results: {values: db.exec({sql: data.sql, bind: data.params, returnValue: "resultRows"})},
+                results: { values: db.exec({ sql: data.sql, bind: data.params, returnValue: "resultRows" }) },
             })
         case "begin_transaction":
             return postMessage({
