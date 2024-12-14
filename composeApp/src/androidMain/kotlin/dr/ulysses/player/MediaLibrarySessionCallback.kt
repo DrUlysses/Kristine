@@ -92,7 +92,7 @@ open class MediaLibrarySessionCallback(context: Context) :
             )
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
-        return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
+        return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
     }
 
     override fun onGetLibraryRoot(
@@ -109,6 +109,7 @@ open class MediaLibrarySessionCallback(context: Context) :
         )
     }
 
+    @UnstableApi
     override fun onGetItem(
         session: MediaLibraryService.MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
@@ -116,8 +117,9 @@ open class MediaLibrarySessionCallback(context: Context) :
     ): ListenableFuture<LibraryResult<MediaItem>> =
         PlayerService.state.currentTrackSequence.values.find { it.path == mediaId }?.let {
             return Futures.immediateFuture(LibraryResult.ofItem(MediaItem.fromUri(it.path), /* params= */ null))
-        } ?: Futures.immediateFuture(LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE))
+        } ?: Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
 
+    @UnstableApi
     override fun onGetChildren(
         session: MediaLibraryService.MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
@@ -130,7 +132,7 @@ open class MediaLibrarySessionCallback(context: Context) :
 //        if (children.isNotEmpty()) {
 //            return Futures.immediateFuture(LibraryResult.ofItemList(children, params))
 //        }
-        return Futures.immediateFuture(LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE))
+        return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
     }
 
     override fun onAddMediaItems(

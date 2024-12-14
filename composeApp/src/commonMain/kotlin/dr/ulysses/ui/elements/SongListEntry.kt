@@ -22,7 +22,7 @@ fun SongListEntry(
     image: ByteArray? = null,
     title: String = "Title",
     artist: String = "Unknown Artist",
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier

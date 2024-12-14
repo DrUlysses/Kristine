@@ -8,7 +8,7 @@ import org.koin.core.component.inject
 @Serializable
 data class Setting(
     val key: String,
-    val value: String?
+    val value: String?,
 )
 
 object SettingsRepository : KoinComponent {

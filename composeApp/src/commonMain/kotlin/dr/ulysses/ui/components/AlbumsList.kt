@@ -19,7 +19,7 @@ fun AlbumsList(
     modifier: Modifier = Modifier,
     albums: List<String>,
     onAlbumsChanged: (List<String>) -> Unit,
-    onAlbumClicked: (String) -> Unit
+    onAlbumClicked: (String) -> Unit,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         val listState = rememberLazyListState()

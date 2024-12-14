@@ -45,6 +45,7 @@ kotlin {
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
+            implementation(compose.materialIconsExtended)
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation(libs.napier)
@@ -147,6 +148,7 @@ sqldelight {
         create("Database") {
             packageName.set("dr.ulysses.database")
             generateAsync.set(true)
+            verifyMigrations.set(false)
         }
     }
     linkSqlite = true

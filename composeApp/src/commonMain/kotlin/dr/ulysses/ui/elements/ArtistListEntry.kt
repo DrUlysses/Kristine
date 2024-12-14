@@ -21,7 +21,7 @@ import org.jetbrains.compose.resources.painterResource
 fun ArtistListEntry(
     image: ByteArray? = null,
     artist: String = "Unknown Artist",
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier

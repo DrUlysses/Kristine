@@ -1,9 +1,6 @@
 package dr.ulysses.ui.views
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,7 +17,7 @@ fun Player(
     isPlaying: Boolean,
     onPreviousCommand: () -> Unit,
     onNextCommand: () -> Unit,
-    onPlayOrPauseCommand: () -> Unit
+    onPlayOrPauseCommand: () -> Unit,
 ) {
     BottomAppBar {
         Row {
@@ -33,6 +30,7 @@ fun Player(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .clipToBounds()
+                        .fillMaxWidth(),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 PlayerButtons(

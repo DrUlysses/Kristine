@@ -1,14 +1,13 @@
 package dr.ulysses.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -28,7 +27,7 @@ fun TabMenu(
     ),
     topText: String? = null,
     modifier: Modifier = Modifier,
-    navigateUp: () -> Unit = {}
+    navigateUp: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     if (!topText.isNullOrEmpty())
@@ -50,7 +49,7 @@ fun TabMenu(
             }
         )
     else
-        ScrollableTabRow(
+        TabRow(
             containerColor = Color.Transparent,
             modifier = Modifier
                 .fillMaxWidth()
@@ -64,34 +63,15 @@ fun TabMenu(
                             pagerState.animateScrollToPage(tabs.indexOf(tab))
                         }
                     },
-                    selected = false,
+                    selected = pagerState.currentPage == tabs.indexOf(tab),
                     enabled = true,
-                ) {
-                    Column(
-                        Modifier
-                            .padding(10.dp)
-                            .height(50.dp)
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Box(
-                            Modifier
-                                .size(10.dp)
-                                .align(Alignment.CenterHorizontally)
-                                .background(
-                                    color = if (pagerState.currentPage == tabs.indexOf(tab))
-                                        MaterialTheme.colorScheme.primary
-                                    else
-                                        MaterialTheme.colorScheme.background
-                                )
-                        )
+                    text = {
                         Text(
                             text = tab,
                             style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
                         )
                     }
-                }
+                )
             }
         }
 }

@@ -5,6 +5,6 @@ import androidx.compose.runtime.Composable
 @Composable
 actual fun PermissionsAlert(
     permissionsGranted: Boolean,
-    onPermissionsChange: (Boolean) -> Unit
+    onPermissionsChange: (Boolean) -> Unit,
 ) {
 }

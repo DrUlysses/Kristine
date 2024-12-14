@@ -23,7 +23,7 @@ data class Song(
     val artist: String,
     val artwork: ByteArray? = null,
     val duration: Int? = null,
-    val state: String
+    val state: String,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

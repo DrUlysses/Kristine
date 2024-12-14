@@ -41,7 +41,7 @@ caprica-vlcj = "4.8.2"
 
 # Compose
 compose-compiler = "1.5.6"
-compose-plugin = "1.7.0"
+compose-plugin = "1.7.1"
 
 [libraries]
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }

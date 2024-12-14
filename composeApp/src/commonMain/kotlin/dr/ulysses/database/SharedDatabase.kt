@@ -1,7 +1,7 @@
 package dr.ulysses.database
 
 class SharedDatabase(
-    private val driverFactory: DriverFactory
+    private val driverFactory: DriverFactory,
 ) {
     private var database: Database? = null
 

@@ -18,7 +18,7 @@ import com.google.accompanist.permissions.rememberMultiplePermissionsState
 @Composable
 actual fun PermissionsAlert(
     permissionsGranted: Boolean,
-    onPermissionsChange: (Boolean) -> Unit
+    onPermissionsChange: (Boolean) -> Unit,
 ) {
     val permissionsState = rememberMultiplePermissionsState(
         permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
