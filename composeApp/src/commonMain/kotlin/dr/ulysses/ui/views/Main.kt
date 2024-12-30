@@ -20,39 +20,51 @@ import androidx.compose.ui.util.fastDistinctBy
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import dr.ulysses.entities.Playlist
+import dr.ulysses.entities.PlaylistRepository
 import dr.ulysses.entities.Song
 import dr.ulysses.models.PlayerService
-import dr.ulysses.ui.components.AlbumsList
-import dr.ulysses.ui.components.ArtistsList
-import dr.ulysses.ui.components.SongList
-import dr.ulysses.ui.components.TabMenu
+import dr.ulysses.ui.components.*
 import dr.ulysses.ui.permissions.PermissionsAlert
+import kotlinx.coroutines.launch
 import kristine.composeapp.generated.resources.Res
 import kristine.composeapp.generated.resources.search
 import kristine.composeapp.generated.resources.search_tooltip
 import org.jetbrains.compose.resources.stringResource
 
+enum class Navigation {
+    Artists,
+    Songs,
+    Albums,
+    Playlists
+}
+
 @Composable
 fun Main() {
     val pagerState = rememberPagerState(
         initialPage = 1,
-        pageCount = { 3 },
+        pageCount = { Navigation.entries.size },
     )
     val searchText = stringResource(Res.string.search)
     val searchTooltip = stringResource(Res.string.search_tooltip)
     val permissionsGranted = remember { mutableStateOf(false) }
     val playerModel = remember { PlayerService }
+    val scope = rememberCoroutineScope()
     val playerState = playerModel.state
     var topBarText by remember { mutableStateOf<String?>(null) }
     var search by remember { mutableStateOf(false) }
     val navBarController = rememberNavController()
-    var currentSongs by remember { mutableStateOf(emptyList<Song>()) }
-    currentSongs = playerState
-        .currentTrackSequence
-        .values
-        .toList()
+    val currentSongs by remember {
+        mutableStateOf(
+            playerState
+                .currentTrackSequence
+                .values
+                .toList()
+        )
+    }
     var currentArtistSongsList by remember { mutableStateOf(emptyList<Song>()) }
     var currentAlbumSongsList by remember { mutableStateOf(emptyList<Song>()) }
+    var currentPlaylists by remember { mutableStateOf(emptyList<Playlist>()) }
     PermissionsAlert(
         permissionsGranted = permissionsGranted.value,
         onPermissionsChange = {
@@ -83,16 +95,17 @@ fun Main() {
                             state = pagerState,
                             pageContent = { page ->
                                 when (page) {
-                                    0 -> {
+                                    Navigation.Artists.ordinal -> {
                                         NavHost(
                                             navController = navBarController,
-                                            startDestination = "artists",
+                                            startDestination = Navigation.Artists.name,
                                             popExitTransition = {
                                                 topBarText = null
                                                 fadeOut(animationSpec = tween(200))
-                                            }
+                                            },
+                                            route = "${Navigation.Artists.name} List"
                                         ) {
-                                            composable("artists") {
+                                            composable(Navigation.Artists.name) {
                                                 ArtistsList(
                                                     artists = currentSongs
                                                         .map { it.artist }
@@ -105,12 +118,12 @@ fun Main() {
                                                                 topBarText != null &&
                                                                         it.artist.lowercase() == topBarText!!.lowercase()
                                                             }
-                                                        navBarController.navigate("artist")
+                                                        navBarController.navigate(Navigation.Artists.name.dropLast(1))
                                                     }
                                                 )
                                             }
-                                            composable("artist") {
-                                                SongList(
+                                            composable(Navigation.Artists.name.dropLast(1)) {
+                                                SongsList(
                                                     songs = currentArtistSongsList,
                                                     onSongsChanged = playerModel::onSongsChanged,
                                                     onPlaySongCommand = playerModel::onPlaySongCommand,
@@ -119,24 +132,25 @@ fun Main() {
                                         }
                                     }
 
-                                    1 -> {
-                                        SongList(
+                                    Navigation.Songs.ordinal -> {
+                                        SongsList(
                                             songs = currentSongs,
                                             onSongsChanged = playerModel::onSongsChanged,
                                             onPlaySongCommand = playerModel::onPlaySongCommand,
                                         )
                                     }
 
-                                    2 -> {
+                                    Navigation.Albums.ordinal -> {
                                         NavHost(
                                             navController = navBarController,
-                                            startDestination = "albums",
+                                            startDestination = Navigation.Albums.name,
                                             popExitTransition = {
                                                 topBarText = null
                                                 fadeOut(animationSpec = tween(200))
-                                            }
+                                            },
+                                            route = "${Navigation.Albums.name} List"
                                         ) {
-                                            composable("albums") {
+                                            composable(Navigation.Albums.name) {
                                                 AlbumsList(
                                                     albums = playerState.currentTrackSequence.values.mapNotNull { it.album }
                                                         .fastDistinctBy(String::lowercase),
@@ -148,18 +162,38 @@ fun Main() {
                                                                 it.album != null && topBarText != null &&
                                                                         it.album.lowercase() == topBarText!!.lowercase()
                                                             }
-                                                        navBarController.navigate("album")
+                                                        navBarController.navigate(Navigation.Albums.name.dropLast(1))
                                                     }
                                                 )
                                             }
-                                            composable("album") {
-                                                SongList(
+                                            composable(Navigation.Albums.name.dropLast(1)) {
+                                                SongsList(
                                                     songs = currentAlbumSongsList,
                                                     onSongsChanged = playerModel::onSongsChanged,
                                                     onPlaySongCommand = playerModel::onPlaySongCommand,
                                                 )
                                             }
                                         }
+                                    }
+
+                                    Navigation.Playlists.ordinal -> {
+                                        PlaylistsList(
+                                            playlists = currentPlaylists.ifEmpty {
+                                                scope.launch {
+                                                    currentPlaylists = PlaylistRepository.getAllPlaylists()
+                                                }
+                                                currentPlaylists
+                                            },
+                                            onPlaylistsChanged = {
+                                                scope.launch {
+                                                    currentPlaylists = PlaylistRepository.getAllPlaylists()
+                                                }
+                                            },
+                                            onPlaylistClicked = { playlist ->
+                                                currentArtistSongsList = playlist.songs
+                                                navBarController.navigate(Navigation.Playlists.name.dropLast(1))
+                                            }
+                                        )
                                     }
 
                                     else -> listOf<Song>()

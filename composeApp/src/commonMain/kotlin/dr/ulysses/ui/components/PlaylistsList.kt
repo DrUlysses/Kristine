@@ -14,24 +14,23 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dr.ulysses.entities.Song
-import dr.ulysses.entities.SongRepository
-import dr.ulysses.entities.refreshSongs
-import dr.ulysses.ui.elements.SongListEntry
+import dr.ulysses.entities.Playlist
+import dr.ulysses.entities.PlaylistRepository
+import dr.ulysses.ui.elements.PlaylistListEntry
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SongList(
+fun PlaylistsList(
     modifier: Modifier = Modifier,
-    songs: List<Song>,
-    onSongsChanged: (List<Song>) -> Unit,
-    onPlaySongCommand: (Song) -> Unit,
+    playlists: List<Playlist>,
+    onPlaylistsChanged: (List<Playlist>) -> Unit,
+    onPlaylistClicked: (Playlist) -> Unit,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         val listState = rememberLazyListState()
 
         LaunchedEffect(listState) {
-            onSongsChanged(SongRepository.getAllSongs().ifEmpty { refreshSongs() })
+            onPlaylistsChanged(PlaylistRepository.getAllPlaylists())
             listState.animateScrollToItem(0)
         }
 
@@ -42,16 +41,15 @@ fun SongList(
                 .fillMaxSize()
                 .overscroll(ScrollableDefaults.overscrollEffect()),
             content = {
-                items(items = songs) { song ->
-                    val image: ByteArray? = remember { song.artwork }
+                items(items = playlists) { playlist ->
+                    val image: ByteArray? = remember { playlist.artwork }
                     image ?: LaunchedEffect(image) {
-                        SongRepository.getArtwork(song.path)
+                        PlaylistRepository.getArtwork(playlist.name)
                     }
-                    SongListEntry(
+                    PlaylistListEntry(
                         image = image,
-                        title = song.title,
-                        artist = song.artist,
-                        onClick = { onPlaySongCommand(song) }
+                        name = playlist.name,
+                        onClick = { onPlaylistClicked(playlist) }
                     )
                 }
             }

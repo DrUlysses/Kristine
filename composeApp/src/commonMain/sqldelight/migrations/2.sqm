@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS playlist(
+    name TEXT NOT NULL UNIQUE,
+    artwork BLOB,
+    duration INTEGER,
+    state TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS playlist_song(
+    playlist_name TEXT NOT NULL,
+    song_path TEXT NOT NULL,
+    PRIMARY KEY(playlist_name, song_path),
+    FOREIGN KEY(playlist_name) REFERENCES playlist(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY(song_path) REFERENCES song(path) ON DELETE CASCADE ON UPDATE CASCADE
+);

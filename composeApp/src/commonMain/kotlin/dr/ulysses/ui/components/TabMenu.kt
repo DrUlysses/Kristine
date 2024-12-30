@@ -11,6 +11,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import dr.ulysses.ui.views.Navigation
 import kotlinx.coroutines.launch
 import kristine.composeapp.generated.resources.Res
 import kristine.composeapp.generated.resources.back
@@ -20,11 +21,6 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun TabMenu(
     pagerState: PagerState,
-    tabs: List<String> = listOf(
-        "Artists",
-        "Songs",
-        "Albums"
-    ),
     topText: String? = null,
     modifier: Modifier = Modifier,
     navigateUp: () -> Unit = {},
@@ -56,18 +52,18 @@ fun TabMenu(
                 .height(50.dp),
             selectedTabIndex = pagerState.currentPage,
         ) {
-            for (tab in tabs) {
+            for (tab in Navigation.entries) {
                 Tab(
                     onClick = {
                         scope.launch {
-                            pagerState.animateScrollToPage(tabs.indexOf(tab))
+                            pagerState.animateScrollToPage(Navigation.entries.indexOf(tab))
                         }
                     },
-                    selected = pagerState.currentPage == tabs.indexOf(tab),
+                    selected = pagerState.currentPage == Navigation.entries.indexOf(tab),
                     enabled = true,
                     text = {
                         Text(
-                            text = tab,
+                            text = tab.name,
                             style = MaterialTheme.typography.bodyLarge,
                         )
                     }

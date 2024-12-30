@@ -24,6 +24,7 @@ data class Song(
     val artwork: ByteArray? = null,
     val duration: Int? = null,
     val state: String,
+    val playlists: List<Playlist> = emptyList(),
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -51,24 +52,6 @@ data class Song(
 object SongRepository : KoinComponent {
     private val sharedDatabase: SharedDatabase by inject()
 
-    private fun mapSong(
-        path: String,
-        title: String,
-        album: String?,
-        artist: String,
-        duration: Long?,
-        artwork: ByteArray?,
-        state: String?,
-    ): Song = Song(
-        path = path,
-        title = title,
-        album = album,
-        artist = artist,
-        artwork = artwork,
-        duration = duration?.toInt() ?: 0,
-        state = state ?: ""
-    )
-
     suspend fun upsert(song: Song) = sharedDatabase { appDatabase ->
         appDatabase.songQueries.transactionWithResult {
             try {
@@ -81,7 +64,7 @@ object SongRepository : KoinComponent {
                     duration = song.duration?.toLong() ?: 0,
                     state = song.state,
                 )
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 appDatabase.songQueries.update(
                     path = song.path,
                     title = song.title,
@@ -93,10 +76,6 @@ object SongRepository : KoinComponent {
                 )
             }
         }
-    }
-
-    suspend fun getAll(): List<Song> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectAll(::mapSong).executeAsList()
     }
 
     suspend fun getAllSongs(): List<Song> = sharedDatabase { appDatabase ->

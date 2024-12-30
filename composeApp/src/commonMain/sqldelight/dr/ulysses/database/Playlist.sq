@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS playlist(
+    name TEXT NOT NULL UNIQUE,
+    artwork BLOB,
+    duration INTEGER,
+    state TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+selectAll:
+SELECT * FROM playlist;
+
+selectArtworkByName:
+SELECT artwork FROM playlist WHERE name = ?;
+
+insert:
+INSERT INTO playlist(name, created_at, updated_at) VALUES(?, ?, ?);
+
+updateByName:
+UPDATE playlist SET updated_at = ? WHERE name = ?;
+
+deleteByName:
+DELETE FROM playlist WHERE name = ?;

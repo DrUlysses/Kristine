@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS playlist_song(
+    playlist_name TEXT NOT NULL,
+    song_path TEXT NOT NULL,
+    PRIMARY KEY(playlist_name, song_path),
+    FOREIGN KEY(playlist_name) REFERENCES playlist(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY(song_path) REFERENCES song(path) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+insert:
+INSERT INTO playlist_song(playlist_name, song_path) VALUES(?, ?);
+
+selectSongsByPlaylist:
+SELECT path, title, artist, album, state FROM song JOIN playlist_song ON song.path = playlist_song.song_path WHERE playlist_song.playlist_name = ?;
+
+selectPlaylistsBySong:
+SELECT name, artwork, duration, state, created_at, updated_at FROM playlist JOIN playlist_song ON playlist.name = playlist_song.playlist_name WHERE playlist_song.song_path = ?;
