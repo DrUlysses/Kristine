@@ -19,13 +19,14 @@ import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun SongListEntry(
+    modifier: Modifier = Modifier,
     image: ByteArray? = null,
     title: String = "Title",
     artist: String = "Unknown Artist",
     onClick: () -> Unit = {},
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
     ) {

@@ -3,6 +3,7 @@ package dr.ulysses.models
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 
 internal object PlayerService {
@@ -10,35 +11,32 @@ internal object PlayerService {
         private set
 
     fun onPlaySongCommand(song: Song) {
-        val currentTrackNum = state.currentTrackSequence.entries.find { it.value == song }?.key
+        val currentTrackNum = state.currentPlaylist.songs.indexOf(song)
         // If the song is already in the current track sequence, set it as the current track
-        if (currentTrackNum != null) {
+        if (currentTrackNum != -1) {
             setState { copy(currentTrackNum = currentTrackNum) }
             if (state.currentSong == null)
-                setPlayListOnDevice(state.currentTrackSequence.values.map { it.path })
+                setPlayListOnDevice(state.currentPlaylist.songs.map { it.path })
             setCurrentTrackNumOnDevice(currentTrackNum)
         }
         // If the song is not in the current track sequence, set it as the first track
         else {
             setState {
                 copy(
-                    currentTrackSequence = state.currentTrackSequence,
                     currentTrackNum = 0
                 )
             }
-            setPlayListOnDevice(state.currentTrackSequence.values.map { it.path })
+            setPlayListOnDevice(state.currentPlaylist.songs.map { it.path })
         }
         onResumeCommand()
     }
 
-    fun onFindSongCommand(query: String): List<Song> {
-        return state.currentTrackSequence.values.filter {
-            it.title.contains(
-                query, ignoreCase = true
-            ) || it.artist.contains(query, ignoreCase = true) || it.album?.contains(
-                query, ignoreCase = true
-            ) == true || it.path.contains(query, ignoreCase = true)
-        }
+    fun onFindSongCommand(query: String): List<Song> = state.currentPlaylist.songs.filter {
+        it.title.contains(
+            query, ignoreCase = true
+        ) || it.artist.contains(query, ignoreCase = true) || it.album?.contains(
+            query, ignoreCase = true
+        ) == true || it.path.contains(query, ignoreCase = true)
     }
 
     fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -50,9 +48,8 @@ internal object PlayerService {
     }
 
     fun onPlayCommand() {
-        val song = state.currentTrackSequence[state.currentTrackNum]
-        if (song != null) {
-            setState { copy(currentSong = song) }
+        state.currentPlaylist.songs.getOrNull(state.currentTrackNum)?.let {
+            setState { copy(currentSong = it) }
             onResumeCommand()
         }
     }
@@ -79,8 +76,8 @@ internal object PlayerService {
     }
 
     fun onNextCommand() {
-        if (state.currentTrackNum < state.currentTrackSequence.size - 1) {
-            state.currentTrackSequence[state.currentTrackNum + 1]?.let {
+        if (state.currentTrackNum < state.currentPlaylist.songs.size - 1) {
+            state.currentPlaylist.songs.getOrNull(state.currentTrackNum + 1)?.let {
                 setState { copy(currentSong = it, currentTrackNum = state.currentTrackNum + 1) }
                 playNextOnDevice()
             }
@@ -89,28 +86,37 @@ internal object PlayerService {
 
     fun onPreviousCommand() {
         if (state.currentTrackNum > 0) {
-            state.currentTrackSequence[state.currentTrackNum - 1]?.let {
+            state.currentPlaylist.songs.getOrNull(state.currentTrackNum - 1)?.let {
                 setState { copy(currentSong = it, currentTrackNum = state.currentTrackNum - 1) }
                 playPreviousOnDevice()
             }
         }
     }
 
+    fun onPlaylistChanged(playlist: Playlist) {
+        setState {
+            copy(
+                currentPlaylist = playlist,
+                currentTrackNum = 0,
+            )
+        }
+        setPlayListOnDevice(playlist.songs.map { it.path })
+    }
+
     fun onSongsChanged(songs: List<Song>) {
         setState {
             copy(
-                currentTrackSequence = linkedMapOf<Int, Song>().apply {
-                    songs.forEachIndexed { index, song -> put(index, song) }
-                }
+                currentPlaylist = state.currentPlaylist.copy(songs = songs),
             )
         }
+        setPlayListOnDevice(songs.map { it.path })
     }
 
     private fun initialState() = PlayerState().also {
         isPlayingChangedOnDevice { isPlaying -> setState { copy(isPlaying = isPlaying) } }
         currentPlayingChangedOnDevice { path ->
             setState {
-                copy(currentSong = state.currentTrackSequence.values.find { it.path == path })
+                copy(currentSong = state.currentPlaylist.songs.find { it.path == path })
             }
         }
     }
@@ -124,15 +130,17 @@ internal object PlayerService {
      *
      * @param currentSong Current song playing
      * @param isPlaying Is the player playing on device/remote
-     * @param currentTrackSequence Current track sequence, with track number as key and path as value
+     * @param currentPlaylist Current playlist, with track number as key and path as value
      * @param currentTrackNum Current track number
      * @param isRemotePlaying Is the player playing remotely
      */
     data class PlayerState(
         val currentSong: Song? = null,
         val isPlaying: Boolean = false,
-        val currentTrackSequence: LinkedHashMap<Int, Song> = linkedMapOf(),
         val currentTrackNum: Int = 0,
+        val currentPlaylist: Playlist = Playlist(
+            state = "paused",
+        ),
         val isRemotePlaying: Boolean = false,
         val onPlayingChangedOnDevice: (Boolean) -> Unit = {},
     )

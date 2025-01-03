@@ -115,7 +115,7 @@ open class MediaLibrarySessionCallback(context: Context) :
         browser: MediaSession.ControllerInfo,
         mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> =
-        PlayerService.state.currentTrackSequence.values.find { it.path == mediaId }?.let {
+        PlayerService.state.currentPlaylist.songs.find { it.path == mediaId }?.let {
             return Futures.immediateFuture(LibraryResult.ofItem(MediaItem.fromUri(it.path), /* params= */ null))
         } ?: Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
 
@@ -158,7 +158,7 @@ open class MediaLibrarySessionCallback(context: Context) :
 
     // TODO: bug here
     private fun resolveMediaItems(mediaItems: List<MediaItem>): List<MediaItem> =
-        PlayerService.state.currentTrackSequence.values.map { MediaItem.fromUri(it.path) }
+        PlayerService.state.currentPlaylist.songs.map { MediaItem.fromUri(it.path) }
 
     override fun onSearch(
         session: MediaLibraryService.MediaLibrarySession,

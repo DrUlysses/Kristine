@@ -52,7 +52,7 @@ fun TabMenu(
                 .height(50.dp),
             selectedTabIndex = pagerState.currentPage,
         ) {
-            for (tab in Navigation.entries) {
+            for (tab in Navigation.shownEntries) {
                 Tab(
                     onClick = {
                         scope.launch {

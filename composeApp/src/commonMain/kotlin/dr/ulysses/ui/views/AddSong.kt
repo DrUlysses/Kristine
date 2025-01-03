@@ -6,11 +6,12 @@ import androidx.compose.ui.Modifier
 
 @Composable
 fun AddSong(
-
+    modifier: Modifier = Modifier,
+    onAddSong: (String, String) -> Unit,
 ) {
     Row(
         horizontalArrangement = Arrangement.Center,
-        modifier = Modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         Box(
 

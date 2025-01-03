@@ -1,8 +1,9 @@
 [versions]
 # Main
 kristine = "1.0.4"
-kotlin = "2.1.0"
-ktor = "2.3.7"
+#noinspection GradleDependency (coz wasm)
+kotlin = "2.0.21"
+ktor = "3.0.3"
 koin = "3.6.0-wasm-alpha2"
 agp = "8.2.2"
 
@@ -14,13 +15,14 @@ android-jvmTarget = "1.8"
 jvmTarget = "17"
 
 # Database
-sqlDelight = "2.0.2"
+sqlDelight = "2.1.0-wasm.2"
+sqlDelightReleased = "2.0.2"
 sqlJs = "1.6.2"
 webPackPlugin = "9.1.0"
 multiplatformSettings = "1.1.1"
 
 # Misc
-kotlinx-serialization = "1.6.3"
+kotlinx-serialization = "1.7.3"
 kotlinx-coroutines = "1.9.0"
 kotlinx-datetime = "0.6.0"
 accompanist = "0.35.0-alpha"
@@ -28,10 +30,16 @@ accompanist = "0.35.0-alpha"
 # Filesystem
 appdirs = "1.2.2"
 napier = "2.7.0"
+landscapist-coil3 = "2.4.5"
+filekit = "0.8.8"
+coil = "3.0.4"
 
 # AndroidX
 androidx-activityCompose = "1.9.3"
 androidx-appcompat = "1.7.0"
+#noinspection GradleDependency (coz old phone)
+androidx-core = "1.13.1"
+#noinspection GradleDependency (coz old phone)
 androidx-media3 = "1.4.1"
 
 jetbrains-navigation = "2.7.0-alpha07"
@@ -45,6 +53,7 @@ compose-plugin = "1.7.3"
 
 [libraries]
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
 androidx-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "androidx-media3" }
 androidx-media3-exoplayer-dash = { module = "androidx.media3:media3-exoplayer-dash", version.ref = "androidx-media3" }
@@ -54,7 +63,7 @@ androidx-media3-session = { module = "androidx.media3:media3-session", version.r
 sqldelight-coroutines-extension = { module = "app.cash.sqldelight:coroutines-extensions", version.ref = "sqlDelight" }
 sqldelight-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqlDelight" }
 sqldelight-android-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "sqlDelight" }
-sqldelight-webworker-driver = { module = "app.cash.sqldelight:web-worker-driver", version.ref = "sqlDelight" }
+sqldelight-webworker-driver-wasm-js = { module = "app.cash.sqldelight:web-worker-driver-wasm-js", version.ref = "sqlDelight" }
 
 appdirs = { module = "net.harawata:appdirs", version.ref = "appdirs" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
@@ -74,6 +83,10 @@ koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
+
+landscapist-coil3 = { module = "com.github.skydoves:landscapist-coil3", version.ref = "landscapist-coil3" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+filekit-compose = { module = "io.github.vinceglb:filekit-compose", version.ref = "filekit" }
 
 [plugins]
 compose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }

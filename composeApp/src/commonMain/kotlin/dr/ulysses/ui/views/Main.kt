@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -23,11 +26,14 @@ import androidx.navigation.compose.rememberNavController
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.PlaylistRepository
 import dr.ulysses.entities.Song
+import dr.ulysses.entities.SongRepository
 import dr.ulysses.models.PlayerService
 import dr.ulysses.ui.components.*
 import dr.ulysses.ui.permissions.PermissionsAlert
+import dr.ulysses.ui.views.Navigation.entries
 import kotlinx.coroutines.launch
 import kristine.composeapp.generated.resources.Res
+import kristine.composeapp.generated.resources.add_playlist
 import kristine.composeapp.generated.resources.search
 import kristine.composeapp.generated.resources.search_tooltip
 import org.jetbrains.compose.resources.stringResource
@@ -36,34 +42,54 @@ enum class Navigation {
     Artists,
     Songs,
     Albums,
-    Playlists
+    Playlists,
+    Search;
+
+    companion object {
+        val shownEntries = entries.filter { it != Search }
+    }
+}
+
+enum class Views {
+    Main,
+    Search,
+    ManagePlaylist
 }
 
 @Composable
 fun Main() {
     val pagerState = rememberPagerState(
         initialPage = 1,
-        pageCount = { Navigation.entries.size },
+        pageCount = { Navigation.shownEntries.size },
     )
     val searchText = stringResource(Res.string.search)
+    val addPlaylistText = stringResource(Res.string.add_playlist)
     val searchTooltip = stringResource(Res.string.search_tooltip)
     val permissionsGranted = remember { mutableStateOf(false) }
     val playerModel = remember { PlayerService }
     val scope = rememberCoroutineScope()
     val playerState = playerModel.state
     var topBarText by remember { mutableStateOf<String?>(null) }
-    var search by remember { mutableStateOf(false) }
+    var view by remember { mutableStateOf(Views.Main) }
     val navBarController = rememberNavController()
-    val currentSongs by remember {
-        mutableStateOf(
-            playerState
-                .currentTrackSequence
-                .values
-                .toList()
-        )
+    var route by remember { mutableStateOf<String?>(null) }
+    var allSongs by remember { mutableStateOf(emptyList<Song>()) }
+    allSongs = run {
+        scope.launch {
+            allSongs = SongRepository.getAllSongs()
+        }
+        allSongs
     }
     var currentArtistSongsList by remember { mutableStateOf(emptyList<Song>()) }
     var currentAlbumSongsList by remember { mutableStateOf(emptyList<Song>()) }
+    var currentPlaylist by remember {
+        mutableStateOf<Playlist>(
+            Playlist(
+                songs = allSongs,
+                state = "playing",
+            )
+        )
+    }
     var currentPlaylists by remember { mutableStateOf(emptyList<Playlist>()) }
     PermissionsAlert(
         permissionsGranted = permissionsGranted.value,
@@ -77,7 +103,10 @@ fun Main() {
                 pagerState = pagerState,
                 topText = topBarText,
                 navigateUp = {
-                    navBarController.navigateUp()
+                    when (view) {
+                        Views.Search, Views.ManagePlaylist -> view = Views.Main
+                        else -> navBarController.navigateUp()
+                    }
                     topBarText = null
                 }
             )
@@ -88,8 +117,8 @@ fun Main() {
                     .padding(innerPadding),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                when (search) {
-                    false -> {
+                when (view) {
+                    Views.Main ->
                         HorizontalPager(
                             modifier = Modifier.fillMaxSize(),
                             state = pagerState,
@@ -107,14 +136,14 @@ fun Main() {
                                         ) {
                                             composable(Navigation.Artists.name) {
                                                 ArtistsList(
-                                                    artists = currentSongs
-                                                        .map { it.artist }
+                                                    artists = allSongs
+                                                        .map { it.artist.trim() }
                                                         .fastDistinctBy(String::lowercase),
                                                     onArtistsChanged = {},
                                                     onArtistClicked = { artist ->
                                                         topBarText = artist
                                                         currentArtistSongsList =
-                                                            playerState.currentTrackSequence.values.filter {
+                                                            playerState.currentPlaylist.songs.filter {
                                                                 topBarText != null &&
                                                                         it.artist.lowercase() == topBarText!!.lowercase()
                                                             }
@@ -125,7 +154,6 @@ fun Main() {
                                             composable(Navigation.Artists.name.dropLast(1)) {
                                                 SongsList(
                                                     songs = currentArtistSongsList,
-                                                    onSongsChanged = playerModel::onSongsChanged,
                                                     onPlaySongCommand = playerModel::onPlaySongCommand,
                                                 )
                                             }
@@ -134,9 +162,11 @@ fun Main() {
 
                                     Navigation.Songs.ordinal -> {
                                         SongsList(
-                                            songs = currentSongs,
-                                            onSongsChanged = playerModel::onSongsChanged,
-                                            onPlaySongCommand = playerModel::onPlaySongCommand,
+                                            songs = allSongs,
+                                            onPlaySongCommand = { song ->
+                                                playerModel.onSongsChanged(allSongs)
+                                                playerModel.onPlaySongCommand(song)
+                                            },
                                         )
                                     }
 
@@ -152,16 +182,15 @@ fun Main() {
                                         ) {
                                             composable(Navigation.Albums.name) {
                                                 AlbumsList(
-                                                    albums = playerState.currentTrackSequence.values.mapNotNull { it.album }
+                                                    albums = allSongs
+                                                        .mapNotNull { it.album?.trim() }
                                                         .fastDistinctBy(String::lowercase),
-                                                    onAlbumsChanged = {},
                                                     onAlbumClicked = { album ->
                                                         topBarText = album
-                                                        currentAlbumSongsList =
-                                                            playerState.currentTrackSequence.values.filter {
-                                                                it.album != null && topBarText != null &&
-                                                                        it.album.lowercase() == topBarText!!.lowercase()
-                                                            }
+                                                        currentAlbumSongsList = allSongs.filter {
+                                                            it.album != null && topBarText != null &&
+                                                                    it.album.lowercase() == topBarText!!.lowercase()
+                                                        }
                                                         navBarController.navigate(Navigation.Albums.name.dropLast(1))
                                                     }
                                                 )
@@ -169,7 +198,6 @@ fun Main() {
                                             composable(Navigation.Albums.name.dropLast(1)) {
                                                 SongsList(
                                                     songs = currentAlbumSongsList,
-                                                    onSongsChanged = playerModel::onSongsChanged,
                                                     onPlaySongCommand = playerModel::onPlaySongCommand,
                                                 )
                                             }
@@ -177,34 +205,92 @@ fun Main() {
                                     }
 
                                     Navigation.Playlists.ordinal -> {
-                                        PlaylistsList(
-                                            playlists = currentPlaylists.ifEmpty {
-                                                scope.launch {
-                                                    currentPlaylists = PlaylistRepository.getAllPlaylists()
-                                                }
-                                                currentPlaylists
+                                        NavHost(
+                                            navController = navBarController,
+                                            startDestination = Navigation.Playlists.name,
+                                            popExitTransition = {
+                                                topBarText = null
+                                                fadeOut(animationSpec = tween(200))
                                             },
-                                            onPlaylistsChanged = {
-                                                scope.launch {
-                                                    currentPlaylists = PlaylistRepository.getAllPlaylists()
-                                                }
-                                            },
-                                            onPlaylistClicked = { playlist ->
-                                                currentArtistSongsList = playlist.songs
-                                                navBarController.navigate(Navigation.Playlists.name.dropLast(1))
+                                            route = "${Navigation.Playlists.name} List"
+                                        ) {
+                                            composable(Navigation.Playlists.name) {
+                                                PlaylistsList(
+                                                    playlists = currentPlaylists.ifEmpty {
+                                                        scope.launch {
+                                                            currentPlaylists = PlaylistRepository.getAllPlaylists()
+                                                        }
+                                                        currentPlaylists
+                                                    },
+                                                    onPlaylistsChanged = {
+                                                        scope.launch {
+                                                            currentPlaylists = PlaylistRepository.getAllPlaylists()
+                                                        }
+                                                    },
+                                                    onPlaylistClicked = { playlist ->
+                                                        currentPlaylist = playlist
+                                                        topBarText = currentPlaylist.name
+                                                        navBarController.navigate(Navigation.Playlists.name.dropLast(1))
+                                                    }
+                                                )
                                             }
-                                        )
+                                            composable(Navigation.Playlists.name.dropLast(1)) {
+                                                var songs by remember { mutableStateOf(emptyList<Song>()) }
+
+                                                scope.launch {
+                                                    songs = PlaylistRepository.getPlaylistSongs(currentPlaylist.name)
+                                                }
+
+                                                SongsList(
+                                                    songs = songs,
+                                                    onPlaySongCommand = { song ->
+                                                        playerModel.onPlaylistChanged(currentPlaylist.copy(songs = songs))
+                                                        playerModel.onPlaySongCommand(song)
+                                                    },
+                                                )
+                                            }
+                                        }
                                     }
 
                                     else -> listOf<Song>()
                                 }
+                                route = if (navBarController.visibleEntries.value.isEmpty())
+                                    null
+                                else
+                                    navBarController.graph.route
                             }
                         )
-                    }
 
-                    true -> {
+                    Views.Search ->
+                        NavHost(
+                            navController = navBarController,
+                            startDestination = Navigation.Search.name,
+                            popExitTransition = {
+                                topBarText = null
+                                fadeOut(animationSpec = tween(200))
+                            },
+                            route = "${Navigation.Search.name} List"
+                        ) {
+                            composable(Navigation.Search.name) {
+                                Search(
+                                    onPlaylistClicked = { playlist ->
+                                        currentPlaylist = playlist as Playlist
+                                        navBarController.navigate(Navigation.Playlists.name.dropLast(1))
+                                    },
+                                    onQueryChanged = { query ->
+                                        topBarText = query.ifEmpty { searchText }
+                                    }
+                                )
+                            }
+                        }
 
-                    }
+                    Views.ManagePlaylist ->
+                        ManagePlaylist(
+                            playlist = currentPlaylist,
+                            onPlaylistChanged = { playlist ->
+                                currentPlaylist = playlist
+                            }
+                        )
                 }
             }
         },
@@ -218,16 +304,64 @@ fun Main() {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    search = !search
-                    topBarText = if (search) searchText else null
+            when (view) {
+                Views.Search -> FloatingActionButton(
+                    onClick = {
+                        view = Views.Main
+                        topBarText = null
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = searchTooltip
+                    )
                 }
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = searchTooltip
-                )
+
+                Views.ManagePlaylist -> FloatingActionButton(
+                    onClick = {
+                        scope.launch {
+                            PlaylistRepository.insert(currentPlaylist)
+                            allSongs = SongRepository.getAllSongs()
+                            currentPlaylist = Playlist(
+                                songs = allSongs,
+                                state = "active",
+                            )
+                            view = Views.Main
+                            topBarText = null
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = searchTooltip
+                    )
+                }
+
+                else -> when (route) {
+                    "${Navigation.Playlists.name} List" -> FloatingActionButton(
+                        onClick = {
+                            topBarText = addPlaylistText
+                            view = Views.ManagePlaylist
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = searchTooltip
+                        )
+                    }
+
+                    else -> FloatingActionButton(
+                        onClick = {
+                            view = Views.Search
+                            topBarText = searchText
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = searchTooltip
+                        )
+                    }
+                }
             }
         }
     )

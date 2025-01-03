@@ -14,3 +14,6 @@ SELECT path, title, artist, album, state FROM song JOIN playlist_song ON song.pa
 
 selectPlaylistsBySong:
 SELECT name, artwork, duration, state, created_at, updated_at FROM playlist JOIN playlist_song ON playlist.name = playlist_song.playlist_name WHERE playlist_song.song_path = ?;
+
+search:
+SELECT playlist_name, song_path FROM playlist_song WHERE playlist_name LIKE ? OR song_path LIKE ?;

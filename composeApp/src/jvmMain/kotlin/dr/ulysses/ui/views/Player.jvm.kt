@@ -12,7 +12,6 @@ import dr.ulysses.models.PlayerService
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent
 
-
 @Composable
 actual fun VideoPlayer(
     modifier: Modifier,
@@ -40,8 +39,8 @@ private fun initializeMediaPlayerComponent(): EmbeddedMediaPlayerComponent {
     val component = EmbeddedMediaPlayerComponent()
     PlayerObject.player.mediaPlayer().setMediaPlayer(
         component.mediaPlayer()
-        .apply { events().addMediaEventListener(PlayerObject.stateListener) }
-        .apply { events().addMediaPlayerEventListener(PlayerObject.stateListener) })
+            .apply { events().addMediaEventListener(PlayerObject.stateListener) }
+            .apply { events().addMediaPlayerEventListener(PlayerObject.stateListener) })
     PlayerObject.player.events().addMediaListPlayerEventListener(PlayerObject.listListener)
     return component
 }

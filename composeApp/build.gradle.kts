@@ -1,8 +1,7 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import java.net.HttpURLConnection
-import java.net.URL
-import java.nio.file.Files
+import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
     alias(libs.plugins.multiplatform)
@@ -30,9 +29,21 @@ kotlin {
         languageVersion.set(JavaLanguageVersion.of(libs.versions.jvmTarget.get()))
     }
 
-    js {
-        browser()
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
         binaries.executable()
+        browser {
+            commonWebpackConfig {
+                outputFileName = "composeApp.js"
+                devServer = (devServer ?: KotlinWebpackConfig.DevServer()).apply {
+                    static = (static ?: mutableListOf()).apply {
+                        // Serve sources to debug inside browser
+                        add(project.rootDir.path)
+                        add(project.projectDir.path)
+                    }
+                }
+            }
+        }
     }
 
     sourceSets {
@@ -56,6 +67,9 @@ kotlin {
             implementation(libs.multiplatformSettings)
             implementation(libs.sqldelight.coroutines.extension)
             implementation(libs.navigation.compose)
+            implementation(libs.filekit.compose)
+            implementation(libs.landscapist.coil3)
+            implementation(libs.coil.compose)
         }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
@@ -78,12 +92,11 @@ kotlin {
             implementation(libs.appdirs)
             implementation(libs.caprica.vlcj)
         }
-        jsMain.dependencies {
-            implementation(compose.html.core)
+        wasmJsMain.dependencies {
             implementation(libs.ktor.client.js)
-            implementation(libs.sqldelight.webworker.driver)
+            implementation(libs.sqldelight.webworker.driver.wasm.js)
             implementation(npm("sql.js", libs.versions.sqlJs.get()))
-            implementation(npm("@cashapp/sqldelight-sqljs-worker", libs.versions.sqlDelight.get()))
+            implementation(npm("@cashapp/sqldelight-sqljs-worker", libs.versions.sqlDelightReleased.get()))
             implementation(devNpm("copy-webpack-plugin", libs.versions.webPackPlugin.get()))
         }
     }
@@ -139,6 +152,9 @@ compose.desktop {
             targetFormats(TargetFormat.Exe, TargetFormat.Deb)
             packageName = "Kristine"
             packageVersion = libs.versions.kristine.get()
+            linux {
+                modules("jdk.security.auth")
+            }
         }
     }
 }
@@ -154,56 +170,8 @@ sqldelight {
     linkSqlite = true
 }
 
-// See https://sqlite.org/download.html for the latest wasm build version
-val sqlite = 3470000
-
-val sqliteDownload = tasks.register("sqliteDownload") {
-    val fileUrl = "https://sqlite.org/2024/sqlite-wasm-$sqlite.zip" // Replace with your file URL
-    val outputDir = layout.buildDirectory.dir("tmp") // Replace with your desired output path
-    val outputFile = outputDir.get().asFile.resolve("sqlite-wasm-$sqlite.zip")
-
-    // Check if file already exists
-    if (outputFile.exists()) {
-        // Open a connection to check for modification date
-        val connection = URL(fileUrl).openConnection() as HttpURLConnection
-        connection.requestMethod = "HEAD"
-        val serverLastModified = connection.lastModified
-
-        if (outputFile.lastModified() >= serverLastModified) {
-            println("File is up-to-date, skipping download.")
-            return@register
-        }
+configurations.all {
+    resolutionStrategy {
+        force(libs.androidx.core.ktx) // Force a specific version
     }
-
-    outputs.file(outputFile)
-
-    doLast {
-        val url = URL(fileUrl)
-        val connection = url.openConnection()
-        connection.connect()
-
-        if (!outputDir.isPresent)
-            outputDir.get().asFile.mkdirs()
-        url.openStream().use { input ->
-            Files.copy(input, outputFile.toPath())
-        }
-    }
-}
-
-val sqliteUnzip = tasks.register("sqliteUnzip", Copy::class.java) {
-    dependsOn(sqliteDownload)
-    from(zipTree(layout.buildDirectory.dir("tmp/sqlite-wasm-$sqlite.zip"))) {
-        include("sqlite-wasm-$sqlite/jswasm/**")
-        exclude("**/*worker1*")
-
-        eachFile {
-            relativePath = RelativePath(true, *relativePath.segments.drop(2).toTypedArray())
-        }
-    }
-    into(layout.buildDirectory.dir("sqlite"))
-    includeEmptyDirs = false
-}
-
-tasks.named("jsProcessResources").configure {
-    dependsOn(sqliteUnzip)
 }

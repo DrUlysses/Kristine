@@ -33,6 +33,8 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x gradlew
           ./gradlew jsBrowserDistribution --no-configuration-cache

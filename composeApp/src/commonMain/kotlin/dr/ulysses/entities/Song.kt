@@ -1,6 +1,9 @@
 package dr.ulysses.entities
 
+import dr.ulysses.database.PlaylistSongQueries
 import dr.ulysses.database.SharedDatabase
+import dr.ulysses.database.SongQueries
+import dr.ulysses.entities.base.Searchable
 import kotlinx.serialization.Serializable
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -25,7 +28,7 @@ data class Song(
     val duration: Int? = null,
     val state: String,
     val playlists: List<Playlist> = emptyList(),
-) {
+) : Searchable {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false
@@ -101,6 +104,32 @@ object SongRepository : KoinComponent {
     suspend fun getArtwork(path: String): ByteArray? = sharedDatabase { appDatabase ->
         appDatabase.songQueries.selectArtworkByPath(path).executeAsOneOrNull()?.artwork
     }
+
+    suspend fun search(input: String): List<Song> = sharedDatabase { appDatabase ->
+        appDatabase.songQueries.search(input).executeAsList().map {
+            Song(
+                path = it.path,
+                title = it.title,
+                artist = it.artist,
+                album = it.album,
+                state = ""
+            )
+        } + appDatabase.playlistSongQueries.search(input).executeAsList().flatMap { playlistSong ->
+            appDatabase.songQueries.selectByPath(playlistSong.song_path).executeAsList().map {
+                Song(
+                    path = it.path,
+                    title = it.title,
+                    artist = it.artist,
+                    album = it.album,
+                    state = ""
+                )
+            }
+        }
+    }.distinct()
 }
 
 expect suspend fun refreshSongs(): List<Song>
+
+// There should be some sql query to replace this hack, but I'm too lazy to write it
+fun SongQueries.search(input: String) = search(input, input, input)
+fun PlaylistSongQueries.search(input: String) = search(input, input)

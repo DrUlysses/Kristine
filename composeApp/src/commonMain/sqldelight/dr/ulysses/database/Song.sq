@@ -20,6 +20,9 @@ SELECT DISTINCT artist FROM song;
 selectAllAlbums:
 SELECT DISTINCT album FROM song;
 
+selectByPath:
+SELECT * FROM song WHERE path = ?;
+
 selectArtworkByPath:
 SELECT artwork FROM song WHERE path = ?;
 
@@ -31,3 +34,6 @@ UPDATE song SET title = ?, album = ?, artist = ?, duration = ?, state = ?, artwo
 
 deleteByPath:
 DELETE FROM song WHERE path = ?;
+
+search:
+SELECT path, title, artist, album, state FROM song WHERE title LIKE ? OR artist LIKE ? OR album LIKE ?;

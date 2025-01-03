@@ -18,7 +18,7 @@ import dr.ulysses.ui.elements.AlbumListEntry
 fun AlbumsList(
     modifier: Modifier = Modifier,
     albums: List<String>,
-    onAlbumsChanged: (List<String>) -> Unit,
+    onAlbumsChanged: (List<String>) -> Unit = {},
     onAlbumClicked: (String) -> Unit,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -30,7 +30,7 @@ fun AlbumsList(
                     refreshSongs().run { SongRepository.getAllAlbums() }
                 }
             )
-            listState.animateScrollToItem(0)
+            listState.scrollToItem(0)
         }
 
         LazyColumn(

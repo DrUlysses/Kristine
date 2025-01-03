@@ -31,7 +31,7 @@ fun PlaylistsList(
 
         LaunchedEffect(listState) {
             onPlaylistsChanged(PlaylistRepository.getAllPlaylists())
-            listState.animateScrollToItem(0)
+            listState.scrollToItem(0)
         }
 
         LazyColumn(

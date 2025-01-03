@@ -31,6 +31,7 @@
     <string name="pause">Pause</string>
     <string name="artists">Artists</string>
     <string name="search">Search</string>
+    <string name="add_playlist">Add playlist</string>
     <string name="search_tooltip">Search everywhere</string>
 
     <string name="some_error">Some error</string>

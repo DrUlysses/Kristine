@@ -29,6 +29,8 @@ jobs:
           cache: 'gradle'
 
       - name: Run gradle assemble task
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x gradlew 
           ./gradlew assemble --stacktrace
@@ -53,6 +55,8 @@ jobs:
           cache: 'gradle'
 
       - name: Run gradle package task
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x gradlew 
           ./gradlew packageDistributionForCurrentOS --no-daemon
