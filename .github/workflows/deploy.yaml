@@ -39,6 +39,12 @@ jobs:
           chmod +x gradlew
           ./gradlew wasmJsBrowserDistribution --no-configuration-cache
 
+      - name: Fix permissions
+        run: |
+          chmod -v -R +rX "composeApp/build/dist/wasmJs/productionExecutable/" | while read line; do
+          echo "::warning title=Invalid file permissions automatically fixed::$line"
+          done
+
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@4.1.5
         with:
