@@ -1,4 +1,5 @@
 version:0
+string|add_playlist|QWRkIHBsYXlsaXN0
 string|add_song|QWRkIFNvbmc=
 string|album|QWxidW0=
 string|app_name|S3Jpc3RpbmU=
@@ -30,6 +31,8 @@ string|previous|UHJldmlvdXM=
 string|problem_getting_file_path|UHJvYmxlbSBnZXR0aW5nIGZpbGUgcGF0aA==
 string|remote_library|UmVtb3RlIGxpYnJhcnk=
 string|retrieving_form|UmV0cmlldmluZyBmb3Jt
+string|search_tooltip|U2VhcmNoIGV2ZXJ5d2hlcmU=
+string|search|U2VhcmNo
 string|select_a_file|U2VsZWN0IGEgZmlsZQ==
 string|sending_file_please_wait|U2VuZGluZyBmaWxlIHBsZWFzZSB3YWl0
 string|set_server_ip|U2V0IHNlcnZlciBJUA==
