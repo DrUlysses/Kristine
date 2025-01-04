@@ -1,4 +1,7 @@
+@file:OptIn(ExperimentalKotlinGradlePluginApi::class, ExperimentalWasmDsl::class)
+
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
@@ -29,7 +32,6 @@ kotlin {
         languageVersion.set(JavaLanguageVersion.of(libs.versions.jvmTarget.get()))
     }
 
-    @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         binaries.executable()
         browser {
@@ -44,6 +46,14 @@ kotlin {
                 }
             }
         }
+    }
+    applyDefaultHierarchyTemplate {
+        common {
+            withWasmJs()
+        }
+    }
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
     }
 
     sourceSets {
@@ -94,9 +104,8 @@ kotlin {
         }
         wasmJsMain.dependencies {
             implementation(libs.ktor.client.js)
-            implementation(libs.sqldelight.webworker.driver.wasm.js)
+            implementation(libs.sqldelight.webworker.driver)
             implementation(npm("sql.js", libs.versions.sqlJs.get()))
-            implementation(npm("@cashapp/sqldelight-sqljs-worker", libs.versions.sqlDelightReleased.get()))
             implementation(devNpm("copy-webpack-plugin", libs.versions.webPackPlugin.get()))
         }
     }
@@ -162,9 +171,9 @@ compose.desktop {
 sqldelight {
     databases {
         create("Database") {
-            packageName.set("dr.ulysses.database")
-            generateAsync.set(true)
-            verifyMigrations.set(false)
+            packageName = "dr.ulysses.database"
+            generateAsync = true // Does not work on wasm version
+            verifyMigrations = false
         }
     }
     linkSqlite = true
