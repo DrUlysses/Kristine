@@ -4,10 +4,16 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 pluginManagement {
     repositories {
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
-        google()
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+                includeGroupByRegex("android.*")
+            }
+        }
         mavenCentral()
         gradlePluginPortal()
-        maven("https://oss.sonatype.org/content/repositories/snapshots")
         maven {
             url = uri("https://maven.pkg.github.com/edna-aa/sqldelight")
             credentials {
@@ -32,9 +38,7 @@ pluginManagement {
 dependencyResolutionManagement {
     repositories {
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
-        maven("https://maven.pkg.jetbrains.space/kotlin/p/wasm/experimental")
         maven("https://maven.pkg.jetbrains.space/public/p/ktor/eap")
-        maven("https://oss.sonatype.org/content/repositories/snapshots")
         maven {
             url = uri("https://maven.pkg.github.com/edna-aa/sqldelight")
             credentials {
@@ -53,7 +57,14 @@ dependencyResolutionManagement {
                 ) // Match any artifact in the group with versions containing "-wasm"
             }
         }
-        google()
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+                includeGroupByRegex("android.*")
+            }
+        }
         mavenCentral()
     }
 }

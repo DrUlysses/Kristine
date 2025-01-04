@@ -1,15 +1,13 @@
-importScripts("sqlite3.js");
+import initSqlJs from "sql.js";
 
 let db = null;
 
 async function createDatabase() {
-    const sqlite3 = await sqlite3InitModule();
-
-    // TODO: Parameterize storage location, and storage type
-    db = new sqlite3.oo1.DB("file:database.db?vfs=opfs", "c");
+    let SQL = await initSqlJs({locateFile: file => '/sql-wasm.wasm'});
+    db = new SQL.Database();
 }
 
-function handleMessage() {
+function onModuleReady() {
     const data = this.data;
 
     switch (data && data.action) {
@@ -20,40 +18,41 @@ function handleMessage() {
 
             return postMessage({
                 id: data.id,
-                results: {values: db.exec({sql: data.sql, bind: data.params, returnValue: "resultRows"})},
-            })
+                results: db.exec(data.sql, data.params)[0] ?? {values: []}
+            });
         case "begin_transaction":
             return postMessage({
                 id: data.id,
-                results: db.exec("BEGIN TRANSACTION;"),
+                results: db.exec("BEGIN TRANSACTION;")
             })
         case "end_transaction":
             return postMessage({
                 id: data.id,
-                results: db.exec("END TRANSACTION;"),
+                results: db.exec("END TRANSACTION;")
             })
         case "rollback_transaction":
             return postMessage({
                 id: data.id,
-                results: db.exec("ROLLBACK TRANSACTION;"),
+                results: db.exec("ROLLBACK TRANSACTION;")
             })
         default:
             throw new Error(`Unsupported action: ${data && data.action}`);
     }
 }
 
-function handleError(err) {
+function onError(err) {
     return postMessage({
         id: this.data.id,
-        error: err,
+        error: err
     });
 }
 
 if (typeof importScripts === "function") {
     db = null;
-    const sqlModuleReady = createDatabase();
+    const sqlModuleReady = createDatabase()
     self.onmessage = (event) => {
-        return sqlModuleReady.then(handleMessage.bind(event))
-            .catch(handleError.bind(event));
+        return sqlModuleReady
+            .then(onModuleReady.bind(event))
+            .catch(onError.bind(event));
     }
 }

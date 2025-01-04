@@ -16,8 +16,7 @@ jvmTarget = "17"
 
 # Database
 sqlDelight = "2.1.0-wasm.2"
-sqlDelightReleased = "2.0.2"
-sqlJs = "1.6.2"
+sqlJs = "1.8.0"
 webPackPlugin = "9.1.0"
 multiplatformSettings = "1.1.1"
 
@@ -63,7 +62,7 @@ androidx-media3-session = { module = "androidx.media3:media3-session", version.r
 sqldelight-coroutines-extension = { module = "app.cash.sqldelight:coroutines-extensions", version.ref = "sqlDelight" }
 sqldelight-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqlDelight" }
 sqldelight-android-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "sqlDelight" }
-sqldelight-webworker-driver-wasm-js = { module = "app.cash.sqldelight:web-worker-driver-wasm-js", version.ref = "sqlDelight" }
+sqldelight-webworker-driver = { module = "app.cash.sqldelight:web-worker-driver", version.ref = "sqlDelight" }
 
 appdirs = { module = "net.harawata:appdirs", version.ref = "appdirs" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
