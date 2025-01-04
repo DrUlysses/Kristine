@@ -65,6 +65,7 @@ fun Main() {
     val searchText = stringResource(Res.string.search)
     val addPlaylistText = stringResource(Res.string.add_playlist)
     val searchTooltip = stringResource(Res.string.search_tooltip)
+    val test = remember { mutableStateOf(pagerState.currentPage) }
     val permissionsGranted = remember { mutableStateOf(false) }
     val playerModel = remember { PlayerService }
     val scope = rememberCoroutineScope()
@@ -123,8 +124,8 @@ fun Main() {
                             modifier = Modifier.fillMaxSize(),
                             state = pagerState,
                             pageContent = { page ->
-                                when (page) {
-                                    Navigation.Artists.ordinal -> {
+                                when {
+                                    page == Navigation.Artists.ordinal -> {
                                         NavHost(
                                             navController = navBarController,
                                             startDestination = Navigation.Artists.name,
@@ -160,7 +161,7 @@ fun Main() {
                                         }
                                     }
 
-                                    Navigation.Songs.ordinal -> {
+                                    page == Navigation.Songs.ordinal -> {
                                         SongsList(
                                             songs = allSongs,
                                             onPlaySongCommand = { song ->
@@ -170,7 +171,7 @@ fun Main() {
                                         )
                                     }
 
-                                    Navigation.Albums.ordinal -> {
+                                    page == Navigation.Albums.ordinal -> {
                                         NavHost(
                                             navController = navBarController,
                                             startDestination = Navigation.Albums.name,
@@ -204,7 +205,7 @@ fun Main() {
                                         }
                                     }
 
-                                    Navigation.Playlists.ordinal -> {
+                                    pagerState.currentPage == Navigation.Playlists.ordinal -> {
                                         NavHost(
                                             navController = navBarController,
                                             startDestination = Navigation.Playlists.name,
