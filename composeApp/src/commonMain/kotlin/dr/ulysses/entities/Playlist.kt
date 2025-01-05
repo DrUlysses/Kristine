@@ -67,7 +67,7 @@ object PlaylistRepository : KoinComponent {
     }
 
     suspend fun getAllPlaylists(): List<Playlist> = sharedDatabase { appDatabase ->
-        appDatabase.playlistQueries.selectAll().executeAsList().map {
+        appDatabase.playlistQueries.selectAll().awaitAsList().map {
             Playlist(
                 name = it.name,
                 songs = emptyList(),
@@ -80,7 +80,7 @@ object PlaylistRepository : KoinComponent {
     }
 
     suspend fun getPlaylistSongs(playlistName: String): List<Song> = sharedDatabase { appDatabase ->
-        appDatabase.playlistSongQueries.selectSongsByPlaylist(playlistName).executeAsList().map {
+        appDatabase.playlistSongQueries.selectSongsByPlaylist(playlistName).awaitAsList().map {
             Song(
                 path = it.path,
                 title = it.title,
@@ -92,11 +92,11 @@ object PlaylistRepository : KoinComponent {
     }
 
     suspend fun getArtwork(playlistName: String) = sharedDatabase { appDatabase ->
-        appDatabase.playlistQueries.selectArtworkByName(playlistName).executeAsOneOrNull()?.artwork
+        appDatabase.playlistQueries.selectArtworkByName(playlistName).awaitAsOneOrNull()?.artwork
     }
 
     suspend fun search(input: String): List<Playlist> = sharedDatabase { appDatabase ->
-        appDatabase.playlistQueries.search(input).executeAsList().map {
+        appDatabase.playlistQueries.search(input).awaitAsList().map {
             Playlist(
                 name = it.name,
                 songs = emptyList(),
@@ -105,8 +105,8 @@ object PlaylistRepository : KoinComponent {
                 createdAt = Instant.parse(it.created_at),
                 updatedAt = Instant.parse(it.updated_at),
             )
-        } + appDatabase.playlistSongQueries.search(input).executeAsList().flatMap { playlistSong ->
-            appDatabase.playlistQueries.selectByName(playlistSong.playlist_name).executeAsList().map {
+        } + appDatabase.playlistSongQueries.search(input).awaitAsList().flatMap { playlistSong ->
+            appDatabase.playlistQueries.selectByName(playlistSong.playlist_name).awaitAsList().map {
                 Playlist(
                     name = it.name,
                     songs = emptyList(),
