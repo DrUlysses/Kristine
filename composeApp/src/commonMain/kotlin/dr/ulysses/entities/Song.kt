@@ -82,7 +82,7 @@ object SongRepository : KoinComponent {
     }
 
     suspend fun getAllSongs(): List<Song> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectAllSongs().executeAsList().map {
+        appDatabase.songQueries.selectAllSongs().awaitAsList().map {
             Song(
                 path = it.path,
                 title = it.title,
@@ -94,19 +94,19 @@ object SongRepository : KoinComponent {
     }
 
     suspend fun getAllArtists(): List<String> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectAllArtists().executeAsList()
+        appDatabase.songQueries.selectAllArtists().awaitAsList()
     }
 
     suspend fun getAllAlbums(): List<String> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectAllAlbums().executeAsList().mapNotNull { it.album }
+        appDatabase.songQueries.selectAllAlbums().awaitAsList().mapNotNull { it.album }
     }
 
     suspend fun getArtwork(path: String): ByteArray? = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectArtworkByPath(path).executeAsOneOrNull()?.artwork
+        appDatabase.songQueries.selectArtworkByPath(path).awaitAsOneOrNull()?.artwork
     }
 
     suspend fun search(input: String): List<Song> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.search(input).executeAsList().map {
+        appDatabase.songQueries.search(input).awaitAsList().map {
             Song(
                 path = it.path,
                 title = it.title,
@@ -114,7 +114,7 @@ object SongRepository : KoinComponent {
                 album = it.album,
                 state = ""
             )
-        } + appDatabase.playlistSongQueries.search(input).executeAsList().flatMap { playlistSong ->
+        } + appDatabase.playlistSongQueries.search(input).awaitAsList().flatMap { playlistSong ->
             appDatabase.songQueries.selectByPath(playlistSong.song_path).executeAsList().map {
                 Song(
                     path = it.path,
