@@ -84,7 +84,6 @@ actual suspend fun refreshSongs(): List<Song> {
                         },
                         album = cursor.getStringOrNull(colAlbum),
                         duration = cursor.getIntOrNull(colDuration),
-                        state = "downloaded",
                         artist = with(cursor) {
                             getStringOrNull(colArtist) ?: //
                             getStringOrNull(colAlbumArtist) ?: //
@@ -93,9 +92,9 @@ actual suspend fun refreshSongs(): List<Song> {
                         },
                     )
                 )
-            } catch (e: CursorIndexOutOfBoundsException) {
+            } catch (_: CursorIndexOutOfBoundsException) {
                 continue
-            } catch (e: SQLiteConstraintException) {
+            } catch (_: SQLiteConstraintException) {
                 continue
             }
         }

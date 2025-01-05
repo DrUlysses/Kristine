@@ -9,15 +9,20 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
+import dr.ulysses.models.RepeatMode
 import dr.ulysses.ui.components.PlayerButtons
 
 @Composable
 fun Player(
     currentSong: Song?,
     isPlaying: Boolean,
+    isShuffling: Boolean,
+    repeatMode: RepeatMode,
     onPreviousCommand: () -> Unit,
     onNextCommand: () -> Unit,
     onPlayOrPauseCommand: () -> Unit,
+    onToggleShuffleCommand: () -> Unit,
+    onSwitchRepeatCommand: () -> Unit,
 ) {
     BottomAppBar {
         Row {
@@ -37,7 +42,11 @@ fun Player(
                     isPlaying = isPlaying,
                     onPlayOrPauseCommand = onPlayOrPauseCommand,
                     onPreviousCommand = onPreviousCommand,
-                    onNextCommand = onNextCommand
+                    onNextCommand = onNextCommand,
+                    onToggleShuffleCommand = onToggleShuffleCommand,
+                    onSwitchRepeatCommand = onSwitchRepeatCommand,
+                    isShuffling = isShuffling,
+                    repeatMode = repeatMode,
                 )
             }
         }

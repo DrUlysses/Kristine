@@ -16,7 +16,7 @@ actual fun seekToOnDevice(position: Int) {
 }
 
 actual fun isPlayingOnDevice(): Boolean {
-    TODO("Not yet implemented")
+    return false
 }
 
 actual fun isPlayingChangedOnDevice(onChange: (Boolean) -> Unit) {
