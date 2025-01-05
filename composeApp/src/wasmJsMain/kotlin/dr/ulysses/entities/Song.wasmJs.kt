@@ -13,7 +13,7 @@ actual suspend fun refreshSongs(): List<Song> {
             title = it.name,
             artist = "Unknown",
         )
-    }.toList()
+    }
 
     songs.forEach {
         SongRepository.upsert(it)

@@ -15,11 +15,11 @@ actual suspend fun refreshSongs(): List<Song> {
             title = it.nameWithoutExtension,
             artist = "Unknown",
         )
-    }.toList()
+    }
 
     songs.forEach {
         SongRepository.upsert(it)
     }
 
-    return songs
+    return songs.toList()
 }

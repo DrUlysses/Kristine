@@ -1,5 +1,7 @@
 package dr.ulysses.database
 
+import app.cash.sqldelight.async.coroutines.awaitCreate
+
 class SharedDatabase(
     private val driverFactory: DriverFactory,
 ) {
@@ -9,7 +11,7 @@ class SharedDatabase(
         if (database == null) {
             val driver = driverFactory.createDriver("kristine.db")
             database = Database(driver).also {
-                Database.Schema.create(driver).await()
+                Database.Schema.awaitCreate(driver)
             }
         }
     }
