@@ -17,6 +17,7 @@
     <string name="no">No</string>
     <string name="next">Next</string>
     <string name="previous">Previous</string>
+    <string name="repeat">Repeat</string>
     <string name="album">Album</string>
     <string name="song_cover">Song cover</string>
     <string name="cover_url">Cover URL</string>

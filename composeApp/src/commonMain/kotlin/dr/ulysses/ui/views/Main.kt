@@ -65,7 +65,6 @@ fun Main() {
     val searchText = stringResource(Res.string.search)
     val addPlaylistText = stringResource(Res.string.add_playlist)
     val searchTooltip = stringResource(Res.string.search_tooltip)
-    val test = remember { mutableStateOf(pagerState.currentPage) }
     val permissionsGranted = remember { mutableStateOf(false) }
     val playerModel = remember { PlayerService }
     val scope = rememberCoroutineScope()
@@ -87,7 +86,6 @@ fun Main() {
         mutableStateOf<Playlist>(
             Playlist(
                 songs = allSongs,
-                state = "playing",
             )
         )
     }
@@ -143,11 +141,9 @@ fun Main() {
                                                     onArtistsChanged = {},
                                                     onArtistClicked = { artist ->
                                                         topBarText = artist
-                                                        currentArtistSongsList =
-                                                            playerState.currentPlaylist.songs.filter {
-                                                                topBarText != null &&
-                                                                        it.artist.lowercase() == topBarText!!.lowercase()
-                                                            }
+                                                        currentArtistSongsList = allSongs.filter {
+                                                            it.artist.trim().lowercase() == artist.trim().lowercase()
+                                                        }
                                                         navBarController.navigate(Navigation.Artists.name.dropLast(1))
                                                     }
                                                 )
@@ -299,9 +295,13 @@ fun Main() {
             Player(
                 currentSong = playerState.currentSong,
                 isPlaying = playerState.isPlaying,
+                isShuffling = playerState.shuffle,
+                repeatMode = playerState.repeatMode,
                 onPreviousCommand = playerModel::onPreviousCommand,
                 onNextCommand = playerModel::onNextCommand,
                 onPlayOrPauseCommand = playerModel::onPlayOrPauseCommand,
+                onToggleShuffleCommand = playerModel::onToggleShuffleCommand,
+                onSwitchRepeatCommand = playerModel::onSwitchRepeatCommand,
             )
         },
         floatingActionButton = {
@@ -325,7 +325,6 @@ fun Main() {
                             allSongs = SongRepository.getAllSongs()
                             currentPlaylist = Playlist(
                                 songs = allSongs,
-                                state = "active",
                             )
                             view = Views.Main
                             topBarText = null

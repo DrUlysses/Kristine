@@ -62,6 +62,7 @@ open class MediaLibrarySessionCallback(context: Context) :
                 .setCustomLayout(ImmutableList.of(customLayout))
                 .build()
         }
+        session.player.shuffleModeEnabled = PlayerService.state.shuffle
         // Default commands without custom layout for common controllers.
         return MediaSession.ConnectionResult.AcceptedResultBuilder(session).build()
     }
@@ -75,7 +76,8 @@ open class MediaLibrarySessionCallback(context: Context) :
     ): ListenableFuture<SessionResult> {
         if (CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON == customCommand.customAction) {
             // Enable shuffling.
-            session.player.shuffleModeEnabled = true
+            PlayerService.setShuffle(true)
+            session.player.shuffleModeEnabled = PlayerService.state.shuffle
             // Change the custom layout to contain the `Disable shuffling` command.
             session.setCustomLayout(
                 session.mediaNotificationControllerInfo!!,
@@ -83,8 +85,8 @@ open class MediaLibrarySessionCallback(context: Context) :
             )
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         } else if (CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF == customCommand.customAction) {
-            // Disable shuffling.
-            session.player.shuffleModeEnabled = false
+            PlayerService.setShuffle(false)
+            session.player.shuffleModeEnabled = PlayerService.state.shuffle
             // Change the custom layout to contain the `Enable shuffling` command.
             session.setCustomLayout(
                 session.mediaNotificationControllerInfo!!,

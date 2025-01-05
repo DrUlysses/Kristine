@@ -1,8 +1,11 @@
 package dr.ulysses.entities
 
+import app.cash.sqldelight.async.coroutines.awaitAsList
+import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import dr.ulysses.database.PlaylistSongQueries
 import dr.ulysses.database.SharedDatabase
 import dr.ulysses.database.SongQueries
+import dr.ulysses.entities.Song.State.entries
 import dr.ulysses.entities.base.Searchable
 import kotlinx.serialization.Serializable
 import org.koin.core.component.KoinComponent
@@ -26,9 +29,22 @@ data class Song(
     val artist: String,
     val artwork: ByteArray? = null,
     val duration: Int? = null,
-    val state: String,
+    val state: State = State.Downloaded,
     val playlists: List<Playlist> = emptyList(),
 ) : Searchable {
+    enum class State {
+        Downloaded,
+        NotDownloaded;
+
+        override fun toString() = name
+
+        companion object {
+            fun fromString(value: String?) = value?.let { value ->
+                entries.find { it.name == value }
+            } ?: Downloaded
+        }
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false
@@ -65,7 +81,7 @@ object SongRepository : KoinComponent {
                     artist = song.artist,
                     artwork = song.artwork,
                     duration = song.duration?.toLong() ?: 0,
-                    state = song.state,
+                    state = song.state.toString(),
                 )
             } catch (_: Exception) {
                 appDatabase.songQueries.update(
@@ -75,53 +91,50 @@ object SongRepository : KoinComponent {
                     artist = song.artist,
                     artwork = song.artwork,
                     duration = song.duration?.toLong() ?: 0,
-                    state = song.state,
+                    state = song.state.toString(),
                 )
             }
         }
     }
 
     suspend fun getAllSongs(): List<Song> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectAllSongs().executeAsList().map {
+        appDatabase.songQueries.selectAllSongs().awaitAsList().map {
             Song(
                 path = it.path,
                 title = it.title,
                 artist = it.artist,
                 album = it.album,
-                state = ""
             )
         }
     }
 
     suspend fun getAllArtists(): List<String> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectAllArtists().executeAsList()
+        appDatabase.songQueries.selectAllArtists().awaitAsList()
     }
 
     suspend fun getAllAlbums(): List<String> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectAllAlbums().executeAsList().mapNotNull { it.album }
+        appDatabase.songQueries.selectAllAlbums().awaitAsList().mapNotNull { it.album }
     }
 
     suspend fun getArtwork(path: String): ByteArray? = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectArtworkByPath(path).executeAsOneOrNull()?.artwork
+        appDatabase.songQueries.selectArtworkByPath(path).awaitAsOneOrNull()?.artwork
     }
 
     suspend fun search(input: String): List<Song> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.search(input).executeAsList().map {
+        appDatabase.songQueries.search(input).awaitAsList().map {
             Song(
                 path = it.path,
                 title = it.title,
                 artist = it.artist,
                 album = it.album,
-                state = ""
             )
-        } + appDatabase.playlistSongQueries.search(input).executeAsList().flatMap { playlistSong ->
-            appDatabase.songQueries.selectByPath(playlistSong.song_path).executeAsList().map {
+        } + appDatabase.playlistSongQueries.search(input).awaitAsList().flatMap { playlistSong ->
+            appDatabase.songQueries.selectByPath(playlistSong.song_path).awaitAsList().map {
                 Song(
                     path = it.path,
                     title = it.title,
                     artist = it.artist,
                     album = it.album,
-                    state = ""
                 )
             }
         }

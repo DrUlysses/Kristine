@@ -1,5 +1,7 @@
 package dr.ulysses.entities
 
+import app.cash.sqldelight.async.coroutines.awaitAsList
+import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import dr.ulysses.database.SharedDatabase
 import dr.ulysses.entities.base.Searchable
 import kotlinx.datetime.Clock
@@ -14,10 +16,34 @@ data class Playlist(
     val songs: List<Song> = emptyList(),
     val artwork: ByteArray? = null,
     val duration: Int? = null,
-    val state: String,
+    val state: State = State(),
     val createdAt: Instant = Clock.System.now(),
     val updatedAt: Instant = Clock.System.now(),
 ) : Searchable {
+    @Serializable
+    data class State(
+        val state: StateName = StateName.Stopped,
+        val position: Int = 0,
+    ) {
+        enum class StateName {
+            Playing,
+            PlayingShuffled,
+            Paused,
+            PausedShuffled,
+            Stopped,
+            StoppedShuffled
+        }
+
+        override fun toString() = "$state $position"
+
+        companion object {
+            fun fromString(value: String?) = State(
+                state = StateName.valueOf(value?.split(" ")?.firstOrNull() ?: StateName.Stopped.name),
+                position = value?.split(" ")?.lastOrNull()?.toInt() ?: 0
+            )
+        }
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false
@@ -67,12 +93,12 @@ object PlaylistRepository : KoinComponent {
     }
 
     suspend fun getAllPlaylists(): List<Playlist> = sharedDatabase { appDatabase ->
-        appDatabase.playlistQueries.selectAll().executeAsList().map {
+        appDatabase.playlistQueries.selectAll().awaitAsList().map {
             Playlist(
                 name = it.name,
                 songs = emptyList(),
                 artwork = it.artwork,
-                state = it.state ?: "",
+                state = Playlist.State.fromString(it.state),
                 createdAt = Instant.parse(it.created_at),
                 updatedAt = Instant.parse(it.updated_at),
             )
@@ -80,38 +106,38 @@ object PlaylistRepository : KoinComponent {
     }
 
     suspend fun getPlaylistSongs(playlistName: String): List<Song> = sharedDatabase { appDatabase ->
-        appDatabase.playlistSongQueries.selectSongsByPlaylist(playlistName).executeAsList().map {
+        appDatabase.playlistSongQueries.selectSongsByPlaylist(playlistName).awaitAsList().map {
             Song(
                 path = it.path,
                 title = it.title,
                 album = it.album,
                 artist = it.artist,
-                state = it.state ?: "",
+                state = Song.State.fromString(it.state),
             )
         }
     }
 
     suspend fun getArtwork(playlistName: String) = sharedDatabase { appDatabase ->
-        appDatabase.playlistQueries.selectArtworkByName(playlistName).executeAsOneOrNull()?.artwork
+        appDatabase.playlistQueries.selectArtworkByName(playlistName).awaitAsOneOrNull()?.artwork
     }
 
     suspend fun search(input: String): List<Playlist> = sharedDatabase { appDatabase ->
-        appDatabase.playlistQueries.search(input).executeAsList().map {
+        appDatabase.playlistQueries.search(input).awaitAsList().map {
             Playlist(
                 name = it.name,
                 songs = emptyList(),
                 artwork = it.artwork,
-                state = it.state ?: "",
+                state = Playlist.State.fromString(it.state),
                 createdAt = Instant.parse(it.created_at),
                 updatedAt = Instant.parse(it.updated_at),
             )
-        } + appDatabase.playlistSongQueries.search(input).executeAsList().flatMap { playlistSong ->
-            appDatabase.playlistQueries.selectByName(playlistSong.playlist_name).executeAsList().map {
+        } + appDatabase.playlistSongQueries.search(input).awaitAsList().flatMap { playlistSong ->
+            appDatabase.playlistQueries.selectByName(playlistSong.playlist_name).awaitAsList().map {
                 Playlist(
                     name = it.name,
                     songs = emptyList(),
                     artwork = it.artwork,
-                    state = it.state ?: "",
+                    state = Playlist.State.fromString(it.state),
                     createdAt = Instant.parse(it.created_at),
                     updatedAt = Instant.parse(it.updated_at),
                 )

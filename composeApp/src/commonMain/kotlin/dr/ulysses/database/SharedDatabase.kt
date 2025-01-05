@@ -6,8 +6,12 @@ class SharedDatabase(
     private var database: Database? = null
 
     private suspend fun initDatabase() {
-        if (database == null)
-            database = Database(driverFactory.createDriver("kristine.db"))
+        if (database == null) {
+            val driver = driverFactory.createDriver("kristine.db")
+            database = Database(driver).also {
+                Database.Schema.create(driver).await()
+            }
+        }
     }
 
     suspend operator fun <R> invoke(block: suspend (Database) -> R): R {

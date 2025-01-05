@@ -14,7 +14,6 @@ actual suspend fun refreshSongs(): List<Song> {
             path = "file:///" + it.absolutePath,
             title = it.nameWithoutExtension,
             artist = "Unknown",
-            state = "downloaded"
         )
     }.toList()
 

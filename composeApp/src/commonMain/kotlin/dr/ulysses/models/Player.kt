@@ -6,6 +6,12 @@ import androidx.compose.runtime.setValue
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 
+enum class RepeatMode {
+    None,
+    All,
+    One,
+}
+
 internal object PlayerService {
     var state: PlayerState by mutableStateOf(initialState())
         private set
@@ -63,7 +69,27 @@ internal object PlayerService {
     }
 
     fun onPlayOrPauseCommand() {
-        if (isPlayingOnDevice()) pauseCurrentSongOnDevice() else resumeCurrentSongOnDevice()
+        if (isPlayingOnDevice()) onPauseCommand() else onResumeCommand()
+    }
+
+    fun onToggleShuffleCommand() {
+        setState { copy(shuffle = !state.shuffle) }
+    }
+
+    fun setShuffle(shuffle: Boolean) {
+        setState { copy(shuffle = shuffle) }
+    }
+
+    fun onSwitchRepeatCommand() {
+        setState {
+            copy(
+                repeatMode = when (state.repeatMode) {
+                    RepeatMode.None -> RepeatMode.All
+                    RepeatMode.All -> RepeatMode.One
+                    RepeatMode.One -> RepeatMode.None
+                }
+            )
+        }
     }
 
     fun onStopCommand() {
@@ -138,11 +164,11 @@ internal object PlayerService {
         val currentSong: Song? = null,
         val isPlaying: Boolean = false,
         val currentTrackNum: Int = 0,
-        val currentPlaylist: Playlist = Playlist(
-            state = "paused",
-        ),
+        val currentPlaylist: Playlist = Playlist(),
         val isRemotePlaying: Boolean = false,
         val onPlayingChangedOnDevice: (Boolean) -> Unit = {},
+        val shuffle: Boolean = false,
+        val repeatMode: RepeatMode = RepeatMode.All,
     )
 }
 

@@ -172,7 +172,7 @@ sqldelight {
     databases {
         create("Database") {
             packageName = "dr.ulysses.database"
-            generateAsync = true // Does not work on wasm version
+            generateAsync = true
             verifyMigrations = false
         }
     }
