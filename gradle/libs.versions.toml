@@ -1,8 +1,7 @@
 [versions]
 # Main
 kristine = "1.0.4"
-#noinspection GradleDependency (coz wasm)
-kotlin = "2.0.21"
+kotlin = "2.1.0"
 ktor = "3.0.3"
 koin = "3.6.0-wasm-alpha2"
 agp = "8.2.2"
