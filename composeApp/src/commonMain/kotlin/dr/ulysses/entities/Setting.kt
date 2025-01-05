@@ -32,7 +32,7 @@ object SettingsRepository : KoinComponent {
     }
 
     suspend fun getAll(): List<Setting> = sharedDatabase { appDatabase ->
-        appDatabase.settingQueries.selectAll().executeAsList().map {
+        appDatabase.settingQueries.selectAll().awaitAsList().map {
             mapSetting(
                 key = it.key,
                 value = it.value_,
@@ -41,7 +41,7 @@ object SettingsRepository : KoinComponent {
     }
 
     suspend fun get(key: String): Setting? = sharedDatabase { appDatabase ->
-        appDatabase.settingQueries.selectFirstByKey(key).executeAsOneOrNull()?.let {
+        appDatabase.settingQueries.selectFirstByKey(key).awaitAsOneOrNull()?.let {
             mapSetting(
                 key = it.key,
                 value = it.value_,
