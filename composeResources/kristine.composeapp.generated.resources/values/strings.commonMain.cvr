@@ -19,6 +19,7 @@ string|enter_song_name|RW50ZXIgc29uZyBuYW1l
 string|error_connecting|RXJyb3IgY29ubmVjdGluZw==
 string|manage_file|TWFuYWdlIGZpbGU/
 string|manage_unsorted|TWFuYWdlIFVuc29ydGVk
+string|more|TW9yZQ==
 string|name|TmFtZQ==
 string|next|TmV4dA==
 string|no|Tm8=
