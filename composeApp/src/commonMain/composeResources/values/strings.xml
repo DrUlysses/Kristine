@@ -34,6 +34,7 @@
     <string name="search">Search</string>
     <string name="add_playlist">Add playlist</string>
     <string name="search_tooltip">Search everywhere</string>
+    <string name="more">More</string>
 
     <string name="some_error">Some error</string>
     <string name="retrieving_form">Retrieving form</string>
