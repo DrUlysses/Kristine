@@ -17,6 +17,16 @@ import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.PlaylistRepository
 import dr.ulysses.ui.elements.PlaylistListEntry
+import kotlinx.serialization.Serializable
+
+@Serializable
+object PlaylistsGraph
+
+@Serializable
+object Playlists
+
+@Serializable
+object PlaylistSongs
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

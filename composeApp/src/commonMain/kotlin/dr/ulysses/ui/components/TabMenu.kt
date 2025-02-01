@@ -10,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import dr.ulysses.ui.views.Navigation
 import kotlinx.coroutines.launch
 import kristine.composeapp.generated.resources.Res
 import kristine.composeapp.generated.resources.back
@@ -23,6 +22,7 @@ fun TabMenu(
     pagerState: PagerState,
     topText: String? = null,
     modifier: Modifier = Modifier,
+    tabs: Map<Int, String> = emptyMap(),
     navigateUp: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
@@ -58,18 +58,18 @@ fun TabMenu(
                         .height(50.dp),
                     selectedTabIndex = pagerState.currentPage,
                 ) {
-                    for (tab in Navigation.shownEntries) {
+                    for (tab in tabs) {
                         Tab(
                             onClick = {
                                 scope.launch {
-                                    pagerState.animateScrollToPage(Navigation.entries.indexOf(tab))
+                                    pagerState.scrollToPage(tab.key)
                                 }
                             },
-                            selected = pagerState.currentPage == Navigation.entries.indexOf(tab),
+                            selected = pagerState.currentPage == tab.key,
                             enabled = true,
                             text = {
                                 Text(
-                                    text = tab.name,
+                                    text = tab.value,
                                     style = MaterialTheme.typography.bodyLarge,
                                 )
                             }
@@ -101,17 +101,17 @@ fun TabMenu(
                     onDismissRequest = { menuExpanded = false },
                     modifier = Modifier.fillMaxWidth(0.25f)
                 ) {
-                    for (tab in Navigation.entries) {
+                    for (tab in tabs) {
                         DropdownMenuItem(
                             onClick = {
                                 scope.launch {
-                                    pagerState.animateScrollToPage(Navigation.entries.indexOf(tab))
+                                    pagerState.animateScrollToPage(tab.key)
                                 }
                                 menuExpanded = false
                             },
                             text = {
                                 Text(
-                                    text = tab.name,
+                                    text = tab.value,
                                     style = MaterialTheme.typography.bodyLarge,
                                 )
                             },

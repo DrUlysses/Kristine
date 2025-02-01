@@ -21,6 +21,13 @@ import dr.ulysses.entities.base.Searchable
 import dr.ulysses.models.PlayerService.onPlaySongCommand
 import dr.ulysses.ui.elements.PlaylistListEntry
 import dr.ulysses.ui.elements.SongListEntry
+import kotlinx.serialization.Serializable
+
+@Serializable
+object SearchGraph
+
+@Serializable
+object SearchEntries
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

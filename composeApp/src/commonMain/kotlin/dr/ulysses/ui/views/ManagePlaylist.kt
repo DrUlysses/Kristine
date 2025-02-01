@@ -21,9 +21,13 @@ import dr.ulysses.ui.components.SongsList
 import io.github.vinceglb.filekit.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.core.PickerType
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import kristine.composeapp.generated.resources.Res
 import kristine.composeapp.generated.resources.compose_multiplatform
 import org.jetbrains.compose.resources.painterResource
+
+@Serializable
+object ManagePlaylist
 
 @Composable
 fun ManagePlaylist(

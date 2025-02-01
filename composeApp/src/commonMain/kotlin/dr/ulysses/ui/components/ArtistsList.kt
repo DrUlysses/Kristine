@@ -13,6 +13,16 @@ import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.refreshSongs
 import dr.ulysses.ui.elements.ArtistListEntry
+import kotlinx.serialization.Serializable
+
+@Serializable
+object ArtistsGraph
+
+@Serializable
+object Artists
+
+@Serializable
+object ArtistSongs
 
 @Composable
 fun ArtistsList(
