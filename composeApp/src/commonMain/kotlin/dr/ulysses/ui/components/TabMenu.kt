@@ -24,6 +24,7 @@ fun TabMenu(
     modifier: Modifier = Modifier,
     tabs: Map<Int, String> = emptyMap(),
     navigateUp: () -> Unit = {},
+    menuEntries: List<Pair<String, () -> Unit>> = emptyList(),
 ) {
     val scope = rememberCoroutineScope()
     var menuExpanded by remember { mutableStateOf(false) }
@@ -55,7 +56,7 @@ fun TabMenu(
                     containerColor = Color.Transparent,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
+                        .height(40.dp),
                     selectedTabIndex = pagerState.currentPage,
                 ) {
                     for (tab in tabs) {
@@ -70,7 +71,7 @@ fun TabMenu(
                             text = {
                                 Text(
                                     text = tab.value,
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
                         )
@@ -85,7 +86,7 @@ fun TabMenu(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(40.dp)
             ) {
                 IconButton(
                     onClick = { menuExpanded = !menuExpanded },
@@ -99,22 +100,23 @@ fun TabMenu(
                 DropdownMenu(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
-                    modifier = Modifier.fillMaxWidth(0.25f)
+                    modifier = Modifier.fillMaxWidth(0.5f)
                 ) {
-                    for (tab in tabs) {
+                    for (menuEntry in menuEntries) {
                         DropdownMenuItem(
                             onClick = {
                                 scope.launch {
-                                    pagerState.animateScrollToPage(tab.key)
+                                    menuEntry.second()
                                 }
                                 menuExpanded = false
                             },
                             text = {
                                 Text(
-                                    text = tab.value,
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    text = menuEntry.first,
+                                    style = MaterialTheme.typography.bodyMedium,
                                 )
                             },
+                            contentPadding = PaddingValues(8.dp)
                         )
                     }
                 }

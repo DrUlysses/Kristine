@@ -10,6 +10,7 @@
     <string name="cancel">Cancel</string>
     <string name="choose_file">Choose file</string>
     <string name="choose_file_and_enter_name">Choose file and enter name</string>
+    <string name="connections">Connections</string>
     <string name="connected">Connected</string>
     <string name="cover">Cover</string>
     <string name="cover_url">Cover URL</string>
