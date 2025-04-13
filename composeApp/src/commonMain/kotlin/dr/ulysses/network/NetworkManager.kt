@@ -67,7 +67,7 @@ object NetworkManager {
         scope.launch {
             client.connectToCustomServer(address, port) { serverMap ->
                 _discoveredServers.value = serverMap
-                _currentServer.value = Pair(address, port)
+                _currentServer.value = address to port
             }
         }
     }
@@ -81,7 +81,7 @@ object NetworkManager {
     fun connectToDiscoveredServer(address: String, port: Int): Boolean {
         return try {
             // Set the current server
-            _currentServer.value = Pair(address, port)
+            _currentServer.value = address to port
             true
         } catch (_: Exception) {
             // Reset the current server if connection failed
@@ -109,11 +109,8 @@ object NetworkManager {
         val (address, port) = currentServer
 
         return try {
-            // Create HTTP client
-            val client = HttpClient()
-
             // Make request to the server's /songs endpoint
-            val response: HttpResponse = client.get("http://$address:$port/songs")
+            val response: HttpResponse = HttpClient().get("http://$address:$port/songs")
 
             // Parse the response body as a list of songs
             val responseBody = response.bodyAsText()

@@ -39,6 +39,8 @@ fun ServerListEntry(
                 scope.launch {
                     if (!isCurrentServer) {
                         NetworkManager.connectToDiscoveredServer(serverAddress, serverPort)
+                    } else {
+                        NetworkManager.disconnectFromServer()
                     }
                 }
             }

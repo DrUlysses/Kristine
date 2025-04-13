@@ -11,11 +11,25 @@ import androidx.annotation.RequiresApi
 import androidx.core.database.getIntOrNull
 import androidx.core.database.getStringOrNull
 import dr.ulysses.Logger
+import dr.ulysses.network.NetworkManager.currentServer
+import dr.ulysses.network.NetworkManager.fetchSongsFromCurrentServer
 import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.TimeUnit
 
 @RequiresApi(Build.VERSION_CODES.Q)
 actual suspend fun refreshSongs(): List<Song> {
+    // Check if connected to a server
+    if (currentServer.value != null) {
+        // Try to fetch songs from the server
+        val serverSongs = fetchSongsFromCurrentServer()
+        if (serverSongs != null) {
+            // If server songs were successfully fetched, return them
+            return serverSongs
+        }
+        // If server songs couldn't be fetched, fall back to local songs
+    }
+
+    // Not connected to a server or failed to fetch server songs, load local songs
     val context: Context by inject(Context::class.java)
     val contentResolver: ContentResolver = context.contentResolver
 
