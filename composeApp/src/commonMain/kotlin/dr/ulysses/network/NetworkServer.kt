@@ -1,6 +1,6 @@
 package dr.ulysses.network
 
-import co.touchlab.kermit.Logger
+import dr.ulysses.Logger
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.utils.io.core.*
@@ -29,7 +29,7 @@ class NetworkServer {
         Logger.d { "Starting UDP broadcast server" }
         broadcastJob = scope.launch {
             val selectorManager = SelectorManager(Dispatchers.Default)
-            val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", SERVER_PORT)) {
+            val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", 0)) {
                 broadcast = true
             }
 

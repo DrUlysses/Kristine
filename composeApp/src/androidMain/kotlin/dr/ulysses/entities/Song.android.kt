@@ -10,7 +10,7 @@ import android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 import android.provider.MediaStore.MediaColumns.*
 import androidx.core.database.getIntOrNull
 import androidx.core.database.getStringOrNull
-import co.touchlab.kermit.Logger
+import dr.ulysses.Logger
 import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.TimeUnit
 

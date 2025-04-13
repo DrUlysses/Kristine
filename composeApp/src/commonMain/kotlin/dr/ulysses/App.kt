@@ -3,9 +3,19 @@ package dr.ulysses
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import co.touchlab.kermit.*
+import co.touchlab.kermit.Logger
 import dr.ulysses.network.NetworkManager
 import dr.ulysses.theme.AppTheme
 import dr.ulysses.ui.views.Main
+
+object Logger : Logger(
+    config = loggerConfigInit(
+        platformLogWriter(NoTagFormatter),
+        minSeverity = Severity.Info,
+    ),
+    tag = "Kristine"
+)
 
 @Composable
 internal fun App() = AppTheme {

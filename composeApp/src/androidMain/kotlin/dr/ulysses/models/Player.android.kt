@@ -8,6 +8,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
+import dr.ulysses.Logger
 import dr.ulysses.player.PlaybackService
 import org.koin.java.KoinJavaComponent
 
@@ -55,8 +56,17 @@ actual fun pauseCurrentSongOnDevice() {
 
 @UnstableApi
 actual fun resumeCurrentSongOnDevice() {
-    PlayerObject.player?.prepare()
-    PlayerObject.player?.play()
+    try {
+        PlayerObject.player?.apply {
+            if (!isPlayingOnDevice()) {
+                prepare()
+                play()
+            }
+        }
+    } catch (e: Exception) {
+        // Log the exception but don't crash
+        Logger.d(e) { "Error resuming playback." }
+    }
 }
 
 @UnstableApi
@@ -81,12 +91,22 @@ actual fun setCurrentTrackNumOnDevice(trackNum: Int) {
 
 @UnstableApi
 actual fun playNextOnDevice() {
-    PlayerObject.player?.seekToNextMediaItem()
-    resumeCurrentSongOnDevice()
+    try {
+        PlayerObject.player?.seekToNextMediaItem()
+        resumeCurrentSongOnDevice()
+    } catch (e: Exception) {
+        // Log the exception but don't crash
+        Logger.d(e) { "Error playing next." }
+    }
 }
 
 @UnstableApi
 actual fun playPreviousOnDevice() {
-    PlayerObject.player?.seekToPreviousMediaItem()
-    resumeCurrentSongOnDevice()
+    try {
+        PlayerObject.player?.seekToPreviousMediaItem()
+        resumeCurrentSongOnDevice()
+    } catch (e: Exception) {
+        // Log the exception but don't crash
+        Logger.d(e) { "Error playing previous." }
+    }
 }

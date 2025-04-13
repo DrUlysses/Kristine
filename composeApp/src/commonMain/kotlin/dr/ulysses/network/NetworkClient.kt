@@ -1,6 +1,6 @@
 package dr.ulysses.network
 
-import co.touchlab.kermit.Logger
+import dr.ulysses.Logger
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.utils.io.core.*

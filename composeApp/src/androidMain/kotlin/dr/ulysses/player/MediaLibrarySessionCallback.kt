@@ -187,6 +187,21 @@ open class MediaLibrarySessionCallback(context: Context) :
         )
     }
 
+    override fun onPlaybackResumption(
+        mediaSession: MediaSession,
+        controller: MediaSession.ControllerInfo,
+    ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+        // Get the current playlist and track
+        val currentTrackNum = PlayerService.state.currentTrackNum
+        val mediaItems = PlayerService.state.currentPlaylist.songs.map { MediaItem.fromUri(it.path) }
+
+        // Return the current media items with the current position
+        // Let the framework handle the actual playback resumption
+        return Futures.immediateFuture(
+            MediaSession.MediaItemsWithStartPosition(mediaItems, currentTrackNum, 0)
+        )
+    }
+
     companion object {
         private const val CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON =
             "kristine.SHUFFLE_ON"
