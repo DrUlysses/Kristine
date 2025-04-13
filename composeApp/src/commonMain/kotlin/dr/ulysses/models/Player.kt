@@ -20,7 +20,7 @@ internal object PlayerService {
         val currentTrackNum = state.currentPlaylist.songs.indexOf(song)
         // If the song is already in the current track sequence, set it as the current track
         if (currentTrackNum != -1) {
-            setState { copy(currentTrackNum = currentTrackNum) }
+            setState { copy(currentTrackNum = currentTrackNum, currentSong = song) }
             if (state.currentSong == null)
                 setPlayListOnDevice(state.currentPlaylist.songs.map { it.path })
             setCurrentTrackNumOnDevice(currentTrackNum)
@@ -29,10 +29,12 @@ internal object PlayerService {
         else {
             setState {
                 copy(
-                    currentTrackNum = 0
+                    currentTrackNum = 0,
+                    currentSong = song
                 )
             }
             setPlayListOnDevice(state.currentPlaylist.songs.map { it.path })
+            setCurrentTrackNumOnDevice(0)
         }
         onResumeCommand()
     }
