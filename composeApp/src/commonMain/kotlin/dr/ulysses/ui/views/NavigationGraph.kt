@@ -44,7 +44,10 @@ fun NavGraphBuilder.addNavigationGraph(
         composable<ArtistSongs> {
             SongsList(
                 songs = currentArtistSongsList,
-                onPlaySongCommand = onPlaySongCommand,
+                onPlaySongCommand = { song ->
+                    onPlaylistChanged(Playlist(songs = currentArtistSongsList))
+                    onPlaySongCommand(song)
+                },
             )
         }
     }
@@ -70,7 +73,10 @@ fun NavGraphBuilder.addNavigationGraph(
         composable<AlbumSongs> {
             SongsList(
                 songs = currentAlbumSongsList,
-                onPlaySongCommand = onPlaySongCommand,
+                onPlaySongCommand = { song ->
+                    onPlaylistChanged(Playlist(songs = currentAlbumSongsList))
+                    onPlaySongCommand(song)
+                },
             )
         }
     }
