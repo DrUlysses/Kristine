@@ -12,7 +12,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class NetworkServer {
     companion object {
-        const val SERVER_PORT = 54321
+        const val SERVER_PORT = 45678
         const val BROADCAST_MESSAGE = "Kristine Server Discovery"
         const val BROADCAST_INTERVAL_SECONDS = 5
     }
@@ -29,7 +29,9 @@ class NetworkServer {
         Logger.d { "Starting UDP broadcast server" }
         broadcastJob = scope.launch {
             val selectorManager = SelectorManager(Dispatchers.Default)
-            val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", SERVER_PORT))
+            val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", SERVER_PORT)) {
+                broadcast = true
+            }
 
             try {
                 while (isActive) {

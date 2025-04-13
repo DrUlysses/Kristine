@@ -1,7 +1,6 @@
 package dr.ulysses.ui.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.overscroll
+import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -45,7 +45,7 @@ fun SearchList(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .overscroll(ScrollableDefaults.overscrollEffect()),
+                .overscroll(rememberOverscrollEffect()),
             content = {
                 items(items = entries) { entry ->
                     when (entry) {

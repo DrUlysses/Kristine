@@ -2,13 +2,13 @@ package dr.ulysses.ui.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.overscroll
+import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -51,7 +51,7 @@ actual fun SongsList(
             state = listState,
             modifier = modifier
                 .fillMaxSize()
-                .overscroll(ScrollableDefaults.overscrollEffect()),
+                .overscroll(rememberOverscrollEffect()),
             content = {
                 itemsIndexed(items = rememberedSongs) { index, song ->
                     val isDragging = draggedIndex == index
