@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.overscroll
@@ -35,13 +36,15 @@ fun PlaylistsList(
     playlists: List<Playlist>,
     onPlaylistsChanged: (List<Playlist>) -> Unit,
     onPlaylistClicked: (Playlist) -> Unit,
+    listState: LazyListState = rememberLazyListState(),
+    initialLoad: Boolean = true,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        val listState = rememberLazyListState()
-
-        LaunchedEffect(listState) {
+        LaunchedEffect(Unit) {
             onPlaylistsChanged(PlaylistRepository.getAllPlaylists())
-            listState.scrollToItem(0)
+            if (initialLoad) {
+                listState.scrollToItem(0)
+            }
         }
 
         LazyColumn(

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -30,17 +31,19 @@ fun ArtistsList(
     artists: List<String>,
     onArtistsChanged: (List<String>) -> Unit,
     onArtistClicked: (String) -> Unit,
+    listState: LazyListState = rememberLazyListState(),
+    initialLoad: Boolean = true,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        val listState = rememberLazyListState()
-
-        LaunchedEffect(listState) {
+        LaunchedEffect(Unit) {
             onArtistsChanged(
                 SongRepository.getAllArtists().ifEmpty {
                     refreshSongs().run { SongRepository.getAllArtists() }
                 }
             )
-            listState.animateScrollToItem(0)
+            if (initialLoad) {
+                listState.animateScrollToItem(0)
+            }
         }
 
         LazyColumn(

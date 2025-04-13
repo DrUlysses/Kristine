@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -52,6 +53,15 @@ fun Main() {
     val scope = rememberCoroutineScope()
     val playerState = playerModel.state
     var topBarText by remember { mutableStateOf<String?>(null) }
+    var previousTabIndex by remember { mutableStateOf(1) } // Default to Songs tab
+
+    // Remember scroll states for each list
+    val artistsListState = rememberLazyListState()
+    val albumsListState = rememberLazyListState()
+    val playlistsListState = rememberLazyListState()
+
+    // Track whether we're returning from a detail view
+    var returningFromDetail by remember { mutableStateOf(false) }
     val navBarController = rememberNavController()
     var allSongs by remember { mutableStateOf(emptyList<Song>()) }
     var isLoadingSongs by remember { mutableStateOf(true) }
@@ -100,6 +110,13 @@ fun Main() {
     navBarController.setViewModelStore(LocalViewModelStoreOwner.current?.viewModelStore!!)
     navBarController.setGraph(navGraph, null)
 
+    // Reset returningFromDetail when the user changes tabs
+    LaunchedEffect(pagerState.currentPage) {
+        if (topBarText == null) { // Only reset if we're not in a detail view
+            returningFromDetail = false
+        }
+    }
+
     Scaffold(
         topBar = {
             TabMenu(
@@ -108,6 +125,12 @@ fun Main() {
                 navigateUp = {
                     navBarController.navigateUp()
                     topBarText = null
+                    // Set returning from detail to preserve scroll position
+                    returningFromDetail = true
+                    // Restore the previous tab index when navigating back
+                    scope.launch {
+                        pagerState.scrollToPage(previousTabIndex)
+                    }
                 },
                 tabs = mapOf(
                     0 to stringResource(Res.string.artists),
@@ -117,10 +140,12 @@ fun Main() {
                 ),
                 menuEntries = listOf(
                     addPlaylistText to {
+                        previousTabIndex = pagerState.currentPage // Save current tab index
                         navBarController.navigate(ManagePlaylist)
                         topBarText = addPlaylistText
                     },
                     connectionsText to {
+                        previousTabIndex = pagerState.currentPage // Save current tab index
                         navBarController.navigate(Connections)
                         topBarText = connectionsText
                     }
@@ -153,8 +178,12 @@ fun Main() {
                                         .map { it.artist.trim() }
                                         .fastDistinctBy(String::lowercase),
                                     onArtistsChanged = {},
+                                    listState = artistsListState,
+                                    initialLoad = !returningFromDetail,
                                     onArtistClicked = { artist ->
+                                        previousTabIndex = 0 // Save Artists tab index
                                         topBarText = artist
+                                        returningFromDetail = false // Reset when navigating to detail
                                         currentArtistSongsList = allSongs.filter {
                                             it.artist.trim().lowercase() == artist.trim().lowercase()
                                         }
@@ -182,8 +211,12 @@ fun Main() {
                                     albums = allSongs
                                         .mapNotNull { it.album?.trim() }
                                         .fastDistinctBy(String::lowercase),
+                                    listState = albumsListState,
+                                    initialLoad = !returningFromDetail,
                                     onAlbumClicked = { album ->
+                                        previousTabIndex = 2 // Save Albums tab index
                                         topBarText = album
+                                        returningFromDetail = false // Reset when navigating to detail
                                         currentAlbumSongsList = allSongs.filter {
                                             it.album != null && topBarText != null &&
                                                     it.album.lowercase() == topBarText!!.lowercase()
@@ -207,6 +240,8 @@ fun Main() {
                                 } else {
                                     PlaylistsList(
                                         playlists = currentPlaylists,
+                                        listState = playlistsListState,
+                                        initialLoad = !returningFromDetail,
                                         onPlaylistsChanged = {
                                             scope.launch {
                                                 isLoadingPlaylists = true
@@ -215,8 +250,10 @@ fun Main() {
                                             }
                                         },
                                         onPlaylistClicked = { playlist ->
+                                            previousTabIndex = 3 // Save Playlists tab index
                                             currentPlaylist = playlist
                                             topBarText = currentPlaylist.name
+                                            returningFromDetail = false // Reset when navigating to detail
                                             navBarController.navigate(PlaylistSongs)
                                         }
                                     )
@@ -247,6 +284,12 @@ fun Main() {
                     onClick = {
                         navBarController.navigateUp()
                         topBarText = null
+                        // Set returning from detail to preserve scroll position
+                        returningFromDetail = true
+                        // Restore the previous tab index when navigating back from search
+                        scope.launch {
+                            pagerState.scrollToPage(previousTabIndex)
+                        }
                     }
                 ) {
                     Icon(
@@ -265,6 +308,12 @@ fun Main() {
                             )
                             navBarController.navigateUp()
                             topBarText = null
+                            // Set returning from detail to preserve scroll position
+                            returningFromDetail = true
+                            // Restore the previous tab index when navigating back from playlist management
+                            scope.launch {
+                                pagerState.scrollToPage(previousTabIndex)
+                            }
                         }
                     }
                 ) {
@@ -276,6 +325,7 @@ fun Main() {
             else if (destination?.hasRoute<PlaylistSongs>() == true)
                 FloatingActionButton(
                     onClick = {
+                        // We're already in PlaylistSongs, so previousTabIndex is already set to 3
                         navBarController.navigate(ManagePlaylist)
                         topBarText = addPlaylistText
                     }
@@ -288,6 +338,7 @@ fun Main() {
             else
                 FloatingActionButton(
                     onClick = {
+                        previousTabIndex = pagerState.currentPage // Save current tab index
                         navBarController.navigate(SearchGraph)
                         topBarText = searchText
                     }
