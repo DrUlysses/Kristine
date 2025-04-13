@@ -24,11 +24,11 @@ kotlinx-serialization = "1.8.1"
 kotlinx-coroutines = "1.10.2"
 kotlinx-datetime = "0.6.2"
 accompanist = "0.37.2"
-hot-reload = "1.0.0-dev-63"
 
 # Filesystem
 appdirs = "1.4.0"
 napier = "2.7.1"
+kermit = "2.0.5"
 landscapist-coil3 = "2.4.5"
 filekit = "0.8.8"
 coil = "3.1.0"
@@ -65,6 +65,7 @@ sqldelight-webworker-driver = { module = "me.gulya.sqldelight:web-worker-driver"
 appdirs = { module = "net.harawata:appdirs", version.ref = "appdirs" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }
+kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 multiplatformSettings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatformSettings" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanist" }
@@ -101,8 +102,6 @@ sqlDelight = { id = "me.gulya.sqldelight", version.ref = "sqlDelight" }
 
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
-
-hot-reload = { id = "org.jetbrains.compose.hot-reload", version.ref = "hot-reload" }
 
 [bundles]
 ktor-client = ["ktor-client-core", "ktor-client-content-negotiation"]

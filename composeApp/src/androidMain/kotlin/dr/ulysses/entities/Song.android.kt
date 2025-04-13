@@ -10,6 +10,7 @@ import android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 import android.provider.MediaStore.MediaColumns.*
 import androidx.core.database.getIntOrNull
 import androidx.core.database.getStringOrNull
+import co.touchlab.kermit.Logger
 import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.TimeUnit
 
@@ -63,7 +64,7 @@ actual suspend fun refreshSongs(): List<Song> {
                 SongRepository.upsert(
                     Song(
                         title = cursor.getStringOrNull(colTitle) ?: "Unknown",
-                        path = path.also { println("Path: $it") },
+                        path = path.also { Logger.d { "Path: $it" } },
                         artwork = try {
 //                            ByteArrayOutputStream().use { stream ->
 //                                ThumbnailUtils.createAudioThumbnail(
