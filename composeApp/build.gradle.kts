@@ -110,6 +110,7 @@ kotlin {
             implementation(libs.sqldelight.driver)
             implementation(libs.appdirs)
             implementation(libs.caprica.vlcj)
+            implementation(libs.kotlinx.coroutines.swing)
         }
         wasmJsMain.dependencies {
             implementation(libs.ktor.client.js)
