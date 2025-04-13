@@ -5,7 +5,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
+import dr.ulysses.models.RepeatMode.*
 
+/**
+ * Represents the repeat mode for a media player.
+ *
+ * The repeat mode controls how the player behaves when it reaches the end of a playlist.
+ * It includes the following modes:
+ *
+ * - [None]: Playback stops at the end of the playlist.
+ * - [All]: The playlist starts over from the beginning after finishing.
+ * - [One]: The currently playing song is repeated indefinitely.
+ */
 enum class RepeatMode {
     None,
     All,
@@ -104,20 +115,61 @@ internal object PlayerService {
     }
 
     fun onNextCommand() {
-        if (state.currentTrackNum < state.currentPlaylist.songs.size - 1) {
-            state.currentPlaylist.songs.getOrNull(state.currentTrackNum + 1)?.let {
-                setState { copy(currentSong = it, currentTrackNum = state.currentTrackNum + 1) }
-                playNextOnDevice()
+        when {
+            // For RepeatMode.One, replay the current song
+            state.repeatMode == One -> {
+                state.currentPlaylist.songs.getOrNull(state.currentTrackNum)?.let {
+                    setState { copy(currentSong = it) }
+                    setCurrentTrackNumOnDevice(state.currentTrackNum)
+                    resumeCurrentSongOnDevice()
+                }
             }
+            // If not at the end of the playlist, go to the next song
+            state.currentTrackNum < state.currentPlaylist.songs.size - 1 -> {
+                state.currentPlaylist.songs.getOrNull(state.currentTrackNum + 1)?.let {
+                    setState { copy(currentSong = it, currentTrackNum = state.currentTrackNum + 1) }
+                    playNextOnDevice()
+                }
+            }
+            // When in RepeatMode.All and at the end of the playlist, wrap around to the first song
+            state.repeatMode == All && state.currentPlaylist.songs.isNotEmpty() -> {
+                state.currentPlaylist.songs.getOrNull(0)?.let {
+                    setState { copy(currentSong = it, currentTrackNum = 0) }
+                    setCurrentTrackNumOnDevice(0)
+                    resumeCurrentSongOnDevice()
+                }
+            }
+            // For RepeatMode.None, do nothing when at the end of the playlist
         }
     }
 
     fun onPreviousCommand() {
-        if (state.currentTrackNum > 0) {
-            state.currentPlaylist.songs.getOrNull(state.currentTrackNum - 1)?.let {
-                setState { copy(currentSong = it, currentTrackNum = state.currentTrackNum - 1) }
-                playPreviousOnDevice()
+        when {
+            // For RepeatMode.One, replay the current song
+            state.repeatMode == One -> {
+                state.currentPlaylist.songs.getOrNull(state.currentTrackNum)?.let {
+                    setState { copy(currentSong = it) }
+                    setCurrentTrackNumOnDevice(state.currentTrackNum)
+                    resumeCurrentSongOnDevice()
+                }
             }
+            // If not at the beginning of the playlist, go to the previous song
+            state.currentTrackNum > 0 -> {
+                state.currentPlaylist.songs.getOrNull(state.currentTrackNum - 1)?.let {
+                    setState { copy(currentSong = it, currentTrackNum = state.currentTrackNum - 1) }
+                    playPreviousOnDevice()
+                }
+            }
+            // When in RepeatMode.All and at the beginning of the playlist, wrap around to the last song
+            state.repeatMode == All && state.currentPlaylist.songs.isNotEmpty() -> {
+                val lastIndex = state.currentPlaylist.songs.size - 1
+                state.currentPlaylist.songs.getOrNull(lastIndex)?.let {
+                    setState { copy(currentSong = it, currentTrackNum = lastIndex) }
+                    setCurrentTrackNumOnDevice(lastIndex)
+                    resumeCurrentSongOnDevice()
+                }
+            }
+            // For RepeatMode.None, do nothing when at the beginning of the playlist
         }
     }
 
@@ -170,7 +222,7 @@ internal object PlayerService {
         val isRemotePlaying: Boolean = false,
         val onPlayingChangedOnDevice: (Boolean) -> Unit = {},
         val shuffle: Boolean = false,
-        val repeatMode: RepeatMode = RepeatMode.All,
+        val repeatMode: RepeatMode = All,
     )
 }
 
