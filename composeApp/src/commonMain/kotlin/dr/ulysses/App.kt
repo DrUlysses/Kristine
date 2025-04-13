@@ -1,18 +1,26 @@
 package dr.ulysses
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import dr.ulysses.network.NetworkManager
 import dr.ulysses.theme.AppTheme
 import dr.ulysses.ui.views.Main
-import io.ktor.server.cio.*
-import io.ktor.server.engine.*
 
 @Composable
 internal fun App() = AppTheme {
-    val server = embeddedServer(
-        factory = CIO,
-        host = "127.0.0.1",
-        port = 0
-    ) {}
+    // Start the network manager when the app starts
+    LaunchedEffect(Unit) {
+        NetworkManager.start()
+    }
+
+    // Clean up when the app is closed
+    DisposableEffect(Unit) {
+        onDispose {
+            NetworkManager.stop()
+        }
+    }
+
     Main()
 }
 
