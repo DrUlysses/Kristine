@@ -5,6 +5,7 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Client that discovers other instances of the app on the network.
@@ -12,6 +13,7 @@ import kotlinx.coroutines.*
 class NetworkClient {
     private val client = HttpClient {
         // Configure client with a short timeout for discovery
+        expectSuccess = false
     }
     private var discoveryJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default)
@@ -28,12 +30,17 @@ class NetworkClient {
             while (isActive) {
                 val servers = mutableListOf<String>()
 
-                // Scan local network (192.168.x.x)
+                // Scan local network (focus on common subnet masks)
                 Logger.d { "Starting network scan for servers..." }
-                for (i in 1..254) {
-                    for (j in 1..254) {
-                        val ip = "192.168.$i.$j"
-                        Logger.d { "Checking IP: $ip" }
+
+                // Only scan the most common subnets (192.168.0.x and 192.168.10.x) instead of all 192.168.x.x
+                for (subnet in 0..10) {
+                    for (host in 1..254) {
+                        val ip = "192.168.$subnet.$host"
+                        // Only log every 10th IP to reduce log spam
+                        if (host % 10 == 0) {
+                            Logger.d { "Checking IP: $ip" }
+                        }
                         try {
                             val response =
                                 client.get("http://$ip:${NetworkServer.SERVER_PORT}${NetworkServer.DISCOVERY_ENDPOINT}")
@@ -64,7 +71,7 @@ class NetworkClient {
                 onServersDiscovered(servers)
 
                 // Wait before the next scan
-                delay(5000) // 5 seconds between scans
+                delay(10.seconds.inWholeMilliseconds)
             }
         }
     }
