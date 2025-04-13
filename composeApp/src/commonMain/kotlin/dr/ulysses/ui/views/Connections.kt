@@ -32,13 +32,16 @@ fun Connections() {
     // Collect the discovered servers and local server port from the NetworkManager
     LaunchedEffect(Unit) {
         NetworkManager.discoveredServers.collectLatest { servers ->
-            discoveredServers.value = servers
+            // Filter out the local server from the discovered servers list
+            discoveredServers.value = servers.filterValues { port -> port != localServerPort.value }
         }
     }
 
     LaunchedEffect(Unit) {
         NetworkManager.localServerPort.collectLatest { port ->
             localServerPort.value = port
+            // Update the discovered servers list to exclude the local server
+            discoveredServers.value = discoveredServers.value.filterValues { it != port }
         }
     }
 
@@ -89,29 +92,33 @@ fun Connections() {
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                OutlinedTextField(
-                    value = customServerAddress.value,
-                    onValueChange = { customServerAddress.value = it },
-                    label = { Text("Server Address") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                )
+                Row {
+                    OutlinedTextField(
+                        value = customServerAddress.value,
+                        onValueChange = { customServerAddress.value = it },
+                        label = { Text("Server Address") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(bottom = 8.dp)
+                    )
 
-                OutlinedTextField(
-                    value = customServerPort.value,
-                    onValueChange = {
-                        // Only allow numeric input
-                        if (it.isEmpty() || it.all { char -> char.isDigit() }) {
-                            customServerPort.value = it
-                        }
-                    },
-                    label = { Text("Server Port") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                )
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    OutlinedTextField(
+                        value = customServerPort.value,
+                        onValueChange = {
+                            // Only allow numeric input
+                            if (it.isEmpty() || it.all { char -> char.isDigit() }) {
+                                customServerPort.value = it
+                            }
+                        },
+                        label = { Text("Server Port") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(bottom = 8.dp)
+                    )
+                }
 
                 if (showCustomServerError.value) {
                     Text(

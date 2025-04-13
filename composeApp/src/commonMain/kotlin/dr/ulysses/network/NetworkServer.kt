@@ -25,21 +25,24 @@ class NetworkServer {
      * Starts broadcasting UDP packets on the local network.
      * @return The port number the server is listening on
      */
-    fun start(): Int {
+    suspend fun start(): Int {
         if (broadcastJob != null) return serverPort
 
         Logger.d { "Starting UDP broadcast server" }
+
+        // Create a socket and get the port synchronously
+        val selectorManager = SelectorManager(Dispatchers.Default)
+        val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", 0)) {
+            broadcast = true
+        }
+
+        // Get the dynamically assigned port
+        val localAddress = socket.localAddress as InetSocketAddress
+        serverPort = localAddress.port
+        Logger.d { "Server bound to port: $serverPort" }
+
+        // Start broadcasting in a separate coroutine
         broadcastJob = scope.launch {
-            val selectorManager = SelectorManager(Dispatchers.Default)
-            val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", 0)) {
-                broadcast = true
-            }
-
-            // Get the dynamically assigned port
-            val localAddress = socket.localAddress as InetSocketAddress
-            serverPort = localAddress.port
-            Logger.d { "Server bound to port: $serverPort" }
-
             try {
                 while (isActive) {
                     // Broadcast to localhost
