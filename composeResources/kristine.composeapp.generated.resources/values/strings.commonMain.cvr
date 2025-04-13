@@ -1,6 +1,7 @@
 version:0
 string|add_playlist|QWRkIHBsYXlsaXN0
 string|add_song|QWRkIFNvbmc=
+string|albums|QWxidW1z
 string|album|QWxidW0=
 string|app_name|S3Jpc3RpbmU=
 string|artists|QXJ0aXN0cw==
@@ -10,6 +11,7 @@ string|cancel|Q2FuY2Vs
 string|choose_file_and_enter_name|Q2hvb3NlIGZpbGUgYW5kIGVudGVyIG5hbWU=
 string|choose_file|Q2hvb3NlIGZpbGU=
 string|connected|Q29ubmVjdGVk
+string|connections|Q29ubmVjdGlvbnM=
 string|cover_url|Q292ZXIgVVJM
 string|cover|Q292ZXI=
 string|disconnected|RGlzY29ubmVjdGVk
@@ -27,9 +29,11 @@ string|options|T3B0aW9ucw==
 string|pause|UGF1c2U=
 string|play_pause|UGxheS9QYXVzZQ==
 string|player_error|UGxheWVyIGVycm9y
+string|playlists|UGxheWxpc3Rz
 string|play|UGxheQ==
 string|previous|UHJldmlvdXM=
 string|problem_getting_file_path|UHJvYmxlbSBnZXR0aW5nIGZpbGUgcGF0aA==
+string|refresh_songs|UmVmcmVzaCBTb25ncw==
 string|remote_library|UmVtb3RlIGxpYnJhcnk=
 string|repeat|UmVwZWF0
 string|retrieving_form|UmV0cmlldmluZyBmb3Jt
