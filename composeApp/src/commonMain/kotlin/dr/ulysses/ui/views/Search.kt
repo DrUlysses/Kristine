@@ -13,7 +13,7 @@ import dr.ulysses.entities.PlaylistRepository
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.base.Searchable
-import dr.ulysses.models.PlayerService.onPlaySongCommand
+import dr.ulysses.models.PlayerService
 import dr.ulysses.ui.components.SearchList
 import kotlinx.coroutines.launch
 
@@ -23,7 +23,6 @@ fun Search(
     playlistsIncluded: Boolean = true,
     onPlaylistClicked: (Searchable) -> Unit = {},
     onQueryChanged: (String) -> Unit,
-    onSongClicked: (Song) -> Unit = ::onPlaySongCommand,
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var entries by remember { mutableStateOf(emptyList<Searchable>()) }
@@ -55,7 +54,14 @@ fun Search(
                 modifier = modifier,
                 entries = entries,
                 onPlaylistClicked = onPlaylistClicked,
-                onSongClicked = onSongClicked
+                onSongClicked = { song ->
+                    // Get all songs from the search results that are of type Song
+                    val songsList = entries.filterIsInstance<Song>()
+                    // Update the playlist with all songs from search results
+                    PlayerService.onSongsChanged(songsList)
+                    // Play the selected song
+                    PlayerService.onPlaySongCommand(song)
+                }
             )
         }
     }

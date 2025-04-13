@@ -18,7 +18,6 @@ import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.base.Searchable
-import dr.ulysses.models.PlayerService.onPlaySongCommand
 import dr.ulysses.ui.elements.PlaylistListEntry
 import dr.ulysses.ui.elements.SongListEntry
 import kotlinx.serialization.Serializable
@@ -35,7 +34,7 @@ fun SearchList(
     modifier: Modifier = Modifier,
     entries: List<Searchable>,
     onPlaylistClicked: (Playlist) -> Unit,
-    onSongClicked: (Song) -> Unit = ::onPlaySongCommand,
+    onSongClicked: (Song) -> Unit,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         val listState = rememberLazyListState()
