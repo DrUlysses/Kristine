@@ -3,6 +3,7 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
     repositories {
+        maven("https://packages.jetbrains.team/maven/p/firework/dev")
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
         google {
             content {
@@ -14,49 +15,14 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
-        maven {
-            url = uri("https://maven.pkg.github.com/edna-aa/sqldelight")
-            credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: "Ulysses"
-                password = System.getenv("GITHUB_TOKEN")
-                    ?: providers.gradleProperty("github.maven.repo.token").orNull
-                            ?: error("GitHub token not found in CI or gradle.properties")
-            }
-            // Restrict this repository to specific versions containing "-wasm"
-            content {
-                includeGroup("app.cash.sqldelight") // Restrict to the group
-                includeVersionByRegex(
-                    "app.cash.sqldelight",
-                    ".*",
-                    ".*-wasm.*"
-                ) // Match any artifact in the group with versions containing "-wasm"
-            }
-        }
     }
 }
 
 dependencyResolutionManagement {
     repositories {
+        maven("https://packages.jetbrains.team/maven/p/firework/dev")
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
         maven("https://maven.pkg.jetbrains.space/public/p/ktor/eap")
-        maven {
-            url = uri("https://maven.pkg.github.com/edna-aa/sqldelight")
-            credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: "Ulysses"
-                password = System.getenv("GITHUB_TOKEN")
-                    ?: providers.gradleProperty("github.maven.repo.token").orNull
-                            ?: error("GitHub token not found in CI or gradle.properties")
-            }
-            // Restrict this repository to specific versions containing "-wasm"
-            content {
-                includeGroup("app.cash.sqldelight") // Restrict to the group
-                includeVersionByRegex(
-                    "app.cash.sqldelight",
-                    ".*",
-                    ".*-wasm.*"
-                ) // Match any artifact in the group with versions containing "-wasm"
-            }
-        }
         google {
             content {
                 includeGroupByRegex("com\\.android.*")
@@ -69,5 +35,9 @@ dependencyResolutionManagement {
     }
 }
 
+// automatic provisioning of the JetBrains Runtime (JBR) via Gradle
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0"
+}
+
 include(":composeApp")
-include(":server")

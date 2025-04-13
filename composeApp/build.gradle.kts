@@ -1,6 +1,7 @@
 @file:OptIn(ExperimentalKotlinGradlePluginApi::class, ExperimentalWasmDsl::class)
 
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -13,6 +14,11 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.sqlDelight)
+    alias(libs.plugins.hot.reload)
+}
+
+composeCompiler {
+    featureFlags.add(ComposeFeatureFlag.OptimizeNonSkippingGroups)
 }
 
 kotlin {
@@ -80,6 +86,9 @@ kotlin {
             implementation(libs.filekit.compose)
             implementation(libs.landscapist.coil3)
             implementation(libs.coil.compose)
+
+            implementation(libs.bundles.ktor.client)
+            implementation(libs.bundles.ktor.server)
         }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
