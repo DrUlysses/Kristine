@@ -31,6 +31,8 @@ import dr.ulysses.entities.PlaylistRepository
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.models.PlayerService
+import dr.ulysses.network.NetworkManager.currentServer
+import dr.ulysses.network.NetworkManager.fetchSongsFromCurrentServer
 import dr.ulysses.ui.components.*
 import dr.ulysses.ui.elements.LoadingIndicator
 import dr.ulysses.ui.permissions.PermissionsAlert
@@ -65,13 +67,24 @@ fun Main() {
     val navBarController = rememberNavController()
     var allSongs by remember { mutableStateOf(emptyList<Song>()) }
     var isLoadingSongs by remember { mutableStateOf(true) }
-    allSongs = run {
+    // Observe the current server connection status
+    val serverConnection by currentServer.collectAsState()
+
+    // Load songs from server if connected, otherwise from local repository
+    LaunchedEffect(serverConnection) {
         scope.launch {
             isLoadingSongs = true
-            allSongs = SongRepository.getAllSongs()
+            // Check if connected to a server
+            allSongs = if (serverConnection != null) {
+                // The Client is connected to server, get songs from server
+                val serverSongs = fetchSongsFromCurrentServer()
+                serverSongs ?: SongRepository.getAllSongs()
+            } else {
+                // Not connected to server, get songs from local repository
+                SongRepository.getAllSongs()
+            }
             isLoadingSongs = false
         }
-        allSongs
     }
     var currentArtistSongsList by remember { mutableStateOf(emptyList<Song>()) }
     var currentAlbumSongsList by remember { mutableStateOf(emptyList<Song>()) }
