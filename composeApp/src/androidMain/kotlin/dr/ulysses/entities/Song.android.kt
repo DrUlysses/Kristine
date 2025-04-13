@@ -24,12 +24,15 @@ actual suspend fun refreshSongs(): List<Song> {
         val serverSongs = fetchSongsFromCurrentServer()
         if (serverSongs != null) {
             // If server songs were successfully fetched, return them
+            Logger.d { "Using songs from server: ${serverSongs.size} songs" }
             return serverSongs
         }
         // If server songs couldn't be fetched, fall back to local songs
+        Logger.d { "Failed to fetch songs from server, falling back to local songs" }
     }
 
     // Not connected to a server or failed to fetch server songs, load local songs
+    Logger.d { "Loading songs from local storage" }
     val context: Context by inject(Context::class.java)
     val contentResolver: ContentResolver = context.contentResolver
 
@@ -97,5 +100,7 @@ actual suspend fun refreshSongs(): List<Song> {
         cursor.close()
     }
 
-    return SongRepository.getAllSongs().sortedBy { it.title }
+    val localSongs = SongRepository.getAllSongs().sortedBy { it.title }
+    Logger.d { "Loaded ${localSongs.size} songs from local storage" }
+    return localSongs
 }
