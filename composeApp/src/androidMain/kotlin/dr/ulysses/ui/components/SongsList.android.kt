@@ -1,14 +1,15 @@
 package dr.ulysses.ui.components
 
+import android.os.Build
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.overscroll
+import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
+import dr.ulysses.entities.loadArtworkFromFile
 import dr.ulysses.ui.elements.SongListEntry
 import kotlin.math.roundToInt
 
@@ -51,13 +53,24 @@ actual fun SongsList(
             state = listState,
             modifier = modifier
                 .fillMaxSize()
-                .overscroll(ScrollableDefaults.overscrollEffect()),
+                .overscroll(rememberOverscrollEffect()),
             content = {
                 itemsIndexed(items = rememberedSongs) { index, song ->
                     val isDragging = draggedIndex == index
-                    val image: ByteArray? = remember { song.artwork }
-                    image ?: LaunchedEffect(image) {
-                        SongRepository.getArtwork(song.path)
+                    var image: ByteArray? by remember { mutableStateOf(song.artwork) }
+                    if (image == null) {
+                        LaunchedEffect(song.path) {
+                            // First try to get artwork from a database
+                            image = SongRepository.getArtwork(song.path)
+                            // If not found in database and API level is 29 or higher, load from file
+                            if (image == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                image = loadArtworkFromFile(song.path)
+                                // If artwork was loaded from a file, update the database
+                                if (image != null) {
+                                    SongRepository.upsert(song.copy(artwork = image))
+                                }
+                            }
+                        }
                     }
                     SongListEntry(
                         image = image,

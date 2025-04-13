@@ -33,6 +33,7 @@
     <string name="playlists">Playlists</string>
     <string name="previous">Previous</string>
     <string name="problem_getting_file_path">Problem getting file path</string>
+    <string name="refresh_songs">Refresh Songs</string>
     <string name="remote_library">Remote library</string>
     <string name="repeat">Repeat</string>
     <string name="retrieving_form">Retrieving form</string>

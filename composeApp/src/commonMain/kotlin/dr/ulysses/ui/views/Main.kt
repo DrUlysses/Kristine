@@ -49,6 +49,7 @@ fun Main() {
     val searchText = stringResource(Res.string.search)
     val addPlaylistText = stringResource(Res.string.add_playlist)
     val connectionsText = stringResource(Res.string.connections)
+    val refreshSongsText = stringResource(Res.string.refresh_songs)
     val searchTooltip = stringResource(Res.string.search_tooltip)
     val permissionsGranted = rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -170,6 +171,10 @@ fun Main() {
                         navBarController.navigate(Connections)
                         topBarText = connectionsText
                         MainViewModel.setTopBarText(connectionsText)
+                    },
+                    refreshSongsText to {
+                        // Call MainViewModel.loadSongs() to refresh the songs
+                        MainViewModel.loadSongs()
                     }
                 )
             )
