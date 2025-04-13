@@ -1,55 +1,77 @@
 package dr.ulysses.network
 
-import io.ktor.http.*
-import io.ktor.server.cio.*
-import io.ktor.server.engine.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import co.touchlab.kermit.Logger
+import io.ktor.network.selector.*
+import io.ktor.network.sockets.*
+import io.ktor.utils.io.core.*
+import kotlinx.coroutines.*
+import kotlin.time.Duration.Companion.seconds
 
 /**
- * Server that listens for discovery requests from other instances of the app.
+ * Server that broadcasts its presence on the local network using UDP.
  */
 class NetworkServer {
     companion object {
-        const val SERVER_PORT = 8765
-        const val DISCOVERY_ENDPOINT = "/discover"
+        const val SERVER_PORT = 54321
+        const val BROADCAST_MESSAGE = "Kristine Server Discovery"
+        const val BROADCAST_INTERVAL_SECONDS = 5
     }
 
-    private var server: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
+    private var broadcastJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default)
 
     /**
-     * Starts the server on the local network.
+     * Starts broadcasting UDP packets on the local network.
      */
     fun start() {
-        if (server != null) return
+        if (broadcastJob != null) return
 
-        scope.launch {
-            server = embeddedServer(
-                factory = CIO,
-                // Use 0.0.0.0 to listen on all network interfaces
-                host = "0.0.0.0",
-                port = SERVER_PORT
-            ) {
-                routing {
-                    // Endpoint for discovery
-                    get(DISCOVERY_ENDPOINT) {
-                        call.respond(HttpStatusCode.OK, "Kristine Server")
+        Logger.d { "Starting UDP broadcast server" }
+        broadcastJob = scope.launch {
+            val selectorManager = SelectorManager(Dispatchers.Default)
+            val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", SERVER_PORT))
+
+            try {
+                while (isActive) {
+                    // Broadcast to localhost
+                    sendBroadcast(socket, "127.0.0.1")
+
+                    // Broadcast to 192.168.x.255 (common broadcast addresses)
+                    for (subnet in 0..10) {
+                        sendBroadcast(socket, "192.168.$subnet.255")
                     }
+
+                    delay(BROADCAST_INTERVAL_SECONDS.seconds)
                 }
+            } catch (e: Exception) {
+                Logger.e(e) { "Error in UDP broadcast server" }
+            } finally {
+                socket.close()
+                selectorManager.close()
             }
-            server?.start(wait = false)
+        }
+    }
+
+    private suspend fun sendBroadcast(socket: BoundDatagramSocket, address: String) {
+        try {
+            Logger.d { "Broadcasting to $address" }
+            socket.send(
+                Datagram(
+                    packet = ByteReadPacket(BROADCAST_MESSAGE.toByteArray()),
+                    address = InetSocketAddress(address, SERVER_PORT)
+                )
+            )
+        } catch (e: Exception) {
+            Logger.e(e) { "Failed to broadcast to $address" }
         }
     }
 
     /**
-     * Stops the server.
+     * Stops the UDP broadcast server.
      */
     fun stop() {
-        server?.stop(1000, 2000)
-        server = null
+        broadcastJob?.cancel()
+        broadcastJob = null
+        Logger.d { "Stopped UDP broadcast server" }
     }
 }

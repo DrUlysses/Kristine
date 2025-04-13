@@ -1,22 +1,24 @@
 package dr.ulysses.network
 
 import co.touchlab.kermit.Logger
-import io.ktor.client.*
-import io.ktor.client.request.*
-import io.ktor.http.*
+import io.ktor.network.selector.*
+import io.ktor.network.sockets.*
+import io.ktor.utils.io.core.*
 import kotlinx.coroutines.*
+import kotlinx.datetime.Clock
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Client that discovers other instances of the app on the network.
+ * Client that discovers other instances of the app on the network using UDP.
  */
 class NetworkClient {
-    private val client = HttpClient {
-        // Configure client with a short timeout for discovery
-        expectSuccess = false
-    }
     private var discoveryJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default)
+    private val discoveredServers = mutableSetOf<String>()
+    private val serverTimeout = 15.seconds.inWholeMilliseconds
+
+    // Map to track when servers were last seen
+    private val serverLastSeen = mutableMapOf<String, Long>()
 
     /**
      * Starts the discovery process to find servers on the local network.
@@ -25,54 +27,71 @@ class NetworkClient {
     fun startDiscovery(onServersDiscovered: (List<String>) -> Unit) {
         if (discoveryJob != null) return
 
-        Logger.d { "Starting server discovery process" }
+        Logger.d { "Starting UDP server discovery process" }
         discoveryJob = scope.launch {
-            while (isActive) {
-                val servers = mutableListOf<String>()
+            val selectorManager = SelectorManager(Dispatchers.Default)
+            val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", NetworkServer.SERVER_PORT))
 
-                // Scan local network (focus on common subnet masks)
-                Logger.d { "Starting network scan for servers..." }
+            try {
+                // Start a periodic job to clean up stale servers
+                val cleanupJob = launch {
+                    while (isActive) {
+                        cleanupStaleServers()
+                        onServersDiscovered(discoveredServers.toList())
+                        delay(5.seconds)
+                    }
+                }
 
-                // Only scan the most common subnets (192.168.0.x and 192.168.10.x) instead of all 192.168.x.x
-                for (subnet in 0..10) {
-                    for (host in 1..254) {
-                        val ip = "192.168.$subnet.$host"
-                        // Only log every 10th IP to reduce log spam
-                        if (host % 10 == 0) {
-                            Logger.d { "Checking IP: $ip" }
-                        }
-                        try {
-                            val response =
-                                client.get("http://$ip:${NetworkServer.SERVER_PORT}${NetworkServer.DISCOVERY_ENDPOINT}")
-                            if (response.status == HttpStatusCode.OK) {
-                                Logger.d { "Server found at IP: $ip" }
-                                servers.add(ip)
+                // Listen for incoming UDP broadcasts
+                while (isActive) {
+                    val datagram = socket.receive()
+                    val message = datagram.packet.readText()
+                    // Extract IP address from the socket address string
+                    val addressStr = datagram.address.toString()
+                    val senderAddress = addressStr.substringBefore(':').replace("/", "")
+
+                    if (message == NetworkServer.BROADCAST_MESSAGE) {
+                        val currentTime = Clock.System.now().toEpochMilliseconds()
+
+                        // Use the actual sender IP instead of the broadcast address
+                        if (senderAddress != "0.0.0.0" && senderAddress != "255.255.255.255") {
+                            if (!discoveredServers.contains(senderAddress)) {
+                                Logger.d { "Server discovered at: $senderAddress" }
+                                discoveredServers.add(senderAddress)
                             }
-                        } catch (_: Exception) {
-                            // Ignore connection errors - this is expected for most IPs
+
+                            // Update the last seen timestamp
+                            serverLastSeen[senderAddress] = currentTime
+
+                            // Notify about the updated server list
+                            onServersDiscovered(discoveredServers.toList())
                         }
                     }
                 }
-                Logger.d { "Network scan completed. Found ${servers.size} servers." }
 
-                // Also try to discover on localhost for testing
-                Logger.d { "Checking localhost" }
-                try {
-                    val response =
-                        client.get("http://localhost:${NetworkServer.SERVER_PORT}${NetworkServer.DISCOVERY_ENDPOINT}")
-                    if (response.status == HttpStatusCode.OK) {
-                        Logger.d { "Server found at localhost" }
-                        servers.add("localhost")
-                    }
-                } catch (_: Exception) {
-                    // Ignore connection errors
-                }
-
-                onServersDiscovered(servers)
-
-                // Wait before the next scan
-                delay(10.seconds.inWholeMilliseconds)
+                cleanupJob.cancel()
+            } catch (e: Exception) {
+                Logger.e(e) { "Error in UDP discovery client" }
+            } finally {
+                socket.close()
+                selectorManager.close()
             }
+        }
+    }
+
+    /**
+     * Remove servers that haven't been seen recently
+     */
+    private fun cleanupStaleServers() {
+        val currentTime = Clock.System.now().toEpochMilliseconds()
+        val staleServers = serverLastSeen.filter { (_, lastSeen) ->
+            (currentTime - lastSeen) > serverTimeout
+        }.keys
+
+        if (staleServers.isNotEmpty()) {
+            Logger.d { "Removing stale servers: $staleServers" }
+            discoveredServers.removeAll(staleServers)
+            staleServers.forEach { serverLastSeen.remove(it) }
         }
     }
 
@@ -82,6 +101,8 @@ class NetworkClient {
     fun stopDiscovery() {
         discoveryJob?.cancel()
         discoveryJob = null
-        Logger.d { "Stopped server discovery process" }
+        discoveredServers.clear()
+        serverLastSeen.clear()
+        Logger.d { "Stopped UDP server discovery process" }
     }
 }
