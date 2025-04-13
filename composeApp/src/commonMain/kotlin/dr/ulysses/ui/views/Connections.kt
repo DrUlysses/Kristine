@@ -15,8 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dr.ulysses.network.NetworkManager
+import dr.ulysses.network.NetworkServer.Companion.SERVER_PORT
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.serialization.Serializable
 
+@Serializable
 object Connections
 
 @Composable
@@ -74,7 +77,7 @@ fun Connections() {
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             Text(
-                                text = "Port: ${dr.ulysses.network.NetworkServer.SERVER_PORT}",
+                                text = "Port: $SERVER_PORT",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }

@@ -130,4 +130,8 @@ fun NavGraphBuilder.addNavigationGraph(
             onPlaylistChanged = onCurrentPlaylistChanged
         )
     }
+
+    composable<Connections> {
+        Connections()
+    }
 }

@@ -36,12 +36,19 @@ fun TabMenu(
             if (!topText.isNullOrEmpty())
                 TopAppBar(
                     title = {
-                        Text(text = topText)
+                        Text(
+                            text = topText,
+                            fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                            lineHeight = MaterialTheme.typography.titleMedium.lineHeight,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
                     },
                     colors = TopAppBarDefaults.mediumTopAppBarColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     ),
-                    modifier = modifier,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp),
                     navigationIcon = {
                         IconButton(onClick = navigateUp) {
                             Icon(
