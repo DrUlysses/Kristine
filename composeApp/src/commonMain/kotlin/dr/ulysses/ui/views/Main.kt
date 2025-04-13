@@ -31,6 +31,7 @@ import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.models.PlayerService
 import dr.ulysses.ui.components.*
+import dr.ulysses.ui.elements.LoadingIndicator
 import dr.ulysses.ui.permissions.PermissionsAlert
 import kotlinx.coroutines.launch
 import kristine.composeapp.generated.resources.*
@@ -53,9 +54,12 @@ fun Main() {
     var topBarText by remember { mutableStateOf<String?>(null) }
     val navBarController = rememberNavController()
     var allSongs by remember { mutableStateOf(emptyList<Song>()) }
+    var isLoadingSongs by remember { mutableStateOf(true) }
     allSongs = run {
         scope.launch {
+            isLoadingSongs = true
             allSongs = SongRepository.getAllSongs()
+            isLoadingSongs = false
         }
         allSongs
     }
@@ -69,6 +73,7 @@ fun Main() {
         )
     }
     var currentPlaylists by remember { mutableStateOf(emptyList<Playlist>()) }
+    var isLoadingPlaylists by remember { mutableStateOf(true) }
     PermissionsAlert(
         permissionsGranted = permissionsGranted.value,
         onPermissionsChange = {
@@ -140,60 +145,83 @@ fun Main() {
                         )
                     else
                         when (page) {
-                            0 -> ArtistsList(
-                                artists = allSongs
-                                    .map { it.artist.trim() }
-                                    .fastDistinctBy(String::lowercase),
-                                onArtistsChanged = {},
-                                onArtistClicked = { artist ->
-                                    topBarText = artist
-                                    currentArtistSongsList = allSongs.filter {
-                                        it.artist.trim().lowercase() == artist.trim().lowercase()
+                            0 -> if (isLoadingSongs) {
+                                LoadingIndicator()
+                            } else {
+                                ArtistsList(
+                                    artists = allSongs
+                                        .map { it.artist.trim() }
+                                        .fastDistinctBy(String::lowercase),
+                                    onArtistsChanged = {},
+                                    onArtistClicked = { artist ->
+                                        topBarText = artist
+                                        currentArtistSongsList = allSongs.filter {
+                                            it.artist.trim().lowercase() == artist.trim().lowercase()
+                                        }
+                                        navBarController.navigate(ArtistSongs)
                                     }
-                                    navBarController.navigate(ArtistSongs)
-                                }
-                            )
+                                )
+                            }
 
-                            1 -> SongsList(
-                                songs = allSongs,
-                                onPlaySongCommand = { song ->
-                                    playerModel.onSongsChanged(allSongs)
-                                    playerModel.onPlaySongCommand(song)
-                                }
-                            )
-
-                            2 -> AlbumsList(
-                                albums = allSongs
-                                    .mapNotNull { it.album?.trim() }
-                                    .fastDistinctBy(String::lowercase),
-                                onAlbumClicked = { album ->
-                                    topBarText = album
-                                    currentAlbumSongsList = allSongs.filter {
-                                        it.album != null && topBarText != null &&
-                                                it.album.lowercase() == topBarText!!.lowercase()
+                            1 -> if (isLoadingSongs) {
+                                LoadingIndicator()
+                            } else {
+                                SongsList(
+                                    songs = allSongs,
+                                    onPlaySongCommand = { song ->
+                                        playerModel.onSongsChanged(allSongs)
+                                        playerModel.onPlaySongCommand(song)
                                     }
-                                    navBarController.navigate(AlbumSongs)
-                                }
-                            )
+                                )
+                            }
 
-                            3 -> PlaylistsList(
-                                playlists = currentPlaylists.ifEmpty {
+                            2 -> if (isLoadingSongs) {
+                                LoadingIndicator()
+                            } else {
+                                AlbumsList(
+                                    albums = allSongs
+                                        .mapNotNull { it.album?.trim() }
+                                        .fastDistinctBy(String::lowercase),
+                                    onAlbumClicked = { album ->
+                                        topBarText = album
+                                        currentAlbumSongsList = allSongs.filter {
+                                            it.album != null && topBarText != null &&
+                                                    it.album.lowercase() == topBarText!!.lowercase()
+                                        }
+                                        navBarController.navigate(AlbumSongs)
+                                    }
+                                )
+                            }
+
+                            3 -> {
+                                if (currentPlaylists.isEmpty()) {
                                     scope.launch {
+                                        isLoadingPlaylists = true
                                         currentPlaylists = PlaylistRepository.getAllPlaylists()
+                                        isLoadingPlaylists = false
                                     }
-                                    currentPlaylists
-                                },
-                                onPlaylistsChanged = {
-                                    scope.launch {
-                                        currentPlaylists = PlaylistRepository.getAllPlaylists()
-                                    }
-                                },
-                                onPlaylistClicked = { playlist ->
-                                    currentPlaylist = playlist
-                                    topBarText = currentPlaylist.name
-                                    navBarController.navigate(PlaylistSongs)
                                 }
-                            )
+
+                                if (isLoadingPlaylists) {
+                                    LoadingIndicator()
+                                } else {
+                                    PlaylistsList(
+                                        playlists = currentPlaylists,
+                                        onPlaylistsChanged = {
+                                            scope.launch {
+                                                isLoadingPlaylists = true
+                                                currentPlaylists = PlaylistRepository.getAllPlaylists()
+                                                isLoadingPlaylists = false
+                                            }
+                                        },
+                                        onPlaylistClicked = { playlist ->
+                                            currentPlaylist = playlist
+                                            topBarText = currentPlaylist.name
+                                            navBarController.navigate(PlaylistSongs)
+                                        }
+                                    )
+                                }
+                            }
                         }
                 }
             }
