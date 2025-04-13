@@ -97,9 +97,9 @@ internal object PlayerService {
         setState {
             copy(
                 repeatMode = when (state.repeatMode) {
-                    RepeatMode.None -> RepeatMode.All
-                    RepeatMode.All -> RepeatMode.One
-                    RepeatMode.One -> RepeatMode.None
+                    None -> All
+                    All -> One
+                    One -> None
                 }
             )
         }
@@ -133,10 +133,26 @@ internal object PlayerService {
             }
             // When in RepeatMode.All and at the end of the playlist, wrap around to the first song
             state.repeatMode == All && state.currentPlaylist.songs.isNotEmpty() -> {
-                state.currentPlaylist.songs.getOrNull(0)?.let {
-                    setState { copy(currentSong = it, currentTrackNum = 0) }
+                if (state.shuffle) {
+                    // Reshuffle the playlist when it ends with shuffle active
+                    val shuffledSongs = state.currentPlaylist.songs.shuffled()
+                    setState {
+                        copy(
+                            currentPlaylist = state.currentPlaylist.copy(songs = shuffledSongs),
+                            currentSong = shuffledSongs.firstOrNull(),
+                            currentTrackNum = 0
+                        )
+                    }
+                    setPlayListOnDevice(shuffledSongs.map { it.path })
                     setCurrentTrackNumOnDevice(0)
                     resumeCurrentSongOnDevice()
+                } else {
+                    // Standard behavior without shuffle
+                    state.currentPlaylist.songs.getOrNull(0)?.let {
+                        setState { copy(currentSong = it, currentTrackNum = 0) }
+                        setCurrentTrackNumOnDevice(0)
+                        resumeCurrentSongOnDevice()
+                    }
                 }
             }
             // For RepeatMode.None, do nothing when at the end of the playlist
