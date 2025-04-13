@@ -1,10 +1,17 @@
 package dr.ulysses.network
 
 import dr.ulysses.Logger
+import dr.ulysses.entities.SongRepository.getAllSongs
+import io.ktor.http.*
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
+import io.ktor.server.cio.*
+import io.ktor.server.engine.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import io.ktor.utils.io.core.*
 import kotlinx.coroutines.*
+import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -18,6 +25,7 @@ class NetworkServer {
     }
 
     private var broadcastJob: Job? = null
+    private var httpServer: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
     private val scope = CoroutineScope(Dispatchers.Default)
     private var serverPort: Int = 0
 
@@ -40,6 +48,9 @@ class NetworkServer {
         val localAddress = socket.localAddress as InetSocketAddress
         serverPort = localAddress.port
         Logger.d { "Server bound to port: $serverPort" }
+
+        // Start the HTTP server
+        startHttpServer()
 
         // Start broadcasting in a separate coroutine
         broadcastJob = scope.launch {
@@ -84,11 +95,38 @@ class NetworkServer {
     }
 
     /**
+     * Starts the HTTP server for handling REST API requests.
+     */
+    private fun startHttpServer() {
+        if (httpServer != null) return
+
+        Logger.d { "Starting HTTP server on port: $serverPort" }
+
+        httpServer = embeddedServer(
+            factory = CIO,
+            port = serverPort
+        ) {
+            routing {
+                get("/songs") {
+                    // Launch a coroutine to call the suspend function
+                    call.respond(HttpStatusCode.OK, Json.encodeToString(getAllSongs()))
+                }
+            }
+        }.start(wait = false)
+
+        Logger.d { "HTTP server started on port: $serverPort" }
+    }
+
+    /**
      * Stops the UDP broadcast server.
      */
     fun stop() {
         broadcastJob?.cancel()
         broadcastJob = null
-        Logger.d { "Stopped UDP broadcast server" }
+
+        httpServer?.stop(1000, 2000)
+        httpServer = null
+
+        Logger.d { "Stopped UDP broadcast server and HTTP server" }
     }
 }
