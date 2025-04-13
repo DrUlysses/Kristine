@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 import dr.ulysses.models.RepeatMode.*
+import dr.ulysses.network.NetworkManager
 
 /**
  * Represents the repeat mode for a media player.
@@ -218,7 +219,46 @@ internal object PlayerService {
     }
 
     private inline fun setState(update: PlayerState.() -> PlayerState) {
+        val oldState = state
         state = state.update()
+
+        // Send updates if the state has changed
+        if (oldState.currentSong != state.currentSong) {
+            sendNowPlayingUpdate(state.currentSong)
+        }
+        if (oldState.isPlaying != state.isPlaying) {
+            sendPlaybackStateUpdate(state.isPlaying)
+        }
+    }
+
+    /**
+     * Sends a "nowPlaying" update to connected clients.
+     * @param song The currently playing song.
+     */
+    private fun sendNowPlayingUpdate(song: Song?) {
+        if (song != null) {
+            val update = kotlinx.serialization.json.Json.encodeToString(
+                mapOf(
+                    "type" to "nowPlaying",
+                    "song" to kotlinx.serialization.json.Json.encodeToString(song)
+                )
+            )
+            NetworkManager.sendPlayerUpdate(update)
+        }
+    }
+
+    /**
+     * Sends a "playbackState" update to connected clients.
+     * @param isPlaying Whether playback is active.
+     */
+    private fun sendPlaybackStateUpdate(isPlaying: Boolean) {
+        val update = kotlinx.serialization.json.Json.encodeToString(
+            mapOf(
+                "type" to "playbackState",
+                "isPlaying" to isPlaying
+            )
+        )
+        NetworkManager.sendPlayerUpdate(update)
     }
 
     /**

@@ -1,11 +1,17 @@
 package dr.ulysses.network
 
 import dr.ulysses.Logger
+import dr.ulysses.entities.Song
+import io.ktor.client.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.utils.io.core.*
 import kotlinx.coroutines.*
 import kotlinx.datetime.Clock
+import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -14,9 +20,16 @@ import kotlin.time.Duration.Companion.seconds
  */
 actual class NetworkClient {
     private var discoveryJob: Job? = null
+    private var updatePollingJob: Job? = null
+    private val httpClient = HttpClient()
     private val scope = CoroutineScope(Dispatchers.Default)
     private val discoveredServers = mutableMapOf<String, Int>() // Map of IP address to port
     private val serverTimeout = 15.seconds.inWholeMilliseconds
+
+    // Server connection info
+    private var currentServerAddress: String? = null
+    private var currentServerPort: Int? = null
+    private var lastUpdateId: Long = 0
 
     // Map to track when servers were last seen
     private val serverLastSeen = mutableMapOf<String, Long>()
@@ -134,5 +147,169 @@ actual class NetworkClient {
 
         // Notify about the updated server list
         onServersDiscovered(discoveredServers)
+    }
+
+    /**
+     * Connects to the WebSocket server at the given address and port.
+     * In JVM, we use HTTP polling instead of WebSockets.
+     * @param address The IP address of the server.
+     * @param port The port number of the server.
+     * @param onPlayerUpdate Callback that will be called when the player state is updated.
+     * @param onConnectionStateChange Callback that will be called when the connection state changes.
+     */
+    actual fun connectToWebSocket(
+        address: String,
+        port: Int,
+        onPlayerUpdate: (String) -> Unit,
+        onConnectionStateChange: (Boolean) -> Unit,
+    ) {
+        if (updatePollingJob != null) {
+            Logger.d { "Update polling already active" }
+            return
+        }
+
+        Logger.d { "Starting update polling for server at $address:$port" }
+
+        // Store server connection info
+        currentServerAddress = address
+        currentServerPort = port
+
+        // Notify that connection is established
+        onConnectionStateChange(true)
+
+        // Start polling for updates
+        updatePollingJob = scope.launch {
+            try {
+                while (isActive) {
+                    try {
+                        val response = httpClient.get("http://$address:$port/updates?lastId=$lastUpdateId")
+                        if (response.status.isSuccess()) {
+                            val responseText = response.bodyAsText()
+                            val updateData = Json.decodeFromString<Map<String, Any>>(responseText)
+
+                            // Update lastUpdateId
+                            val newLastId = (updateData["lastId"] as? Double)?.toLong() ?: lastUpdateId
+                            lastUpdateId = newLastId
+
+                            // Process updates
+                            @Suppress("UNCHECKED_CAST")
+                            val updates = updateData["updates"] as? List<String> ?: emptyList()
+                            updates.forEach { update ->
+                                Logger.d { "Received player update: $update" }
+                                onPlayerUpdate(update)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Logger.e(e) { "Error polling for updates" }
+                    }
+
+                    // Poll every 1 second
+                    delay(1.seconds)
+                }
+            } catch (e: Exception) {
+                Logger.e(e) { "Error in update polling" }
+                onConnectionStateChange(false)
+            }
+        }
+    }
+
+    /**
+     * Disconnects from the WebSocket server.
+     * In JVM, this stops the HTTP polling.
+     */
+    actual fun disconnectFromWebSocket() {
+        updatePollingJob?.cancel()
+        updatePollingJob = null
+        currentServerAddress = null
+        currentServerPort = null
+        lastUpdateId = 0
+        Logger.d { "Stopped update polling" }
+    }
+
+    /**
+     * Sends a command to play a song on the server.
+     * @param song The song to play.
+     */
+    actual fun sendPlaySongCommand(song: Song) {
+        val address = currentServerAddress
+        val port = currentServerPort
+
+        if (address == null || port == null) {
+            Logger.e { "Cannot send play command: Not connected to a server" }
+            return
+        }
+
+        scope.launch {
+            try {
+                val response = httpClient.post("http://$address:$port/play") {
+                    contentType(ContentType.Application.Json)
+                    setBody(Json.encodeToString(song))
+                }
+
+                if (response.status.isSuccess()) {
+                    Logger.d { "Play command sent successfully" }
+                } else {
+                    Logger.e { "Failed to send play command: ${response.status}" }
+                }
+            } catch (e: Exception) {
+                Logger.e(e) { "Error sending play command" }
+            }
+        }
+    }
+
+    /**
+     * Sends a command to pause playback on the server.
+     */
+    actual fun sendPauseCommand() {
+        sendSimpleCommand("pause")
+    }
+
+    /**
+     * Sends a command to resume playback on the server.
+     */
+    actual fun sendResumeCommand() {
+        sendSimpleCommand("resume")
+    }
+
+    /**
+     * Sends a command to play the next song on the server.
+     */
+    actual fun sendNextCommand() {
+        sendSimpleCommand("next")
+    }
+
+    /**
+     * Sends a command to play the previous song on the server.
+     */
+    actual fun sendPreviousCommand() {
+        sendSimpleCommand("previous")
+    }
+
+    /**
+     * Sends a simple command to the server.
+     * @param command The command to send.
+     */
+    private fun sendSimpleCommand(command: String) {
+        val address = currentServerAddress
+        val port = currentServerPort
+
+        if (address == null || port == null) {
+            Logger.e { "Cannot send $command command: Not connected to a server" }
+            return
+        }
+
+        scope.launch {
+            try {
+                val response = httpClient.post("http://$address:$port/$command")
+
+                if (response.status.isSuccess()) {
+                    Logger.d { "$command command sent successfully" }
+                } else {
+                    Logger.e { "Failed to send $command command: ${response.status}" }
+                }
+            } catch (e: Exception) {
+                Logger.e(e) { "Error sending $command command" }
+            }
+        }
     }
 }

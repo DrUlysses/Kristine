@@ -33,6 +33,12 @@ import dr.ulysses.entities.SongRepository
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.models.PlayerService
 import dr.ulysses.network.NetworkManager.currentServer
+import dr.ulysses.network.NetworkManager.isConnected
+import dr.ulysses.network.NetworkManager.pausePlaybackOnServer
+import dr.ulysses.network.NetworkManager.playNextSongOnServer
+import dr.ulysses.network.NetworkManager.playPreviousSongOnServer
+import dr.ulysses.network.NetworkManager.playSongOnServer
+import dr.ulysses.network.NetworkManager.resumePlaybackOnServer
 import dr.ulysses.ui.components.*
 import dr.ulysses.ui.elements.LoadingIndicator
 import dr.ulysses.ui.permissions.PermissionsAlert
@@ -232,6 +238,11 @@ fun Main() {
                                     onPlaySongCommand = { song ->
                                         PlayerService.onSongsChanged(allSongs)
                                         PlayerService.onPlaySongCommand(song)
+
+                                        // If connected to a server, also send the play command to the server
+                                        if (isConnected.value) {
+                                            playSongOnServer(song)
+                                        }
                                     }
                                 )
                             }
@@ -303,9 +314,31 @@ fun Main() {
                 isPlaying = playerState.isPlaying,
                 isShuffling = playerState.shuffle,
                 repeatMode = playerState.repeatMode,
-                onPreviousCommand = PlayerService::onPreviousCommand,
-                onNextCommand = PlayerService::onNextCommand,
-                onPlayOrPauseCommand = PlayerService::onPlayOrPauseCommand,
+                onPreviousCommand = {
+                    PlayerService.onPreviousCommand()
+                    // If connected to a server, also send the previous command to the server
+                    if (isConnected.value) {
+                        playPreviousSongOnServer()
+                    }
+                },
+                onNextCommand = {
+                    PlayerService.onNextCommand()
+                    // If connected to a server, also send the next command to the server
+                    if (isConnected.value) {
+                        playNextSongOnServer()
+                    }
+                },
+                onPlayOrPauseCommand = {
+                    PlayerService.onPlayOrPauseCommand()
+                    // If connected to a server, also send the play/pause command to the server
+                    if (isConnected.value) {
+                        if (playerState.isPlaying) {
+                            pausePlaybackOnServer()
+                        } else {
+                            resumePlaybackOnServer()
+                        }
+                    }
+                },
                 onToggleShuffleCommand = PlayerService::onToggleShuffleCommand,
                 onSwitchRepeatCommand = PlayerService::onSwitchRepeatCommand,
             )

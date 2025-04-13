@@ -1,17 +1,20 @@
 package dr.ulysses.network
 
 import dr.ulysses.Logger
+import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository.getAllSongs
 import io.ktor.http.*
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
+import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.core.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.Json
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -29,6 +32,17 @@ actual class NetworkServer {
     private var httpServer: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
     private val scope = CoroutineScope(Dispatchers.Default)
     private var serverPort: Int = 0
+
+    // Player control callbacks
+    private var onPlaySongCommandCallback: ((Song) -> Unit)? = null
+    private var onPauseCommandCallback: (() -> Unit)? = null
+    private var onResumeCommandCallback: (() -> Unit)? = null
+    private var onNextCommandCallback: (() -> Unit)? = null
+    private var onPreviousCommandCallback: (() -> Unit)? = null
+
+    // Player updates
+    private val playerUpdates = ConcurrentHashMap<Long, String>()
+    private var lastUpdateId = 0L
 
     /**
      * Starts broadcasting UDP packets on the local network.
@@ -108,20 +122,120 @@ actual class NetworkServer {
             port = serverPort
         ) {
             routing {
+                // Get songs list
                 get("/songs") {
                     // Add CORS headers to allow cross-origin requests
                     call.response.headers.append("Access-Control-Allow-Origin", "*")
-                    call.response.headers.append("Access-Control-Allow-Methods", "GET, OPTIONS")
+                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
                     call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
 
                     // Launch a coroutine to call the suspend function
                     call.respond(HttpStatusCode.OK, Json.encodeToString(getAllSongs()))
                 }
 
-                // Handle OPTIONS requests for CORS preflight
-                options("/songs") {
+                // Play a song
+                post("/play") {
+                    // Add CORS headers
                     call.response.headers.append("Access-Control-Allow-Origin", "*")
-                    call.response.headers.append("Access-Control-Allow-Methods", "GET, OPTIONS")
+                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                    call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
+
+                    try {
+                        val songJson = call.receiveText()
+                        val song = Json.decodeFromString<Song>(songJson)
+                        Logger.d { "Received play command for song: ${song.title} on Android" }
+                        onPlaySongCommandCallback?.invoke(song)
+                        call.respond(HttpStatusCode.OK, "Playing song: ${song.title}")
+                    } catch (e: Exception) {
+                        Logger.e(e) { "Error processing play command on Android" }
+                        call.respond(HttpStatusCode.BadRequest, "Invalid song data")
+                    }
+                }
+
+                // Pause playback
+                post("/pause") {
+                    // Add CORS headers
+                    call.response.headers.append("Access-Control-Allow-Origin", "*")
+                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                    call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
+
+                    Logger.d { "Received pause command on Android" }
+                    onPauseCommandCallback?.invoke()
+                    call.respond(HttpStatusCode.OK, "Paused playback")
+                }
+
+                // Resume playback
+                post("/resume") {
+                    // Add CORS headers
+                    call.response.headers.append("Access-Control-Allow-Origin", "*")
+                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                    call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
+
+                    Logger.d { "Received resume command on Android" }
+                    onResumeCommandCallback?.invoke()
+                    call.respond(HttpStatusCode.OK, "Resumed playback")
+                }
+
+                // Play the next song
+                post("/next") {
+                    // Add CORS headers
+                    call.response.headers.append("Access-Control-Allow-Origin", "*")
+                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                    call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
+
+                    Logger.d { "Received next command on Android" }
+                    onNextCommandCallback?.invoke()
+                    call.respond(HttpStatusCode.OK, "Playing next song")
+                }
+
+                // Play previous song
+                post("/previous") {
+                    // Add CORS headers
+                    call.response.headers.append("Access-Control-Allow-Origin", "*")
+                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                    call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
+
+                    Logger.d { "Received previous command on Android" }
+                    onPreviousCommandCallback?.invoke()
+                    call.respond(HttpStatusCode.OK, "Playing previous song")
+                }
+
+                // Get player updates
+                get("/updates") {
+                    // Add CORS headers
+                    call.response.headers.append("Access-Control-Allow-Origin", "*")
+                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                    call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
+
+                    val lastId = call.request.queryParameters["lastId"]?.toLongOrNull() ?: 0
+                    val updates = playerUpdates.filterKeys { it > lastId }
+
+                    if (updates.isNotEmpty()) {
+                        val maxId = updates.keys.maxOrNull() ?: lastId
+                        call.respond(
+                            HttpStatusCode.OK, Json.encodeToString(
+                                mapOf(
+                                    "lastId" to maxId,
+                                    "updates" to updates.values.toList()
+                                )
+                            )
+                        )
+                    } else {
+                        call.respond(
+                            HttpStatusCode.OK, Json.encodeToString(
+                                mapOf(
+                                    "lastId" to lastId,
+                                    "updates" to emptyList<String>()
+                                )
+                            )
+                        )
+                    }
+                }
+
+                // Handle OPTIONS requests for CORS preflight
+                options("{...}") {
+                    call.response.headers.append("Access-Control-Allow-Origin", "*")
+                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
                     call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
                     call.respond(HttpStatusCode.OK)
                 }
@@ -141,6 +255,69 @@ actual class NetworkServer {
         httpServer?.stop(1000, 2000)
         httpServer = null
 
+        // Clear player updates
+        playerUpdates.clear()
+
         Logger.d { "Stopped UDP broadcast server and HTTP server on Android" }
+    }
+
+    /**
+     * Starts the WebSocket server for real-time communication.
+     * @param onPlaySongCommand Callback that will be called when a client sends a play song command.
+     * @param onPauseCommand Callback that will be called when a client sends a pause command.
+     * @param onResumeCommand Callback that will be called when a client sends a resume command.
+     * @param onNextCommand Callback that will be called when a client sends a next command.
+     * @param onPreviousCommand Callback that will be called when a client sends a previous command.
+     */
+    actual fun startWebSocketServer(
+        onPlaySongCommand: (Song) -> Unit,
+        onPauseCommand: () -> Unit,
+        onResumeCommand: () -> Unit,
+        onNextCommand: () -> Unit,
+        onPreviousCommand: () -> Unit,
+    ) {
+        // Store the callbacks
+        onPlaySongCommandCallback = onPlaySongCommand
+        onPauseCommandCallback = onPauseCommand
+        onResumeCommandCallback = onResumeCommand
+        onNextCommandCallback = onNextCommand
+        onPreviousCommandCallback = onPreviousCommand
+
+        Logger.d { "Player control callbacks registered on Android" }
+    }
+
+    /**
+     * Stops the WebSocket server.
+     */
+    actual fun stopWebSocketServer() {
+        // Clear the callbacks
+        onPlaySongCommandCallback = null
+        onPauseCommandCallback = null
+        onResumeCommandCallback = null
+        onNextCommandCallback = null
+        onPreviousCommandCallback = null
+
+        Logger.d { "Player control callbacks cleared on Android" }
+    }
+
+    /**
+     * Sends a player update to all connected clients.
+     * @param update The update message to send.
+     */
+    actual fun sendPlayerUpdate(update: String) {
+        // Store the update with a unique ID
+        val updateId = synchronized(this) {
+            lastUpdateId++
+            lastUpdateId
+        }
+        playerUpdates[updateId] = update
+
+        // Keep only the last 100 updates
+        if (playerUpdates.size > 100) {
+            val keysToRemove = playerUpdates.keys.sorted().take(playerUpdates.size - 100)
+            keysToRemove.forEach { playerUpdates.remove(it) }
+        }
+
+        Logger.d { "Stored player update: $update on Android" }
     }
 }

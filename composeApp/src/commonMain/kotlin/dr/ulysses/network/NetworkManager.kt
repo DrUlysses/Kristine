@@ -2,6 +2,7 @@ package dr.ulysses.network
 
 import dr.ulysses.Logger
 import dr.ulysses.entities.Song
+import dr.ulysses.models.PlayerService
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -34,6 +35,10 @@ object NetworkManager {
     private val _currentServer = MutableStateFlow<Pair<String, Int>?>(null)
     val currentServer: StateFlow<Pair<String, Int>?> = _currentServer.asStateFlow()
 
+    // StateFlow to hold the connection state
+    private val _isConnected = MutableStateFlow(false)
+    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+
     /**
      * Starts the server and client for network discovery.
      */
@@ -42,6 +47,25 @@ object NetworkManager {
             // Start the server and get the dynamically assigned port
             val port = server.start()
             _localServerPort.value = port
+
+            // Start the WebSocket server with callbacks to the PlayerService
+            server.startWebSocketServer(
+                onPlaySongCommand = { song ->
+                    PlayerService.onPlaySongCommand(song)
+                },
+                onPauseCommand = {
+                    PlayerService.onPauseCommand()
+                },
+                onResumeCommand = {
+                    PlayerService.onResumeCommand()
+                },
+                onNextCommand = {
+                    PlayerService.onNextCommand()
+                },
+                onPreviousCommand = {
+                    PlayerService.onPreviousCommand()
+                }
+            )
 
             // Start the client with the updated callback
             client.startDiscovery { serverMap ->
@@ -55,7 +79,9 @@ object NetworkManager {
      */
     fun stop() {
         server.stop()
+        server.stopWebSocketServer()
         client.stopDiscovery()
+        client.disconnectFromWebSocket()
     }
 
     /**
@@ -82,6 +108,20 @@ object NetworkManager {
         return try {
             // Set the current server
             _currentServer.value = address to port
+
+            // Connect to the WebSocket server
+            client.connectToWebSocket(
+                address = address,
+                port = port,
+                onPlayerUpdate = { update ->
+                    // Process player updates from the server
+                    processPlayerUpdate(update)
+                },
+                onConnectionStateChange = { isConnected ->
+                    _isConnected.value = isConnected
+                }
+            )
+
             true
         } catch (_: Exception) {
             // Reset the current server if connection failed
@@ -97,6 +137,11 @@ object NetworkManager {
     fun disconnectFromServer(): String? {
         val currentServer = _currentServer.value
         _currentServer.value = null
+
+        // Disconnect from the WebSocket server
+        client.disconnectFromWebSocket()
+        _isConnected.value = false
+
         return currentServer?.first
     }
 
@@ -120,5 +165,99 @@ object NetworkManager {
             Logger.e(e) { "Failed to fetch songs from server: $address:$port" }
             null
         }
+    }
+
+    /**
+     * Plays a song on the server.
+     * @param song The song to play.
+     */
+    fun playSongOnServer(song: Song) {
+        if (_isConnected.value) {
+            client.sendPlaySongCommand(song)
+        }
+    }
+
+    /**
+     * Pauses playback on the server.
+     */
+    fun pausePlaybackOnServer() {
+        if (_isConnected.value) {
+            client.sendPauseCommand()
+        }
+    }
+
+    /**
+     * Resumes playback on the server.
+     */
+    fun resumePlaybackOnServer() {
+        if (_isConnected.value) {
+            client.sendResumeCommand()
+        }
+    }
+
+    /**
+     * Plays the next song on the server.
+     */
+    fun playNextSongOnServer() {
+        if (_isConnected.value) {
+            client.sendNextCommand()
+        }
+    }
+
+    /**
+     * Plays the previous song on the server.
+     */
+    fun playPreviousSongOnServer() {
+        if (_isConnected.value) {
+            client.sendPreviousCommand()
+        }
+    }
+
+    /**
+     * Processes a player update from the server.
+     * @param update The update message from the server.
+     */
+    private fun processPlayerUpdate(update: String) {
+        try {
+            // Parse the update message
+            val updateData = Json.decodeFromString<Map<String, Any>>(update)
+
+            // Handle different types of updates
+            when (val type = updateData["type"] as? String) {
+                "nowPlaying" -> {
+                    // Update the current song
+                    val songJson = updateData["song"] as? String
+                    if (songJson != null) {
+                        val song = Json.decodeFromString<Song>(songJson)
+                        // Use onPlaySongCommand to update the current song
+                        // This will also start playback, which might not be ideal
+                        // but it's the only way to update the current song
+                        PlayerService.onPlaySongCommand(song)
+                    }
+                }
+
+                "playbackState" -> {
+                    // Update the playback state
+                    val isPlaying = updateData["isPlaying"] as? Boolean
+                    if (isPlaying != null) {
+                        PlayerService.onIsPlayingChanged(isPlaying)
+                    }
+                }
+
+                else -> {
+                    Logger.d { "Received unknown player update type: $type" }
+                }
+            }
+        } catch (e: Exception) {
+            Logger.e(e) { "Error processing player update: $update" }
+        }
+    }
+
+    /**
+     * Sends a player update to all connected clients.
+     * @param update The update message to send.
+     */
+    fun sendPlayerUpdate(update: String) {
+        server.sendPlayerUpdate(update)
     }
 }
