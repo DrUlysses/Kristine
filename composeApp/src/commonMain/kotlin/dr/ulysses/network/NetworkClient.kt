@@ -14,7 +14,7 @@ import kotlin.time.Duration.Companion.seconds
 class NetworkClient {
     private var discoveryJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default)
-    private val discoveredServers = mutableSetOf<String>()
+    private val discoveredServers = mutableMapOf<String, Int>() // Map of IP address to port
     private val serverTimeout = 15.seconds.inWholeMilliseconds
 
     // Map to track when servers were last seen
@@ -22,22 +22,22 @@ class NetworkClient {
 
     /**
      * Starts the discovery process to find servers on the local network.
-     * @param onServersDiscovered Callback that will be called with the list of discovered servers.
+     * @param onServersDiscovered Callback that will be called with the map of discovered servers (IP to port).
      */
-    fun startDiscovery(onServersDiscovered: (List<String>) -> Unit) {
+    fun startDiscovery(onServersDiscovered: (Map<String, Int>) -> Unit) {
         if (discoveryJob != null) return
 
         Logger.d { "Starting UDP server discovery process" }
         discoveryJob = scope.launch {
             val selectorManager = SelectorManager(Dispatchers.Default)
-            val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", NetworkServer.SERVER_PORT))
+            val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", NetworkServer.DISCOVERY_PORT))
 
             try {
                 // Start a periodic job to clean up stale servers
                 val cleanupJob = launch {
                     while (isActive) {
                         cleanupStaleServers()
-                        onServersDiscovered(discoveredServers.toList())
+                        onServersDiscovered(discoveredServers)
                         delay(5.seconds)
                     }
                 }
@@ -50,21 +50,28 @@ class NetworkClient {
                     val addressStr = datagram.address.toString()
                     val senderAddress = addressStr.substringBefore(':').replace("/", "")
 
-                    if (message == NetworkServer.BROADCAST_MESSAGE) {
+                    // Check if the message starts with the broadcast prefix
+                    if (message.startsWith(NetworkServer.BROADCAST_MESSAGE_PREFIX)) {
                         val currentTime = Clock.System.now().toEpochMilliseconds()
 
-                        // Use the actual sender IP instead of the broadcast address
-                        if (senderAddress != "0.0.0.0" && senderAddress != "255.255.255.255") {
-                            if (!discoveredServers.contains(senderAddress)) {
-                                Logger.d { "Server discovered at: $senderAddress" }
-                                discoveredServers.add(senderAddress)
+                        // Extract the port from the message
+                        val serverPort =
+                            message.substring(NetworkServer.BROADCAST_MESSAGE_PREFIX.length).toIntOrNull() ?: 0
+
+                        if (serverPort > 0) {
+                            // Use the actual sender IP instead of the broadcast address
+                            if (senderAddress != "0.0.0.0" && senderAddress != "255.255.255.255") {
+                                Logger.d { "Server discovered at: $senderAddress:$serverPort" }
+
+                                // Store the server with its port
+                                discoveredServers[senderAddress] = serverPort
+
+                                // Update the last seen timestamp
+                                serverLastSeen[senderAddress] = currentTime
+
+                                // Notify about the updated server list
+                                onServersDiscovered(discoveredServers)
                             }
-
-                            // Update the last seen timestamp
-                            serverLastSeen[senderAddress] = currentTime
-
-                            // Notify about the updated server list
-                            onServersDiscovered(discoveredServers.toList())
                         }
                     }
                 }
@@ -90,8 +97,11 @@ class NetworkClient {
 
         if (staleServers.isNotEmpty()) {
             Logger.d { "Removing stale servers: $staleServers" }
-            discoveredServers.removeAll(staleServers)
-            staleServers.forEach { serverLastSeen.remove(it) }
+            // Remove each stale server from the discoveredServers map
+            staleServers.forEach {
+                discoveredServers.remove(it)
+                serverLastSeen.remove(it)
+            }
         }
     }
 
@@ -104,5 +114,24 @@ class NetworkClient {
         discoveredServers.clear()
         serverLastSeen.clear()
         Logger.d { "Stopped UDP server discovery process" }
+    }
+
+    /**
+     * Connects to a custom server with the given address and port.
+     * @param address The IP address of the server.
+     * @param port The port number of the server.
+     * @param onServersDiscovered Callback that will be called with the updated map of discovered servers.
+     */
+    fun connectToCustomServer(address: String, port: Int, onServersDiscovered: (Map<String, Int>) -> Unit) {
+        Logger.d { "Connecting to custom server at $address:$port" }
+
+        // Add the custom server to the discoveredServers map
+        discoveredServers[address] = port
+
+        // Update the last seen timestamp
+        serverLastSeen[address] = Clock.System.now().toEpochMilliseconds()
+
+        // Notify about the updated server list
+        onServersDiscovered(discoveredServers)
     }
 }

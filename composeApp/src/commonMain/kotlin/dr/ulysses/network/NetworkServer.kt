@@ -12,19 +12,21 @@ import kotlin.time.Duration.Companion.seconds
  */
 class NetworkServer {
     companion object {
-        const val SERVER_PORT = 45678
-        const val BROADCAST_MESSAGE = "Kristine Server Discovery"
+        const val BROADCAST_MESSAGE_PREFIX = "Kristine Server Discovery:"
         const val BROADCAST_INTERVAL_SECONDS = 5
+        const val DISCOVERY_PORT = 45678 // Port used only for initial discovery
     }
 
     private var broadcastJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default)
+    private var serverPort: Int = 0
 
     /**
      * Starts broadcasting UDP packets on the local network.
+     * @return The port number the server is listening on
      */
-    fun start() {
-        if (broadcastJob != null) return
+    fun start(): Int {
+        if (broadcastJob != null) return serverPort
 
         Logger.d { "Starting UDP broadcast server" }
         broadcastJob = scope.launch {
@@ -32,6 +34,11 @@ class NetworkServer {
             val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", 0)) {
                 broadcast = true
             }
+
+            // Get the dynamically assigned port
+            val localAddress = socket.localAddress as InetSocketAddress
+            serverPort = localAddress.port
+            Logger.d { "Server bound to port: $serverPort" }
 
             try {
                 while (isActive) {
@@ -52,15 +59,20 @@ class NetworkServer {
                 selectorManager.close()
             }
         }
+
+        return serverPort
     }
 
     private suspend fun sendBroadcast(socket: BoundDatagramSocket, address: String) {
         try {
-            Logger.d { "Broadcasting to $address" }
+            // Create a message with port information
+            val broadcastMessage = "$BROADCAST_MESSAGE_PREFIX$serverPort"
+            Logger.d { "Broadcasting to $address: $broadcastMessage" }
+
             socket.send(
                 Datagram(
-                    packet = ByteReadPacket(BROADCAST_MESSAGE.toByteArray()),
-                    address = InetSocketAddress(address, SERVER_PORT)
+                    packet = ByteReadPacket(broadcastMessage.toByteArray()),
+                    address = InetSocketAddress(address, DISCOVERY_PORT)
                 )
             )
         } catch (e: Exception) {
