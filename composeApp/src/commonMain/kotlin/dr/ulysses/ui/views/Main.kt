@@ -119,7 +119,16 @@ fun Main() {
             navBarController = navBarController,
             setTopBarText = { topBarText = it },
             pagerState = pagerState,
-            onPlaySongCommand = PlayerService::onPlaySongCommand,
+            onPlaySongCommand = { song ->
+                // If connected to a server, only send the play command to the server
+                // and don't try to play locally
+                if (isConnected.value) {
+                    playSongOnServer(song)
+                } else {
+                    // Only play locally if not connected to a server
+                    PlayerService.onPlaySongCommand(song)
+                }
+            },
             onPlaylistChanged = PlayerService::onPlaylistChanged,
             currentPlaylist = currentPlaylist,
             onCurrentPlaylistChanged = { currentPlaylist = it },
@@ -237,11 +246,14 @@ fun Main() {
                                     songs = allSongs,
                                     onPlaySongCommand = { song ->
                                         PlayerService.onSongsChanged(allSongs)
-                                        PlayerService.onPlaySongCommand(song)
 
-                                        // If connected to a server, also send the play command to the server
+                                        // If connected to a server, only send the play command to the server
+                                        // and don't try to play locally
                                         if (isConnected.value) {
                                             playSongOnServer(song)
+                                        } else {
+                                            // Only play locally if not connected to a server
+                                            PlayerService.onPlaySongCommand(song)
                                         }
                                     }
                                 )

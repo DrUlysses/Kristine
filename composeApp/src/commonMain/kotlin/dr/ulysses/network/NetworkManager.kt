@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Singleton manager for network-related functionality.
@@ -220,25 +222,22 @@ object NetworkManager {
     private fun processPlayerUpdate(update: String) {
         try {
             // Parse the update message
-            val updateData = Json.decodeFromString<Map<String, Any>>(update)
+            val updateData = Json.decodeFromString<JsonObject>(update)
 
             // Handle different types of updates
-            when (val type = updateData["type"] as? String) {
+            when (val type = updateData["type"]?.jsonPrimitive?.content) {
                 "nowPlaying" -> {
                     // Update the current song
-                    val songJson = updateData["song"] as? String
+                    val songJson = updateData["song"]?.jsonPrimitive?.content
                     if (songJson != null) {
                         val song = Json.decodeFromString<Song>(songJson)
-                        // Use onPlaySongCommand to update the current song
-                        // This will also start playback, which might not be ideal
-                        // but it's the only way to update the current song
                         PlayerService.onPlaySongCommand(song)
                     }
                 }
 
                 "playbackState" -> {
                     // Update the playback state
-                    val isPlaying = updateData["isPlaying"] as? Boolean
+                    val isPlaying = updateData["isPlaying"]?.jsonPrimitive?.content?.toBoolean()
                     if (isPlaying != null) {
                         PlayerService.onIsPlayingChanged(isPlaying)
                     }

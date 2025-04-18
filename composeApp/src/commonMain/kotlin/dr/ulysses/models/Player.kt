@@ -7,6 +7,8 @@ import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 import dr.ulysses.models.RepeatMode.*
 import dr.ulysses.network.NetworkManager
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 
 /**
  * Represents the repeat mode for a media player.
@@ -33,9 +35,12 @@ internal object PlayerService {
         // If the song is already in the current track sequence, set it as the current track
         if (currentTrackNum != -1) {
             setState { copy(currentTrackNum = currentTrackNum, currentSong = song) }
-            if (state.currentSong == null)
-                setPlayListOnDevice(state.currentPlaylist.songs.map { it.path })
-            setCurrentTrackNumOnDevice(currentTrackNum)
+            // Only update a device if not connected to a server
+            if (!NetworkManager.isConnected.value) {
+                if (state.currentSong == null)
+                    setPlayListOnDevice(state.currentPlaylist.songs.map { it.path })
+                setCurrentTrackNumOnDevice(currentTrackNum)
+            }
         }
         // If the song is not in the current track sequence, set it as the first track
         else {
@@ -45,8 +50,11 @@ internal object PlayerService {
                     currentSong = song
                 )
             }
-            setPlayListOnDevice(state.currentPlaylist.songs.map { it.path })
-            setCurrentTrackNumOnDevice(0)
+            // Only update a device if not connected to a server
+            if (!NetworkManager.isConnected.value) {
+                setPlayListOnDevice(state.currentPlaylist.songs.map { it.path })
+                setCurrentTrackNumOnDevice(0)
+            }
         }
         onResumeCommand()
     }
@@ -61,10 +69,13 @@ internal object PlayerService {
 
     fun onIsPlayingChanged(isPlaying: Boolean) {
         setState { copy(isPlaying = isPlaying) }
-        if (isPlaying)
-            resumeCurrentSongOnDevice()
-        else
-            pauseCurrentSongOnDevice()
+        // Only control playback locally if not connected to a server
+        if (!NetworkManager.isConnected.value) {
+            if (isPlaying)
+                resumeCurrentSongOnDevice()
+            else
+                pauseCurrentSongOnDevice()
+        }
     }
 
     fun onPlayCommand() {
@@ -75,15 +86,29 @@ internal object PlayerService {
     }
 
     fun onPauseCommand() {
-        pauseCurrentSongOnDevice()
+        // Only pause playback locally if is not connected to a server
+        if (!NetworkManager.isConnected.value) {
+            pauseCurrentSongOnDevice()
+        } else {
+            NetworkManager.pausePlaybackOnServer()
+        }
     }
 
     fun onResumeCommand() {
-        resumeCurrentSongOnDevice()
+        // Always resume playback locally when this method is called directly
+        if (!NetworkManager.isConnected.value) {
+            resumeCurrentSongOnDevice()
+        } else {
+            NetworkManager.resumePlaybackOnServer()
+        }
     }
 
     fun onPlayOrPauseCommand() {
-        if (isPlayingOnDevice()) onPauseCommand() else onResumeCommand()
+        if (!NetworkManager.isConnected.value) {
+            if (isPlayingOnDevice()) onPauseCommand() else onResumeCommand()
+        } else {
+            if (state.isRemotePlaying) onPauseCommand() else onResumeCommand()
+        }
     }
 
     fun onToggleShuffleCommand() {
@@ -108,11 +133,17 @@ internal object PlayerService {
 
     fun onStopCommand() {
         setState { copy(currentSong = null) }
-        stopCurrentSongOnDevice()
+        // Only stop playback locally if not connected to a server
+        if (!NetworkManager.isConnected.value) {
+            stopCurrentSongOnDevice()
+        }
     }
 
     fun onSeekCommand(position: Int) {
-        seekToOnDevice(position)
+        // Only seek locally if not connected to a server
+        if (!NetworkManager.isConnected.value) {
+            seekToOnDevice(position)
+        }
     }
 
     fun onNextCommand() {
@@ -121,15 +152,21 @@ internal object PlayerService {
             state.repeatMode == One -> {
                 state.currentPlaylist.songs.getOrNull(state.currentTrackNum)?.let {
                     setState { copy(currentSong = it) }
-                    setCurrentTrackNumOnDevice(state.currentTrackNum)
-                    resumeCurrentSongOnDevice()
+                    // Only control playback locally if is not connected to a server
+                    if (!NetworkManager.isConnected.value) {
+                        setCurrentTrackNumOnDevice(state.currentTrackNum)
+                        resumeCurrentSongOnDevice()
+                    }
                 }
             }
             // If not at the end of the playlist, go to the next song
             state.currentTrackNum < state.currentPlaylist.songs.size - 1 -> {
                 state.currentPlaylist.songs.getOrNull(state.currentTrackNum + 1)?.let {
                     setState { copy(currentSong = it, currentTrackNum = state.currentTrackNum + 1) }
-                    playNextOnDevice()
+                    // Only control playback locally if is not connected to a server
+                    if (!NetworkManager.isConnected.value) {
+                        playNextOnDevice()
+                    }
                 }
             }
             // When in RepeatMode.All and at the end of the playlist, wrap around to the first song
@@ -144,15 +181,21 @@ internal object PlayerService {
                             currentTrackNum = 0
                         )
                     }
-                    setPlayListOnDevice(shuffledSongs.map { it.path })
-                    setCurrentTrackNumOnDevice(0)
-                    resumeCurrentSongOnDevice()
+                    // Only control playback locally if is not connected to a server
+                    if (!NetworkManager.isConnected.value) {
+                        setPlayListOnDevice(shuffledSongs.map { it.path })
+                        setCurrentTrackNumOnDevice(0)
+                        resumeCurrentSongOnDevice()
+                    }
                 } else {
                     // Standard behavior without shuffle
                     state.currentPlaylist.songs.getOrNull(0)?.let {
                         setState { copy(currentSong = it, currentTrackNum = 0) }
-                        setCurrentTrackNumOnDevice(0)
-                        resumeCurrentSongOnDevice()
+                        // Only control playback locally if is not connected to a server
+                        if (!NetworkManager.isConnected.value) {
+                            setCurrentTrackNumOnDevice(0)
+                            resumeCurrentSongOnDevice()
+                        }
                     }
                 }
             }
@@ -166,15 +209,21 @@ internal object PlayerService {
             state.repeatMode == One -> {
                 state.currentPlaylist.songs.getOrNull(state.currentTrackNum)?.let {
                     setState { copy(currentSong = it) }
-                    setCurrentTrackNumOnDevice(state.currentTrackNum)
-                    resumeCurrentSongOnDevice()
+                    // Only control playback locally if not connected to a server
+                    if (!NetworkManager.isConnected.value) {
+                        setCurrentTrackNumOnDevice(state.currentTrackNum)
+                        resumeCurrentSongOnDevice()
+                    }
                 }
             }
             // If not at the beginning of the playlist, go to the previous song
             state.currentTrackNum > 0 -> {
                 state.currentPlaylist.songs.getOrNull(state.currentTrackNum - 1)?.let {
                     setState { copy(currentSong = it, currentTrackNum = state.currentTrackNum - 1) }
-                    playPreviousOnDevice()
+                    // Only control playback locally if not connected to a server
+                    if (!NetworkManager.isConnected.value) {
+                        playPreviousOnDevice()
+                    }
                 }
             }
             // When in RepeatMode.All and at the beginning of the playlist, wrap around to the last song
@@ -182,8 +231,11 @@ internal object PlayerService {
                 val lastIndex = state.currentPlaylist.songs.size - 1
                 state.currentPlaylist.songs.getOrNull(lastIndex)?.let {
                     setState { copy(currentSong = it, currentTrackNum = lastIndex) }
-                    setCurrentTrackNumOnDevice(lastIndex)
-                    resumeCurrentSongOnDevice()
+                    // Only control playback locally if not connected to a server
+                    if (!NetworkManager.isConnected.value) {
+                        setCurrentTrackNumOnDevice(lastIndex)
+                        resumeCurrentSongOnDevice()
+                    }
                 }
             }
             // For RepeatMode.None, do nothing when at the beginning of the playlist
@@ -197,7 +249,10 @@ internal object PlayerService {
                 currentTrackNum = 0,
             )
         }
-        setPlayListOnDevice(playlist.songs.map { it.path })
+        // Only update playlist on device if not connected to a server
+        if (!NetworkManager.isConnected.value) {
+            setPlayListOnDevice(playlist.songs.map { it.path })
+        }
     }
 
     fun onSongsChanged(songs: List<Song>) {
@@ -206,7 +261,10 @@ internal object PlayerService {
                 currentPlaylist = state.currentPlaylist.copy(songs = songs),
             )
         }
-        setPlayListOnDevice(songs.map { it.path })
+        // Only update playlist on device if not connected to a server
+        if (!NetworkManager.isConnected.value) {
+            setPlayListOnDevice(songs.map { it.path })
+        }
     }
 
     private fun initialState() = PlayerState().also {
@@ -238,10 +296,10 @@ internal object PlayerService {
     private fun sendNowPlayingUpdate(song: Song?) {
         if (song != null) {
             val update = kotlinx.serialization.json.Json.encodeToString(
-                mapOf(
-                    "type" to "nowPlaying",
-                    "song" to kotlinx.serialization.json.Json.encodeToString(song)
-                )
+                buildJsonObject {
+                    put("type", JsonPrimitive("nowPlaying"))
+                    put("song", JsonPrimitive(kotlinx.serialization.json.Json.encodeToString(song)))
+                }
             )
             NetworkManager.sendPlayerUpdate(update)
         }
@@ -253,10 +311,10 @@ internal object PlayerService {
      */
     private fun sendPlaybackStateUpdate(isPlaying: Boolean) {
         val update = kotlinx.serialization.json.Json.encodeToString(
-            mapOf(
-                "type" to "playbackState",
-                "isPlaying" to isPlaying
-            )
+            buildJsonObject {
+                put("type", JsonPrimitive("playbackState"))
+                put("isPlaying", JsonPrimitive(isPlaying))
+            }
         )
         NetworkManager.sendPlayerUpdate(update)
     }

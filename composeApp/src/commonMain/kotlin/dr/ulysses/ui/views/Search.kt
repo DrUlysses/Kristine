@@ -14,6 +14,8 @@ import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.base.Searchable
 import dr.ulysses.models.PlayerService
+import dr.ulysses.network.NetworkManager.isConnected
+import dr.ulysses.network.NetworkManager.playSongOnServer
 import dr.ulysses.ui.components.SearchList
 import kotlinx.coroutines.launch
 
@@ -59,8 +61,15 @@ fun Search(
                     val songsList = entries.filterIsInstance<Song>()
                     // Update the playlist with all songs from search results
                     PlayerService.onSongsChanged(songsList)
-                    // Play the selected song
-                    PlayerService.onPlaySongCommand(song)
+
+                    // If connected to a server, only send the play command to the server
+                    // and don't try to play locally
+                    if (isConnected.value) {
+                        playSongOnServer(song)
+                    } else {
+                        // Only play locally if not connected to a server
+                        PlayerService.onPlaySongCommand(song)
+                    }
                 }
             )
         }

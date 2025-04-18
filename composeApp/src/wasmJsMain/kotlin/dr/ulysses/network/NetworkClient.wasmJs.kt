@@ -3,13 +3,16 @@ package dr.ulysses.network
 import dr.ulysses.Logger
 import dr.ulysses.entities.Song
 import io.ktor.client.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
+import io.ktor.client.plugins.websocket.*
 import io.ktor.http.*
-import kotlinx.coroutines.*
+import io.ktor.websocket.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * WASM-specific implementation of NetworkClient.
@@ -19,7 +22,10 @@ import kotlin.time.Duration.Companion.seconds
 actual class NetworkClient {
     private val discoveredServers = mutableMapOf<String, Int>() // Map of IP address to port
     private val serverLastSeen = mutableMapOf<String, Long>()
-    private val httpClient = HttpClient()
+    private var webSocketSession: DefaultClientWebSocketSession? = null
+    private val httpClient = HttpClient {
+        install(WebSockets)
+    }
     private val scope = CoroutineScope(Dispatchers.Default)
 
     // Server connection info
@@ -66,7 +72,7 @@ actual class NetworkClient {
         // Add the custom server to the discoveredServers map
         discoveredServers[address] = port
 
-        // Update the last seen timestamp
+        // Update the last-seen timestamp
         serverLastSeen[address] = Clock.System.now().toEpochMilliseconds()
 
         // Notify about the updated server list
@@ -75,7 +81,6 @@ actual class NetworkClient {
 
     /**
      * Connects to the WebSocket server at the given address and port.
-     * In WASM, we use HTTP polling instead of WebSockets.
      * @param address The IP address of the server.
      * @param port The port number of the server.
      * @param onPlayerUpdate Callback that will be called when the player state is updated.
@@ -87,67 +92,89 @@ actual class NetworkClient {
         onPlayerUpdate: (String) -> Unit,
         onConnectionStateChange: (Boolean) -> Unit,
     ) {
-        if (updatePollingJob != null) {
-            Logger.d { "Update polling already active in WASM" }
+        // Check if already connected
+        if (webSocketSession != null) {
+            Logger.d { "WebSocket connection already active in WASM" }
             return
         }
 
-        Logger.d { "Starting update polling for server at $address:$port in WASM" }
+        Logger.d { "Connecting to WebSocket server at ws://$address:$port/player in WASM" }
 
         // Store server connection info
         currentServerAddress = address
         currentServerPort = port
 
-        // Notify that connection is established
-        onConnectionStateChange(true)
-
-        // Start polling for updates
+        // Connect to the WebSocket server
         updatePollingJob = scope.launch {
             try {
-                while (isActive) {
+                httpClient.webSocket(
+                    method = HttpMethod.Get,
+                    host = address,
+                    port = port,
+                    path = "/player"
+                ) {
+                    // Store the session
+                    webSocketSession = this
+
+                    // Notify that a connection is established
+                    onConnectionStateChange(true)
+                    Logger.d { "WebSocket connection established in WASM" }
+
                     try {
-                        val response = httpClient.get("http://$address:$port/updates?lastId=$lastUpdateId")
-                        if (response.status.isSuccess()) {
-                            val responseText = response.bodyAsText()
-                            val updateData = Json.decodeFromString<Map<String, Any>>(responseText)
+                        // Listen for incoming messages
+                        for (frame in incoming) {
+                            when (frame) {
+                                is Frame.Text -> {
+                                    val text = frame.readText()
+                                    Logger.d { "Received WebSocket message in WASM: $text" }
+                                    onPlayerUpdate(text)
+                                }
 
-                            // Update lastUpdateId
-                            val newLastId = (updateData["lastId"] as? Double)?.toLong() ?: lastUpdateId
-                            lastUpdateId = newLastId
-
-                            // Process updates
-                            @Suppress("UNCHECKED_CAST")
-                            val updates = updateData["updates"] as? List<String> ?: emptyList()
-                            updates.forEach { update ->
-                                Logger.d { "Received player update in WASM: $update" }
-                                onPlayerUpdate(update)
+                                else -> {
+                                    // Ignore other frame types
+                                }
                             }
                         }
+                    } catch (_: ClosedReceiveChannelException) {
+                        // Normal close
+                        Logger.d { "WebSocket connection closed normally in WASM" }
+                        onConnectionStateChange(false)
                     } catch (e: Exception) {
-                        Logger.e(e) { "Error polling for updates in WASM" }
+                        Logger.e(e) { "Error in WebSocket connection in WASM" }
+                        onConnectionStateChange(false)
                     }
-
-                    // Poll every 1 second
-                    delay(1.seconds)
                 }
             } catch (e: Exception) {
-                Logger.e(e) { "Error in update polling in WASM" }
+                Logger.e(e) { "Failed to connect to WebSocket server in WASM: ${e.message}" }
                 onConnectionStateChange(false)
+            } finally {
+                webSocketSession = null
             }
         }
     }
 
     /**
      * Disconnects from the WebSocket server.
-     * In WASM, this stops the HTTP polling.
      */
     actual fun disconnectFromWebSocket() {
+        // Cancel the polling job
         updatePollingJob?.cancel()
         updatePollingJob = null
-        currentServerAddress = null
-        currentServerPort = null
-        lastUpdateId = 0
-        Logger.d { "Stopped update polling in WASM" }
+
+        // Close the WebSocket session
+        scope.launch {
+            try {
+                webSocketSession?.close(CloseReason(CloseReason.Codes.NORMAL, "Client disconnected"))
+                Logger.d { "WebSocket connection closed in WASM" }
+            } catch (e: Exception) {
+                Logger.e(e) { "Error closing WebSocket connection in WASM" }
+            } finally {
+                webSocketSession = null
+                currentServerAddress = null
+                currentServerPort = null
+                lastUpdateId = 0
+            }
+        }
     }
 
     /**
@@ -155,28 +182,23 @@ actual class NetworkClient {
      * @param song The song to play.
      */
     actual fun sendPlaySongCommand(song: Song) {
-        val address = currentServerAddress
-        val port = currentServerPort
-
-        if (address == null || port == null) {
-            Logger.e { "Cannot send play command in WASM: Not connected to a server" }
+        if (webSocketSession == null) {
+            Logger.e { "Cannot send play command in WASM: Not connected to a WebSocket server" }
             return
         }
 
         scope.launch {
             try {
-                val response = httpClient.post("http://$address:$port/play") {
-                    contentType(ContentType.Application.Json)
-                    setBody(Json.encodeToString(song))
-                }
-
-                if (response.status.isSuccess()) {
-                    Logger.d { "Play command sent successfully from WASM" }
-                } else {
-                    Logger.e { "Failed to send play command from WASM: ${response.status}" }
-                }
+                val command = Json.encodeToString(
+                    mapOf(
+                        "command" to "play",
+                        "songJson" to Json.encodeToString(song)
+                    )
+                )
+                webSocketSession?.send(Frame.Text(command))
+                Logger.d { "Play command sent successfully via WebSocket from WASM" }
             } catch (e: Exception) {
-                Logger.e(e) { "Error sending play command from WASM" }
+                Logger.e(e) { "Error sending play command via WebSocket from WASM" }
             }
         }
     }
@@ -214,25 +236,22 @@ actual class NetworkClient {
      * @param command The command to send.
      */
     private fun sendSimpleCommand(command: String) {
-        val address = currentServerAddress
-        val port = currentServerPort
-
-        if (address == null || port == null) {
-            Logger.e { "Cannot send $command command from WASM: Not connected to a server" }
+        if (webSocketSession == null) {
+            Logger.e { "Cannot send $command command from WASM: Not connected to a WebSocket server" }
             return
         }
 
         scope.launch {
             try {
-                val response = httpClient.post("http://$address:$port/$command")
-
-                if (response.status.isSuccess()) {
-                    Logger.d { "$command command sent successfully from WASM" }
-                } else {
-                    Logger.e { "Failed to send $command command from WASM: ${response.status}" }
-                }
+                val commandJson = Json.encodeToString(
+                    mapOf(
+                        "command" to command
+                    )
+                )
+                webSocketSession?.send(Frame.Text(commandJson))
+                Logger.d { "$command command sent successfully via WebSocket from WASM" }
             } catch (e: Exception) {
-                Logger.e(e) { "Error sending $command command from WASM" }
+                Logger.e(e) { "Error sending $command command via WebSocket from WASM" }
             }
         }
     }

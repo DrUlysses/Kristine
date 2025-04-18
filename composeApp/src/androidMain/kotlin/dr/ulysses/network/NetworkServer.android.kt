@@ -6,13 +6,17 @@ import dr.ulysses.entities.SongRepository.getAllSongs
 import io.ktor.http.*
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
+import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
 import io.ktor.utils.io.core.*
+import io.ktor.websocket.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.serialization.json.Json
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.seconds
@@ -43,6 +47,10 @@ actual class NetworkServer {
     // Player updates
     private val playerUpdates = ConcurrentHashMap<Long, String>()
     private var lastUpdateId = 0L
+
+    // WebSocket connections
+    private val webSocketSessions = ConcurrentHashMap<String, DefaultWebSocketSession>()
+    private var lastSessionId = 0L
 
     /**
      * Starts broadcasting UDP packets on the local network.
@@ -121,7 +129,75 @@ actual class NetworkServer {
             factory = CIO,
             port = serverPort
         ) {
+            install(WebSockets)
             routing {
+                // WebSocket endpoint for player control and updates
+                webSocket("/player") {
+                    try {
+                        // Generate a unique session ID
+                        val sessionId = synchronized(this@NetworkServer) {
+                            lastSessionId++
+                            "session-$lastSessionId"
+                        }
+
+                        // Store the session
+                        webSocketSessions[sessionId] = this
+
+                        Logger.d { "WebSocket client connected: $sessionId on Android" }
+
+                        // Send the current player state if available
+                        if (playerUpdates.isNotEmpty()) {
+                            val latestUpdate = playerUpdates[playerUpdates.keys.maxOrNull() ?: 0]
+                            if (latestUpdate != null) {
+                                send(Frame.Text(latestUpdate))
+                            }
+                        }
+
+                        // Listen for incoming messages
+                        for (frame in incoming) {
+                            when (frame) {
+                                is Frame.Text -> {
+                                    val text = frame.readText()
+                                    Logger.d { "Received WebSocket message: $text on Android" }
+
+                                    try {
+                                        val message = Json.decodeFromString<Map<String, String>>(text)
+                                        when (message["command"]) {
+                                            "play" -> {
+                                                message["songJson"]?.let { songJson ->
+                                                    val song = Json.decodeFromString<Song>(songJson)
+                                                    onPlaySongCommandCallback?.invoke(song)
+                                                }
+                                            }
+
+                                            "pause" -> onPauseCommandCallback?.invoke()
+                                            "resume" -> onResumeCommandCallback?.invoke()
+                                            "next" -> onNextCommandCallback?.invoke()
+                                            "previous" -> onPreviousCommandCallback?.invoke()
+                                        }
+                                    } catch (e: Exception) {
+                                        Logger.e(e) { "Error processing WebSocket command on Android" }
+                                    }
+                                }
+
+                                else -> {}
+                            }
+                        }
+                    } catch (_: ClosedReceiveChannelException) {
+                        // Normal close
+                        Logger.d { "WebSocket client disconnected normally on Android" }
+                    } catch (e: Exception) {
+                        Logger.e(e) { "WebSocket error on Android" }
+                    } finally {
+                        // Remove the session when the client disconnects
+                        val sessionToRemove = webSocketSessions.entries.find { it.value == this }?.key
+                        if (sessionToRemove != null) {
+                            webSocketSessions.remove(sessionToRemove)
+                            Logger.d { "WebSocket session removed: $sessionToRemove on Android" }
+                        }
+                    }
+                }
+
                 // Get songs list
                 get("/songs") {
                     // Add CORS headers to allow cross-origin requests
@@ -319,5 +395,18 @@ actual class NetworkServer {
         }
 
         Logger.d { "Stored player update: $update on Android" }
+
+        // Send update to all connected WebSocket clients
+        if (webSocketSessions.isNotEmpty()) {
+            scope.launch {
+                webSocketSessions.values.forEach { session ->
+                    try {
+                        session.send(Frame.Text(update))
+                    } catch (e: Exception) {
+                        Logger.e(e) { "Failed to send update to WebSocket client on Android" }
+                    }
+                }
+            }
+        }
     }
 }
