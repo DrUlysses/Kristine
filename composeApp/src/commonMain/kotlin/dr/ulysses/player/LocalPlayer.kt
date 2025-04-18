@@ -1,36 +1,20 @@
-package dr.ulysses.models
+package dr.ulysses.player
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
-import dr.ulysses.models.RepeatMode.*
 import dr.ulysses.network.NetworkManager
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
+import dr.ulysses.player.RepeatMode.*
 
 /**
- * Represents the repeat mode for a media player.
- *
- * The repeat mode controls how the player behaves when it reaches the end of a playlist.
- * It includes the following modes:
- *
- * - [None]: Playback stops at the end of the playlist.
- * - [All]: The playlist starts over from the beginning after finishing.
- * - [One]: The currently playing song is repeated indefinitely.
+ * Implementation of PlayerService for local playback.
  */
-enum class RepeatMode {
-    None,
-    All,
-    One,
-}
+internal class LocalPlayer : PlayerService {
+    override var state: PlayerState by mutableStateOf(initialState())
 
-internal object PlayerService {
-    var state: PlayerState by mutableStateOf(initialState())
-        private set
-
-    fun onPlaySongCommand(song: Song) {
+    override fun onPlaySongCommand(song: Song) {
         val currentTrackNum = state.currentPlaylist.songs.indexOf(song)
         // If the song is already in the current track sequence, set it as the current track
         if (currentTrackNum != -1) {
@@ -59,7 +43,7 @@ internal object PlayerService {
         onResumeCommand()
     }
 
-    fun onFindSongCommand(query: String): List<Song> = state.currentPlaylist.songs.filter {
+    override fun onFindSongCommand(query: String): List<Song> = state.currentPlaylist.songs.filter {
         it.title.contains(
             query, ignoreCase = true
         ) || it.artist.contains(query, ignoreCase = true) || it.album?.contains(
@@ -67,7 +51,7 @@ internal object PlayerService {
         ) == true || it.path.contains(query, ignoreCase = true)
     }
 
-    fun onIsPlayingChanged(isPlaying: Boolean) {
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
         setState { copy(isPlaying = isPlaying) }
         // Only control playback locally if not connected to a server
         if (!NetworkManager.isConnected.value) {
@@ -78,14 +62,14 @@ internal object PlayerService {
         }
     }
 
-    fun onPlayCommand() {
+    override fun onPlayCommand() {
         state.currentPlaylist.songs.getOrNull(state.currentTrackNum)?.let {
             setState { copy(currentSong = it) }
             onResumeCommand()
         }
     }
 
-    fun onPauseCommand() {
+    override fun onPauseCommand() {
         // Only pause playback locally if is not connected to a server
         if (!NetworkManager.isConnected.value) {
             pauseCurrentSongOnDevice()
@@ -94,7 +78,7 @@ internal object PlayerService {
         }
     }
 
-    fun onResumeCommand() {
+    override fun onResumeCommand() {
         // Always resume playback locally when this method is called directly
         if (!NetworkManager.isConnected.value) {
             resumeCurrentSongOnDevice()
@@ -103,7 +87,7 @@ internal object PlayerService {
         }
     }
 
-    fun onPlayOrPauseCommand() {
+    override fun onPlayOrPauseCommand() {
         if (!NetworkManager.isConnected.value) {
             if (isPlayingOnDevice()) onPauseCommand() else onResumeCommand()
         } else {
@@ -111,15 +95,15 @@ internal object PlayerService {
         }
     }
 
-    fun onToggleShuffleCommand() {
+    override fun onToggleShuffleCommand() {
         setState { copy(shuffle = !state.shuffle) }
     }
 
-    fun setShuffle(shuffle: Boolean) {
+    override fun setShuffle(shuffle: Boolean) {
         setState { copy(shuffle = shuffle) }
     }
 
-    fun onSwitchRepeatCommand() {
+    override fun onSwitchRepeatCommand() {
         setState {
             copy(
                 repeatMode = when (state.repeatMode) {
@@ -131,7 +115,7 @@ internal object PlayerService {
         }
     }
 
-    fun onStopCommand() {
+    override fun onStopCommand() {
         setState { copy(currentSong = null) }
         // Only stop playback locally if not connected to a server
         if (!NetworkManager.isConnected.value) {
@@ -139,14 +123,14 @@ internal object PlayerService {
         }
     }
 
-    fun onSeekCommand(position: Int) {
+    override fun onSeekCommand(position: Int) {
         // Only seek locally if not connected to a server
         if (!NetworkManager.isConnected.value) {
             seekToOnDevice(position)
         }
     }
 
-    fun onNextCommand() {
+    override fun onNextCommand() {
         when {
             // For RepeatMode.One, replay the current song
             state.repeatMode == One -> {
@@ -203,7 +187,7 @@ internal object PlayerService {
         }
     }
 
-    fun onPreviousCommand() {
+    override fun onPreviousCommand() {
         when {
             // For RepeatMode.One, replay the current song
             state.repeatMode == One -> {
@@ -242,7 +226,7 @@ internal object PlayerService {
         }
     }
 
-    fun onPlaylistChanged(playlist: Playlist) {
+    override fun onPlaylistChanged(playlist: Playlist) {
         setState {
             copy(
                 currentPlaylist = playlist,
@@ -255,7 +239,7 @@ internal object PlayerService {
         }
     }
 
-    fun onSongsChanged(songs: List<Song>) {
+    override fun onSongsChanged(songs: List<Song>) {
         setState {
             copy(
                 currentPlaylist = state.currentPlaylist.copy(songs = songs),
@@ -282,82 +266,10 @@ internal object PlayerService {
 
         // Send updates if the state has changed
         if (oldState.currentSong != state.currentSong) {
-            sendNowPlayingUpdate(state.currentSong)
+            Player.sendNowPlayingUpdate(state.currentSong)
         }
         if (oldState.isPlaying != state.isPlaying) {
-            sendPlaybackStateUpdate(state.isPlaying)
+            Player.sendPlaybackStateUpdate(state.isPlaying)
         }
     }
-
-    /**
-     * Sends a "nowPlaying" update to connected clients.
-     * @param song The currently playing song.
-     */
-    private fun sendNowPlayingUpdate(song: Song?) {
-        if (song != null) {
-            val update = kotlinx.serialization.json.Json.encodeToString(
-                buildJsonObject {
-                    put("type", JsonPrimitive("nowPlaying"))
-                    put("song", JsonPrimitive(kotlinx.serialization.json.Json.encodeToString(song)))
-                }
-            )
-            NetworkManager.sendPlayerUpdate(update)
-        }
-    }
-
-    /**
-     * Sends a "playbackState" update to connected clients.
-     * @param isPlaying Whether playback is active.
-     */
-    private fun sendPlaybackStateUpdate(isPlaying: Boolean) {
-        val update = kotlinx.serialization.json.Json.encodeToString(
-            buildJsonObject {
-                put("type", JsonPrimitive("playbackState"))
-                put("isPlaying", JsonPrimitive(isPlaying))
-            }
-        )
-        NetworkManager.sendPlayerUpdate(update)
-    }
-
-    /**
-     * State of the player.
-     *
-     * @param currentSong Current song playing
-     * @param isPlaying Is the player playing on device/remote
-     * @param currentPlaylist Current playlist, with track number as key and path as value
-     * @param currentTrackNum Current track number
-     * @param isRemotePlaying Is the player playing remotely
-     */
-    data class PlayerState(
-        val currentSong: Song? = null,
-        val isPlaying: Boolean = false,
-        val currentTrackNum: Int = 0,
-        val currentPlaylist: Playlist = Playlist(),
-        val isRemotePlaying: Boolean = false,
-        val onPlayingChangedOnDevice: (Boolean) -> Unit = {},
-        val shuffle: Boolean = false,
-        val repeatMode: RepeatMode = All,
-    )
 }
-
-expect fun setPlayListOnDevice(paths: List<String>)
-
-expect fun setCurrentTrackNumOnDevice(trackNum: Int)
-
-expect fun pauseCurrentSongOnDevice()
-
-expect fun playNextOnDevice()
-
-expect fun playPreviousOnDevice()
-
-expect fun isPlayingOnDevice(): Boolean
-
-expect fun resumeCurrentSongOnDevice()
-
-expect fun stopCurrentSongOnDevice()
-
-expect fun seekToOnDevice(position: Int)
-
-expect fun currentPlayingChangedOnDevice(onChange: (String?) -> Unit)
-
-expect fun isPlayingChangedOnDevice(onChange: (Boolean) -> Unit)

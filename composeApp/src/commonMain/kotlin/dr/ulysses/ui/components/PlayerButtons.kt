@@ -15,7 +15,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import dr.ulysses.models.RepeatMode
+import dr.ulysses.player.RepeatMode
 import kristine.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 

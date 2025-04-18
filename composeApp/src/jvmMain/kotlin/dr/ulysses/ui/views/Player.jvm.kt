@@ -7,8 +7,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.graphics.Color
-import dr.ulysses.models.PlayerObject
-import dr.ulysses.models.PlayerService
+import dr.ulysses.player.Player
+import dr.ulysses.player.PlayerObject
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent
 
@@ -23,8 +23,8 @@ actual fun VideoPlayer(
     /* OR the following code and using SwingPanel(factory = { factory }, ...) */
     // val factory by rememberUpdatedState(mediaPlayerComponent)
 
-    LaunchedEffect(PlayerService.state.currentSong) {
-        mediaPlayer.media().play/*OR .start*/(PlayerService.state.currentSong?.path ?: "")
+    LaunchedEffect(Player.state.currentSong) {
+        mediaPlayer.media().play/*OR .start*/(Player.state.currentSong?.path ?: "")
     }
     DisposableEffect(Unit) { onDispose(mediaPlayer::release) }
     SwingPanel(

@@ -1,4 +1,4 @@
-package dr.ulysses.models
+package dr.ulysses.player
 
 import android.content.ComponentName
 import android.content.Context
@@ -9,7 +9,6 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import dr.ulysses.Logger
-import dr.ulysses.player.PlaybackService
 import org.koin.java.KoinJavaComponent
 
 @UnstableApi

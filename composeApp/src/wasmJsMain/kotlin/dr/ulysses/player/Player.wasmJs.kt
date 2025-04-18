@@ -1,4 +1,4 @@
-package dr.ulysses.models
+package dr.ulysses.player
 
 actual fun setPlayListOnDevice(paths: List<String>) {
 }

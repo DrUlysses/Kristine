@@ -1,7 +1,5 @@
-package dr.ulysses.models
+package dr.ulysses.player
 
-import dr.ulysses.models.PlayerObject.onMediaChanged
-import dr.ulysses.models.PlayerObject.playerComponent
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.media.Media
 import uk.co.caprica.vlcj.media.MediaRef
@@ -34,12 +32,12 @@ object PlayerObject {
             super.mediaStateChanged(media, newState)
             if (newState == State.PLAYING)
                 onMediaStateChanged(true)
-            onMediaChanged(playerComponent.mediaListPlayer().list().media().mrl(PlayerService.state.currentTrackNum))
+            onMediaChanged(playerComponent.mediaListPlayer().list().media().mrl(Player.state.currentTrackNum))
         }
 
         override fun mediaMetaChanged(media: Media, metaType: Meta) {
             super.mediaMetaChanged(media, metaType)
-            onMediaChanged(playerComponent.mediaListPlayer().list().media().mrl(PlayerService.state.currentTrackNum))
+            onMediaChanged(playerComponent.mediaListPlayer().list().media().mrl(Player.state.currentTrackNum))
         }
 
         override fun paused(mediaPlayer: MediaPlayer?) {
@@ -75,7 +73,9 @@ object PlayerObject {
 actual fun setPlayListOnDevice(paths: List<String>) {
     PlayerObject.playerList.media().clear()
     paths.map { PlayerObject.playerList.media().add(it) }
-    onMediaChanged(playerComponent.mediaListPlayer().list().media().mrl(PlayerService.state.currentTrackNum))
+    PlayerObject.onMediaChanged(
+        PlayerObject.playerComponent.mediaListPlayer().list().media().mrl(Player.state.currentTrackNum)
+    )
 }
 
 actual fun pauseCurrentSongOnDevice() {
@@ -103,12 +103,14 @@ actual fun isPlayingChangedOnDevice(onChange: (Boolean) -> Unit) {
 }
 
 actual fun currentPlayingChangedOnDevice(onChange: (String?) -> Unit) {
-    onMediaChanged = onChange
+    PlayerObject.onMediaChanged = onChange
 }
 
 actual fun setCurrentTrackNumOnDevice(trackNum: Int) {
     PlayerObject.player.controls().play(trackNum)
-    onMediaChanged(playerComponent.mediaListPlayer().list().media().mrl(PlayerService.state.currentTrackNum))
+    PlayerObject.onMediaChanged(
+        PlayerObject.playerComponent.mediaListPlayer().list().media().mrl(Player.state.currentTrackNum)
+    )
 }
 
 actual fun playNextOnDevice() {

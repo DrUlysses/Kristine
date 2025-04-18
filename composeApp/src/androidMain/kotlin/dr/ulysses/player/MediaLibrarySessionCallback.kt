@@ -8,8 +8,8 @@ import androidx.media3.session.*
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import dr.ulysses.models.PlayerService
 
+@OptIn(UnstableApi::class)
 open class MediaLibrarySessionCallback(context: Context) :
     MediaLibraryService.MediaLibrarySession.Callback {
 
@@ -62,7 +62,7 @@ open class MediaLibrarySessionCallback(context: Context) :
                 .setCustomLayout(ImmutableList.of(customLayout))
                 .build()
         }
-        session.player.shuffleModeEnabled = PlayerService.state.shuffle
+        session.player.shuffleModeEnabled = Player.state.shuffle
         // Default commands without custom layout for common controllers.
         return MediaSession.ConnectionResult.AcceptedResultBuilder(session).build()
     }
@@ -76,8 +76,8 @@ open class MediaLibrarySessionCallback(context: Context) :
     ): ListenableFuture<SessionResult> {
         if (CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON == customCommand.customAction) {
             // Enable shuffling.
-            PlayerService.setShuffle(true)
-            session.player.shuffleModeEnabled = PlayerService.state.shuffle
+            Player.setShuffle(true)
+            session.player.shuffleModeEnabled = Player.state.shuffle
             // Change the custom layout to contain the `Disable shuffling` command.
             session.setCustomLayout(
                 session.mediaNotificationControllerInfo!!,
@@ -85,8 +85,8 @@ open class MediaLibrarySessionCallback(context: Context) :
             )
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         } else if (CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF == customCommand.customAction) {
-            PlayerService.setShuffle(false)
-            session.player.shuffleModeEnabled = PlayerService.state.shuffle
+            Player.setShuffle(false)
+            session.player.shuffleModeEnabled = Player.state.shuffle
             // Change the custom layout to contain the `Enable shuffling` command.
             session.setCustomLayout(
                 session.mediaNotificationControllerInfo!!,
@@ -105,7 +105,7 @@ open class MediaLibrarySessionCallback(context: Context) :
         return Futures.immediateFuture(
             LibraryResult.ofItem(
                 MediaItem.fromUri(
-                    PlayerService.state.currentSong?.path ?: ""
+                    Player.state.currentSong?.path ?: ""
                 ), params
             )
         )
@@ -117,7 +117,7 @@ open class MediaLibrarySessionCallback(context: Context) :
         browser: MediaSession.ControllerInfo,
         mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> =
-        PlayerService.state.currentPlaylist.songs.find { it.path == mediaId }?.let {
+        Player.state.currentPlaylist.songs.find { it.path == mediaId }?.let {
             return Futures.immediateFuture(LibraryResult.ofItem(MediaItem.fromUri(it.path), /* params= */ null))
         } ?: Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
 
@@ -160,7 +160,7 @@ open class MediaLibrarySessionCallback(context: Context) :
 
     // TODO: bug here
     private fun resolveMediaItems(mediaItems: List<MediaItem>): List<MediaItem> =
-        PlayerService.state.currentPlaylist.songs.map { MediaItem.fromUri(it.path) }
+        Player.state.currentPlaylist.songs.map { MediaItem.fromUri(it.path) }
 
     override fun onSearch(
         session: MediaLibraryService.MediaLibrarySession,
@@ -168,7 +168,7 @@ open class MediaLibrarySessionCallback(context: Context) :
         query: String,
         params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<Void>> {
-        session.notifySearchResultChanged(browser, query, PlayerService.onFindSongCommand(query).size, params)
+        session.notifySearchResultChanged(browser, query, Player.onFindSongCommand(query).size, params)
         return Futures.immediateFuture(LibraryResult.ofVoid())
     }
 
@@ -182,18 +182,19 @@ open class MediaLibrarySessionCallback(context: Context) :
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         return Futures.immediateFuture(
             LibraryResult.ofItemList(
-                PlayerService.onFindSongCommand(query).map { MediaItem.fromUri(it.path) }, params
+                Player.onFindSongCommand(query).map { MediaItem.fromUri(it.path) }, params
             )
         )
     }
 
+    @UnstableApi
     override fun onPlaybackResumption(
         mediaSession: MediaSession,
         controller: MediaSession.ControllerInfo,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         // Get the current playlist and track
-        val currentTrackNum = PlayerService.state.currentTrackNum
-        val mediaItems = PlayerService.state.currentPlaylist.songs.map { MediaItem.fromUri(it.path) }
+        val currentTrackNum = Player.state.currentTrackNum
+        val mediaItems = Player.state.currentPlaylist.songs.map { MediaItem.fromUri(it.path) }
 
         // Return the current media items with the current position
         // Let the framework handle the actual playback resumption

@@ -2,7 +2,7 @@ package dr.ulysses.network
 
 import dr.ulysses.Logger
 import dr.ulysses.entities.Song
-import dr.ulysses.models.PlayerService
+import dr.ulysses.player.Player
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -50,22 +50,22 @@ object NetworkManager {
             val port = server.start()
             _localServerPort.value = port
 
-            // Start the WebSocket server with callbacks to the PlayerService
+            // Start the WebSocket server with callbacks to the Player
             server.startWebSocketServer(
                 onPlaySongCommand = { song ->
-                    PlayerService.onPlaySongCommand(song)
+                    Player.onPlaySongCommand(song)
                 },
                 onPauseCommand = {
-                    PlayerService.onPauseCommand()
+                    Player.onPauseCommand()
                 },
                 onResumeCommand = {
-                    PlayerService.onResumeCommand()
+                    Player.onResumeCommand()
                 },
                 onNextCommand = {
-                    PlayerService.onNextCommand()
+                    Player.onNextCommand()
                 },
                 onPreviousCommand = {
-                    PlayerService.onPreviousCommand()
+                    Player.onPreviousCommand()
                 }
             )
 
@@ -104,7 +104,7 @@ object NetworkManager {
      * Connects to a discovered server with the given address and port.
      * @param address The IP address of the server.
      * @param port The port number of the server.
-     * @return True if connection was successful, false otherwise.
+     * @return True if the connection was successful, false otherwise.
      */
     fun connectToDiscoveredServer(address: String, port: Int): Boolean {
         return try {
@@ -121,6 +121,10 @@ object NetworkManager {
                 },
                 onConnectionStateChange = { isConnected ->
                     _isConnected.value = isConnected
+                    if (isConnected) {
+                        // Switch to NetworkPlayer when connected
+                        Player.setNetworkPlayer()
+                    }
                 }
             )
 
@@ -144,6 +148,9 @@ object NetworkManager {
         client.disconnectFromWebSocket()
         _isConnected.value = false
 
+        // Switch back to LocalPlayer when disconnected
+        Player.setLocalPlayer()
+
         return currentServer?.first
     }
 
@@ -156,7 +163,7 @@ object NetworkManager {
         val (address, port) = currentServer
 
         return try {
-            // Make request to the server's /songs endpoint
+            // Make a request to the server's /songs endpoint
             val response: HttpResponse = HttpClient().get("http://$address:$port/songs")
 
             // Parse the response body as a list of songs
@@ -231,7 +238,7 @@ object NetworkManager {
                     val songJson = updateData["song"]?.jsonPrimitive?.content
                     if (songJson != null) {
                         val song = Json.decodeFromString<Song>(songJson)
-                        PlayerService.onPlaySongCommand(song)
+                        Player.onPlaySongCommand(song)
                     }
                 }
 
@@ -239,7 +246,7 @@ object NetworkManager {
                     // Update the playback state
                     val isPlaying = updateData["isPlaying"]?.jsonPrimitive?.content?.toBoolean()
                     if (isPlaying != null) {
-                        PlayerService.onIsPlayingChanged(isPlaying)
+                        Player.onIsPlayingChanged(isPlaying)
                     }
                 }
 

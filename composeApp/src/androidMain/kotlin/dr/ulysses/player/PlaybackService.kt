@@ -15,10 +15,9 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
-import dr.ulysses.models.PlayerObject.onCurrentPlayingChangedOnDevice
-import dr.ulysses.models.PlayerObject.onIsPlayingChangedOnDevice
-import dr.ulysses.models.PlayerService
-import dr.ulysses.models.playNextOnDevice
+import dr.ulysses.player.Player
+import dr.ulysses.player.PlayerObject.onCurrentPlayingChangedOnDevice
+import dr.ulysses.player.PlayerObject.onIsPlayingChangedOnDevice
 import kristine.composeapp.generated.resources.Res
 import kristine.composeapp.generated.resources.play
 
@@ -100,7 +99,7 @@ class PlaybackService : MediaLibraryService() {
         val callback = MediaLibrarySessionCallback(this)
 
         mediaSession = MediaLibrarySession.Builder(this, exo, callback).build().apply {
-            player.shuffleModeEnabled = PlayerService.state.shuffle
+            player.shuffleModeEnabled = Player.state.shuffle
         }
 
         setListener(MediaSessionServiceListener())

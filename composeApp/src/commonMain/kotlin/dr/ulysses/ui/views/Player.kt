@@ -9,7 +9,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
-import dr.ulysses.models.RepeatMode
+import dr.ulysses.player.RepeatMode
 import dr.ulysses.ui.components.PlayerButtons
 
 @Composable

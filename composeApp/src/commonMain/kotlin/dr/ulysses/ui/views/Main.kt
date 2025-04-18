@@ -31,7 +31,6 @@ import dr.ulysses.entities.PlaylistRepository
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.models.MainViewModel
-import dr.ulysses.models.PlayerService
 import dr.ulysses.network.NetworkManager.currentServer
 import dr.ulysses.network.NetworkManager.isConnected
 import dr.ulysses.network.NetworkManager.pausePlaybackOnServer
@@ -39,6 +38,7 @@ import dr.ulysses.network.NetworkManager.playNextSongOnServer
 import dr.ulysses.network.NetworkManager.playPreviousSongOnServer
 import dr.ulysses.network.NetworkManager.playSongOnServer
 import dr.ulysses.network.NetworkManager.resumePlaybackOnServer
+import dr.ulysses.player.Player
 import dr.ulysses.ui.components.*
 import dr.ulysses.ui.elements.LoadingIndicator
 import dr.ulysses.ui.permissions.PermissionsAlert
@@ -59,7 +59,7 @@ fun Main() {
     val searchTooltip = stringResource(Res.string.search_tooltip)
     val permissionsGranted = rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val playerState = PlayerService.state
+    val playerState = Player.state
     var topBarText by remember { mutableStateOf<String?>(null) }
     var previousTabIndex by remember { mutableStateOf(1) } // Default to Songs tab
 
@@ -76,7 +76,7 @@ fun Main() {
     // Observe the current server connection status
     val serverConnection by currentServer.collectAsState()
 
-    // Load songs from server if connected, otherwise from local repository
+    // Load songs from the server if connected, otherwise from a local repository
     LaunchedEffect(serverConnection) {
         // Use MainViewModel to load songs
         MainViewModel.loadSongs()
@@ -84,7 +84,7 @@ fun Main() {
     var currentArtistSongsList by remember { mutableStateOf(emptyList<Song>()) }
     var currentAlbumSongsList by remember { mutableStateOf(emptyList<Song>()) }
     var currentPlaylist by remember {
-        mutableStateOf<Playlist>(
+        mutableStateOf(
             Playlist(
                 songs = allSongs
             )
@@ -126,10 +126,10 @@ fun Main() {
                     playSongOnServer(song)
                 } else {
                     // Only play locally if not connected to a server
-                    PlayerService.onPlaySongCommand(song)
+                    Player.onPlaySongCommand(song)
                 }
             },
-            onPlaylistChanged = PlayerService::onPlaylistChanged,
+            onPlaylistChanged = Player::onPlaylistChanged,
             currentPlaylist = currentPlaylist,
             onCurrentPlaylistChanged = { currentPlaylist = it },
             searchText = searchText,
@@ -245,7 +245,7 @@ fun Main() {
                                 SongsList(
                                     songs = allSongs,
                                     onPlaySongCommand = { song ->
-                                        PlayerService.onSongsChanged(allSongs)
+                                        Player.onSongsChanged(allSongs)
 
                                         // If connected to a server, only send the play command to the server
                                         // and don't try to play locally
@@ -253,7 +253,7 @@ fun Main() {
                                             playSongOnServer(song)
                                         } else {
                                             // Only play locally if not connected to a server
-                                            PlayerService.onPlaySongCommand(song)
+                                            Player.onPlaySongCommand(song)
                                         }
                                     }
                                 )
@@ -327,21 +327,21 @@ fun Main() {
                 isShuffling = playerState.shuffle,
                 repeatMode = playerState.repeatMode,
                 onPreviousCommand = {
-                    PlayerService.onPreviousCommand()
+                    Player.onPreviousCommand()
                     // If connected to a server, also send the previous command to the server
                     if (isConnected.value) {
                         playPreviousSongOnServer()
                     }
                 },
                 onNextCommand = {
-                    PlayerService.onNextCommand()
+                    Player.onNextCommand()
                     // If connected to a server, also send the next command to the server
                     if (isConnected.value) {
                         playNextSongOnServer()
                     }
                 },
                 onPlayOrPauseCommand = {
-                    PlayerService.onPlayOrPauseCommand()
+                    Player.onPlayOrPauseCommand()
                     // If connected to a server, also send the play/pause command to the server
                     if (isConnected.value) {
                         if (playerState.isPlaying) {
@@ -351,8 +351,8 @@ fun Main() {
                         }
                     }
                 },
-                onToggleShuffleCommand = PlayerService::onToggleShuffleCommand,
-                onSwitchRepeatCommand = PlayerService::onSwitchRepeatCommand,
+                onToggleShuffleCommand = Player::onToggleShuffleCommand,
+                onSwitchRepeatCommand = Player::onSwitchRepeatCommand,
             )
         },
         floatingActionButton = {
@@ -410,7 +410,7 @@ fun Main() {
             else if (destination?.hasRoute<PlaylistSongs>() == true)
                 FloatingActionButton(
                     onClick = {
-                        // We're already in PlaylistSongs, so previousTabIndex is already set to 3
+                        // We're already in PlaylistSongs, so the previousTabIndex is already set to 3
                         navBarController.navigate(ManagePlaylist)
                         topBarText = addPlaylistText
                         MainViewModel.setTopBarText(addPlaylistText)
