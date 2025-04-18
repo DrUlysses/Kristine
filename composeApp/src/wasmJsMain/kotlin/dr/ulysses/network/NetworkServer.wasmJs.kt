@@ -86,9 +86,9 @@ actual class NetworkServer {
     /**
      * Sends a player update to all connected clients.
      * In WASM, this is a stub implementation that just logs the update.
-     * @param update The update message to send.
+     * @param update The update object to send.
      */
-    actual fun sendPlayerUpdate(update: String) {
-        Logger.d { "Player update in WASM (stub implementation): $update" }
+    actual fun sendPlayerUpdate(update: PlayerUpdate) {
+        Logger.d { "Player update in WASM (stub implementation): ${update.type.name}" }
     }
 }

@@ -3,9 +3,9 @@ package dr.ulysses.player
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 import dr.ulysses.network.NetworkManager
+import dr.ulysses.network.NowPlayingUpdate
+import dr.ulysses.network.PlaybackStateUpdate
 import dr.ulysses.player.RepeatMode.*
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
 
 /**
  * Represents the repeat mode for a media player.
@@ -109,12 +109,7 @@ object Player {
      */
     internal fun sendNowPlayingUpdate(song: Song?) {
         if (song != null) {
-            val update = kotlinx.serialization.json.Json.encodeToString(
-                buildJsonObject {
-                    put("type", JsonPrimitive("nowPlaying"))
-                    put("song", JsonPrimitive(kotlinx.serialization.json.Json.encodeToString(song)))
-                }
-            )
+            val update = NowPlayingUpdate(song)
             NetworkManager.sendPlayerUpdate(update)
         }
     }
@@ -124,12 +119,7 @@ object Player {
      * @param isPlaying Whether playback is active.
      */
     internal fun sendPlaybackStateUpdate(isPlaying: Boolean) {
-        val update = kotlinx.serialization.json.Json.encodeToString(
-            buildJsonObject {
-                put("type", JsonPrimitive("playbackState"))
-                put("isPlaying", JsonPrimitive(isPlaying))
-            }
-        )
+        val update = PlaybackStateUpdate(isPlaying)
         NetworkManager.sendPlayerUpdate(update)
     }
 }

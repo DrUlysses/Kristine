@@ -9,7 +9,6 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
-@OptIn(UnstableApi::class)
 open class MediaLibrarySessionCallback(context: Context) :
     MediaLibraryService.MediaLibrarySession.Callback {
 

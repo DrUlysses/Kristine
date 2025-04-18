@@ -378,15 +378,18 @@ actual class NetworkServer {
 
     /**
      * Sends a player update to all connected clients.
-     * @param update The update message to send.
+     * @param update The update object to send.
      */
-    actual fun sendPlayerUpdate(update: String) {
+    actual fun sendPlayerUpdate(update: PlayerUpdate) {
+        // Serialize the update object to JSON
+        val updateJson = Json.encodeToString(PlayerUpdate.serializer(), update)
+
         // Store the update with a unique ID
         val updateId = synchronized(this) {
             lastUpdateId++
             lastUpdateId
         }
-        playerUpdates[updateId] = update
+        playerUpdates[updateId] = updateJson
 
         // Keep only the last 100 updates
         if (playerUpdates.size > 100) {
@@ -394,14 +397,14 @@ actual class NetworkServer {
             keysToRemove.forEach { playerUpdates.remove(it) }
         }
 
-        Logger.d { "Stored player update: $update on Android" }
+        Logger.d { "Stored player update: $updateJson on Android" }
 
         // Send update to all connected WebSocket clients
         if (webSocketSessions.isNotEmpty()) {
             scope.launch {
                 webSocketSessions.values.forEach { session ->
                     try {
-                        session.send(Frame.Text(update))
+                        session.send(Frame.Text(updateJson))
                     } catch (e: Exception) {
                         Logger.e(e) { "Failed to send update to WebSocket client on Android" }
                     }

@@ -46,7 +46,7 @@ expect class NetworkServer() {
 
     /**
      * Sends a player update to all connected clients.
-     * @param update The update message to send.
+     * @param update The update object to send.
      */
-    fun sendPlayerUpdate(update: String)
+    fun sendPlayerUpdate(update: PlayerUpdate)
 }

@@ -163,7 +163,7 @@ actual class NetworkClient {
     actual fun connectToWebSocket(
         address: String,
         port: Int,
-        onPlayerUpdate: (String) -> Unit,
+        onPlayerUpdate: (PlayerUpdate) -> Unit,
         onConnectionStateChange: (Boolean) -> Unit,
     ) {
         // Check if already connected
@@ -201,7 +201,13 @@ actual class NetworkClient {
                                 is Frame.Text -> {
                                     val text = frame.readText()
                                     Logger.d { "Received WebSocket message: $text" }
-                                    onPlayerUpdate(text)
+                                    try {
+                                        // Deserialize the text to a PlayerUpdate object
+                                        val playerUpdate = Json.decodeFromString<PlayerUpdate>(text)
+                                        onPlayerUpdate(playerUpdate)
+                                    } catch (e: Exception) {
+                                        Logger.e(e) { "Error deserializing player update: $text" }
+                                    }
                                 }
 
                                 else -> {

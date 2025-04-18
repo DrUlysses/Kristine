@@ -35,7 +35,7 @@ expect class NetworkClient() {
     fun connectToWebSocket(
         address: String,
         port: Int,
-        onPlayerUpdate: (String) -> Unit,
+        onPlayerUpdate: (PlayerUpdate) -> Unit,
         onConnectionStateChange: (Boolean) -> Unit,
     )
 

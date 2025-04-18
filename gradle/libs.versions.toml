@@ -8,7 +8,7 @@ agp = "8.2.2"
 
 # Platform
 android-compileSdk = "35"
-android-minSdk = "21"
+android-minSdk = "24"
 android-targetSdk = "31"
 android-jvmTarget = "1.8"
 jvmTarget = "17"

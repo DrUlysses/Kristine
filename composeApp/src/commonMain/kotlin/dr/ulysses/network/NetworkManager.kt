@@ -13,8 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Singleton manager for network-related functionality.
@@ -117,7 +115,21 @@ object NetworkManager {
                 port = port,
                 onPlayerUpdate = { update ->
                     // Process player updates from the server
-                    processPlayerUpdate(update)
+                    when (update) {
+                        is NowPlayingUpdate -> {
+                            // Update the current song
+                            Player.onPlaySongCommand(update.song)
+                        }
+
+                        is PlaybackStateUpdate -> {
+                            // Update the playback state
+                            Player.onIsPlayingChanged(update.isPlaying)
+                        }
+
+                        else -> {
+                            Logger.d { "Received unknown player update type: ${update.type.name}" }
+                        }
+                    }
                 },
                 onConnectionStateChange = { isConnected ->
                     _isConnected.value = isConnected
@@ -222,48 +234,12 @@ object NetworkManager {
         }
     }
 
-    /**
-     * Processes a player update from the server.
-     * @param update The update message from the server.
-     */
-    private fun processPlayerUpdate(update: String) {
-        try {
-            // Parse the update message
-            val updateData = Json.decodeFromString<JsonObject>(update)
-
-            // Handle different types of updates
-            when (val type = updateData["type"]?.jsonPrimitive?.content) {
-                "nowPlaying" -> {
-                    // Update the current song
-                    val songJson = updateData["song"]?.jsonPrimitive?.content
-                    if (songJson != null) {
-                        val song = Json.decodeFromString<Song>(songJson)
-                        Player.onPlaySongCommand(song)
-                    }
-                }
-
-                "playbackState" -> {
-                    // Update the playback state
-                    val isPlaying = updateData["isPlaying"]?.jsonPrimitive?.content?.toBoolean()
-                    if (isPlaying != null) {
-                        Player.onIsPlayingChanged(isPlaying)
-                    }
-                }
-
-                else -> {
-                    Logger.d { "Received unknown player update type: $type" }
-                }
-            }
-        } catch (e: Exception) {
-            Logger.e(e) { "Error processing player update: $update" }
-        }
-    }
 
     /**
      * Sends a player update to all connected clients.
-     * @param update The update message to send.
+     * @param update The update object to send.
      */
-    fun sendPlayerUpdate(update: String) {
+    fun sendPlayerUpdate(update: PlayerUpdate) {
         server.sendPlayerUpdate(update)
     }
 }
