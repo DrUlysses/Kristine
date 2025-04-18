@@ -130,7 +130,7 @@ object NetworkManager {
 
             true
         } catch (_: Exception) {
-            // Reset the current server if connection failed
+            // Reset the current server if the connection failed
             _currentServer.value = null
             false
         }

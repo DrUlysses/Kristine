@@ -146,7 +146,7 @@ actual class NetworkClient {
         // Add the custom server to the discoveredServers map
         discoveredServers[address] = port
 
-        // Update the last seen timestamp
+        // Update the last-seen timestamp
         serverLastSeen[address] = Clock.System.now().toEpochMilliseconds()
 
         // Notify about the updated server list
