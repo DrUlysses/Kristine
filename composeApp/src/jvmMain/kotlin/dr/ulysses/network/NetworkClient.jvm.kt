@@ -272,7 +272,7 @@ actual class NetworkClient {
                 val playSongCommand = PlaySongCommand(
                     song = song
                 )
-                val command = Json.encodeToString(WebSocketCommand.serializer(), playSongCommand)
+                val command = Json.encodeToString<WebSocketCommand>(playSongCommand)
                 webSocketSession?.send(Frame.Text(command))
                 Logger.d { "Play command sent successfully via WebSocket" }
             } catch (e: Exception) {

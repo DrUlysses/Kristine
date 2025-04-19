@@ -269,10 +269,7 @@ actual class NetworkClient {
 
         scope.launch {
             try {
-                val playSongCommand = PlaySongCommand(
-                    song = song
-                )
-                val command = Json.encodeToString(WebSocketCommand.serializer(), playSongCommand)
+                val command = Json.encodeToString<WebSocketCommand>(PlaySongCommand(song))
                 webSocketSession?.send(Frame.Text(command))
                 Logger.d { "Play command sent successfully via WebSocket" }
             } catch (e: Exception) {

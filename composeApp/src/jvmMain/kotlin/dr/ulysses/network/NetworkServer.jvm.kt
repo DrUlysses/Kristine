@@ -281,7 +281,7 @@ actual class NetworkServer {
      */
     actual fun sendPlayerUpdate(update: PlayerUpdate) {
         // Serialize the update object to JSON
-        val updateJson = Json.encodeToString(PlayerUpdate.serializer(), update)
+        val updateJson = Json.encodeToString<PlayerUpdate>(update)
 
         // Store the update with a unique ID
         val updateId = synchronized(this) {
