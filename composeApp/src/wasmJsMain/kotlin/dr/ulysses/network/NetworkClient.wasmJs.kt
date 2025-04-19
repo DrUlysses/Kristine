@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
@@ -130,22 +131,15 @@ actual class NetworkClient {
 
                     try {
                         // Listen for incoming messages
-                        for (frame in incoming) {
-                            when (frame) {
-                                is Frame.Text -> {
-                                    val text = frame.readText()
-                                    Logger.d { "Received WebSocket message in WASM: $text" }
+                        incoming.consumeEach { frame ->
+                            if (frame is Frame.Text) {
+                                // Deserialize the text to a PlayerUpdate object
+                                Json.decodeFromString<PlayerUpdate>(frame.readText()).let { message ->
                                     try {
-                                        // Deserialize the text to a PlayerUpdate object
-                                        val playerUpdate = Json.decodeFromString<PlayerUpdate>(text)
-                                        onPlayerUpdate(playerUpdate)
+                                        onPlayerUpdate(message)
                                     } catch (e: Exception) {
-                                        Logger.e(e) { "Error deserializing player update in WASM: $text" }
+                                        Logger.e(e) { "Error deserializing player update: $message" }
                                     }
-                                }
-
-                                else -> {
-                                    // Ignore other frame types
                                 }
                             }
                         }

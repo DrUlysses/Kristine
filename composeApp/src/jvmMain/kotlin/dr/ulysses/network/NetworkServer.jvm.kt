@@ -19,6 +19,7 @@ import io.ktor.utils.io.core.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.channels.consumeEach
 import kotlinx.serialization.json.Json
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.seconds
@@ -161,32 +162,27 @@ actual class NetworkServer {
                         }
 
                         // Listen for incoming messages
-                        for (frame in incoming) {
-                            when (frame) {
-                                is Frame.Text -> {
-                                    val text = frame.readText()
-                                    Logger.d { "Received WebSocket message: $text" }
+                        incoming.consumeEach { frame ->
+                            if (frame is Frame.Text) {
+                                val message = Json.decodeFromString<WebSocketCommand>(frame.readText())
+                                Logger.d { "Received WebSocket message: $message on Android" }
 
-                                    try {
-                                        val command = Json.decodeFromString<WebSocketCommand>(text)
-                                        when (command.commandType) {
-                                            WebSocketCommandType.PLAY -> {
-                                                if (command is PlaySongCommand) {
-                                                    onPlaySongCommandCallback?.invoke(command.song)
-                                                }
+                                try {
+                                    when (message.commandType) {
+                                        WebSocketCommandType.PLAY -> {
+                                            if (message is PlaySongCommand) {
+                                                onPlaySongCommandCallback?.invoke(message.song)
                                             }
-
-                                            WebSocketCommandType.PAUSE -> onPauseCommandCallback?.invoke()
-                                            WebSocketCommandType.RESUME -> onResumeCommandCallback?.invoke()
-                                            WebSocketCommandType.NEXT -> onNextCommandCallback?.invoke()
-                                            WebSocketCommandType.PREVIOUS -> onPreviousCommandCallback?.invoke()
                                         }
-                                    } catch (e: Exception) {
-                                        Logger.e(e) { "Error processing WebSocket command" }
-                                    }
-                                }
 
-                                else -> {}
+                                        WebSocketCommandType.PAUSE -> onPauseCommandCallback?.invoke()
+                                        WebSocketCommandType.RESUME -> onResumeCommandCallback?.invoke()
+                                        WebSocketCommandType.NEXT -> onNextCommandCallback?.invoke()
+                                        WebSocketCommandType.PREVIOUS -> onPreviousCommandCallback?.invoke()
+                                    }
+                                } catch (e: Exception) {
+                                    Logger.e(e) { "Error processing WebSocket command on Android" }
+                                }
                             }
                         }
                     } catch (_: ClosedReceiveChannelException) {

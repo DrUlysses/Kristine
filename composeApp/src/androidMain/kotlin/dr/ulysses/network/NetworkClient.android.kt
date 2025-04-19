@@ -14,6 +14,7 @@ import io.ktor.utils.io.core.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.channels.consumeEach
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
@@ -204,22 +205,15 @@ actual class NetworkClient {
 
                     try {
                         // Listen for incoming messages
-                        for (frame in incoming) {
-                            when (frame) {
-                                is Frame.Text -> {
-                                    val text = frame.readText()
-                                    Logger.d { "Received WebSocket message: $text" }
+                        incoming.consumeEach { frame ->
+                            if (frame is Frame.Text) {
+                                // Deserialize the text to a PlayerUpdate object
+                                Json.decodeFromString<PlayerUpdate>(frame.readText()).let { message ->
                                     try {
-                                        // Deserialize the text to a PlayerUpdate object
-                                        val playerUpdate = Json.decodeFromString<PlayerUpdate>(text)
-                                        onPlayerUpdate(playerUpdate)
+                                        onPlayerUpdate(message)
                                     } catch (e: Exception) {
-                                        Logger.e(e) { "Error deserializing player update: $text" }
+                                        Logger.e(e) { "Error deserializing player update: $message" }
                                     }
-                                }
-
-                                else -> {
-                                    // Ignore other frame types
                                 }
                             }
                         }
