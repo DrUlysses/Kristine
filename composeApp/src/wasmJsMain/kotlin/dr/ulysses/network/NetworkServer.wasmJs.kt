@@ -89,6 +89,6 @@ actual class NetworkServer {
      * @param update The update object to send.
      */
     actual fun sendPlayerUpdate(update: PlayerUpdate) {
-        Logger.d { "Player update in WASM (stub implementation): ${update.type.name}" }
+        Logger.d { "Player update in WASM (stub implementation): ${update.updateType.name}" }
     }
 }

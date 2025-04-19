@@ -308,7 +308,7 @@ actual class NetworkClient {
 
     /**
      * Sends a simple command to the server.
-     * @param commandType The type of command to send.
+     * @param commandType The updateType of command to send.
      */
     private fun sendSimpleCommand(commandType: WebSocketCommandType) {
         if (webSocketSession == null) {

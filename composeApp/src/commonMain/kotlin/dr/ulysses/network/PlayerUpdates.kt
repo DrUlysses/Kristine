@@ -16,7 +16,7 @@ enum class PlayerUpdateType {
  */
 @Serializable
 sealed interface PlayerUpdate {
-    val type: PlayerUpdateType
+    val updateType: PlayerUpdateType
 }
 
 /**
@@ -27,7 +27,7 @@ sealed interface PlayerUpdate {
 data class NowPlayingUpdate(
     val song: Song,
 ) : PlayerUpdate {
-    override val type: PlayerUpdateType = PlayerUpdateType.NOW_PLAYING
+    override val updateType: PlayerUpdateType = PlayerUpdateType.NOW_PLAYING
 }
 
 /**
@@ -38,5 +38,5 @@ data class NowPlayingUpdate(
 data class PlaybackStateUpdate(
     val isPlaying: Boolean,
 ) : PlayerUpdate {
-    override val type: PlayerUpdateType = PlayerUpdateType.PLAYBACK_STATE
+    override val updateType: PlayerUpdateType = PlayerUpdateType.PLAYBACK_STATE
 }
