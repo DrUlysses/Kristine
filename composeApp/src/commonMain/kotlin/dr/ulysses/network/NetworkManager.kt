@@ -125,10 +125,6 @@ object NetworkManager {
                             // Update the playback state
                             Player.onIsPlayingChanged(update.isPlaying)
                         }
-
-                        else -> {
-                            Logger.d { "Received unknown player update type: ${update.type.name}" }
-                        }
                     }
                 },
                 onConnectionStateChange = { isConnected ->

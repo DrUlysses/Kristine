@@ -195,12 +195,8 @@ actual class NetworkClient {
 
         scope.launch {
             try {
-                val command = Json.encodeToString(
-                    mapOf(
-                        "command" to "play",
-                        "songJson" to Json.encodeToString(song)
-                    )
-                )
+                val playSongCommand = PlaySongCommand(song)
+                val command = Json.encodeToString(WebSocketCommand.serializer(), playSongCommand)
                 webSocketSession?.send(Frame.Text(command))
                 Logger.d { "Play command sent successfully via WebSocket from WASM" }
             } catch (e: Exception) {
@@ -213,51 +209,46 @@ actual class NetworkClient {
      * Sends a command to pause playback on the server.
      */
     actual fun sendPauseCommand() {
-        sendSimpleCommand("pause")
+        sendSimpleCommand(WebSocketCommandType.PAUSE)
     }
 
     /**
      * Sends a command to resume playback on the server.
      */
     actual fun sendResumeCommand() {
-        sendSimpleCommand("resume")
+        sendSimpleCommand(WebSocketCommandType.RESUME)
     }
 
     /**
      * Sends a command to play the next song on the server.
      */
     actual fun sendNextCommand() {
-        sendSimpleCommand("next")
+        sendSimpleCommand(WebSocketCommandType.NEXT)
     }
 
     /**
      * Sends a command to play the previous song on the server.
      */
     actual fun sendPreviousCommand() {
-        sendSimpleCommand("previous")
+        sendSimpleCommand(WebSocketCommandType.PREVIOUS)
     }
 
     /**
      * Sends a simple command to the server.
-     * @param command The command to send.
+     * @param commandType The type of command to send.
      */
-    private fun sendSimpleCommand(command: String) {
+    private fun sendSimpleCommand(commandType: WebSocketCommandType) {
         if (webSocketSession == null) {
-            Logger.e { "Cannot send $command command from WASM: Not connected to a WebSocket server" }
+            Logger.e { "Cannot send ${commandType.value} command from WASM: Not connected to a WebSocket server" }
             return
         }
 
         scope.launch {
             try {
-                val commandJson = Json.encodeToString(
-                    mapOf(
-                        "command" to command
-                    )
-                )
-                webSocketSession?.send(Frame.Text(commandJson))
-                Logger.d { "$command command sent successfully via WebSocket from WASM" }
+                webSocketSession?.sendSerialized<WebSocketCommand>(SimpleCommand(commandType))
+                Logger.d { "${commandType.value} command sent successfully via WebSocket from WASM" }
             } catch (e: Exception) {
-                Logger.e(e) { "Error sending $command command via WebSocket from WASM" }
+                Logger.e(e) { "Error sending ${commandType.value} command via WebSocket from WASM" }
             }
         }
     }

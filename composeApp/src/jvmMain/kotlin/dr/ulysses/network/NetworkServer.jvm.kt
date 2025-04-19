@@ -160,19 +160,18 @@ actual class NetworkServer {
                                     Logger.d { "Received WebSocket message: $text" }
 
                                     try {
-                                        val message = Json.decodeFromString<Map<String, String>>(text)
-                                        when (message["command"]) {
-                                            "play" -> {
-                                                message["songJson"]?.let { songJson ->
-                                                    val song = Json.decodeFromString<Song>(songJson)
-                                                    onPlaySongCommandCallback?.invoke(song)
+                                        val command = Json.decodeFromString<WebSocketCommand>(text)
+                                        when (command.commandType) {
+                                            WebSocketCommandType.PLAY -> {
+                                                if (command is PlaySongCommand) {
+                                                    onPlaySongCommandCallback?.invoke(command.song)
                                                 }
                                             }
 
-                                            "pause" -> onPauseCommandCallback?.invoke()
-                                            "resume" -> onResumeCommandCallback?.invoke()
-                                            "next" -> onNextCommandCallback?.invoke()
-                                            "previous" -> onPreviousCommandCallback?.invoke()
+                                            WebSocketCommandType.PAUSE -> onPauseCommandCallback?.invoke()
+                                            WebSocketCommandType.RESUME -> onResumeCommandCallback?.invoke()
+                                            WebSocketCommandType.NEXT -> onNextCommandCallback?.invoke()
+                                            WebSocketCommandType.PREVIOUS -> onPreviousCommandCallback?.invoke()
                                         }
                                     } catch (e: Exception) {
                                         Logger.e(e) { "Error processing WebSocket command" }
