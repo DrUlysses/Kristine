@@ -3,10 +3,13 @@ package dr.ulysses.network
 import dr.ulysses.Logger
 import dr.ulysses.entities.Song
 import io.ktor.client.*
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.http.*
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
+import io.ktor.serialization.kotlinx.*
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.utils.io.core.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
@@ -24,7 +27,12 @@ actual class NetworkClient {
     private var updatePollingJob: Job? = null
     private var webSocketSession: DefaultClientWebSocketSession? = null
     private val httpClient = HttpClient {
-        install(WebSockets)
+        install(ContentNegotiation) {
+            json()
+        }
+        install(WebSockets) {
+            contentConverter = KotlinxWebsocketSerializationConverter(Json)
+        }
     }
     private val scope = CoroutineScope(Dispatchers.Default)
     private val discoveredServers = mutableMapOf<String, Int>() // Map of IP address to port
@@ -269,8 +277,7 @@ actual class NetworkClient {
 
         scope.launch {
             try {
-                val command = Json.encodeToString<WebSocketCommand>(PlaySongCommand(song))
-                webSocketSession?.send(Frame.Text(command))
+                webSocketSession?.sendSerialized<WebSocketCommand>(PlaySongCommand(song))
                 Logger.d { "Play command sent successfully via WebSocket" }
             } catch (e: Exception) {
                 Logger.e(e) { "Error sending play command via WebSocket" }

@@ -3,8 +3,11 @@ package dr.ulysses.network
 import dr.ulysses.Logger
 import dr.ulysses.entities.Song
 import io.ktor.client.*
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.*
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +27,12 @@ actual class NetworkClient {
     private val serverLastSeen = mutableMapOf<String, Long>()
     private var webSocketSession: DefaultClientWebSocketSession? = null
     private val httpClient = HttpClient {
-        install(WebSockets)
+        install(ContentNegotiation) {
+            json()
+        }
+        install(WebSockets) {
+            contentConverter = KotlinxWebsocketSerializationConverter(Json)
+        }
     }
     private val scope = CoroutineScope(Dispatchers.Default)
 
@@ -195,9 +203,7 @@ actual class NetworkClient {
 
         scope.launch {
             try {
-                val playSongCommand = PlaySongCommand(song)
-                val command = Json.encodeToString<WebSocketCommand>(playSongCommand)
-                webSocketSession?.send(Frame.Text(command))
+                webSocketSession?.sendSerialized<WebSocketCommand>(PlaySongCommand(song))
                 Logger.d { "Play command sent successfully via WebSocket from WASM" }
             } catch (e: Exception) {
                 Logger.e(e) { "Error sending play command via WebSocket from WASM" }
