@@ -207,13 +207,13 @@ actual class NetworkClient {
                         for (frame in incoming) {
                             when (frame) {
                                 is Frame.Text -> {
-                                    val text = frame.readText()
-                                    Logger.d { "Received WebSocket message: $text" }
-                                    try {
-                                        // Deserialize the text to a PlayerUpdate object
-                                        onPlayerUpdate(Json.decodeFromString<PlayerUpdate>(text))
-                                    } catch (e: Exception) {
-                                        Logger.e(e) { "Error deserializing player update: $text" }
+                                    receiveDeserialized<PlayerUpdate>().let { message ->
+                                        try {
+                                            // Deserialize the text to a PlayerUpdate object
+                                            onPlayerUpdate(message)
+                                        } catch (e: Exception) {
+                                            Logger.e(e) { "Error deserializing player update: $message" }
+                                        }
                                     }
                                 }
 
@@ -284,8 +284,8 @@ actual class NetworkClient {
                 session.run {
                     sendSerialized<WebSocketCommand>(PlaySongCommand(song))
                     Logger.d { "Play command sent successfully via WebSocket" }
-                    val update = receiveDeserialized<PlayerUpdate>()
-                    Logger.d { "Received acknowledgment from server: $update" }
+//                    val update = receiveDeserialized<PlayerUpdate>()
+//                    Logger.d { "Received acknowledgment from server: $update" }
                 }
             } catch (e: Exception) {
                 Logger.e(e) { "Error sending play command via WebSocket" }
@@ -336,8 +336,8 @@ actual class NetworkClient {
                 session.run {
                     sendSerialized<WebSocketCommand>(SimpleCommand(commandType))
                     Logger.d { "${commandType.value} command sent successfully via WebSocket" }
-                    val update = receiveDeserialized<PlayerUpdate>()
-                    Logger.d { "Received acknowledgment from server: $update" }
+//                    val update = receiveDeserialized<PlayerUpdate>()
+//                    Logger.d { "Received acknowledgment from server: $update" }
                 }
             } catch (e: Exception) {
                 Logger.e(e) { "Error sending ${commandType.value} command via WebSocket" }

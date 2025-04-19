@@ -18,7 +18,6 @@ internal class LocalPlayer : PlayerService {
         // If the song is already in the current track sequence, set it as the current track
         if (currentTrackNum != -1) {
             setState { copy(currentTrackNum = currentTrackNum, currentSong = song) }
-            // Only update a device if not connected to a server
             if (state.currentSong == null)
                 setPlayListOnDevice(state.currentPlaylist.songs.map { it.path })
             setCurrentTrackNumOnDevice(currentTrackNum)
