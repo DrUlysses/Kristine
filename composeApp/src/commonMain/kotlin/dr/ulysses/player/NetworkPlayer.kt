@@ -20,6 +20,15 @@ internal class NetworkPlayer : PlayerService {
         NetworkManager.playSongOnServer(song)
     }
 
+    override fun onUpdateSongCommand(song: Song) {
+        setState {
+            copy(
+                currentSong = song,
+                currentTrackNum = state.currentPlaylist.songs.indexOf(song)
+            )
+        }
+    }
+
     override fun onFindSongCommand(query: String): List<Song> = state.currentPlaylist.songs.filter {
         it.title.contains(
             query, ignoreCase = true
@@ -57,6 +66,10 @@ internal class NetworkPlayer : PlayerService {
         } else {
             onResumeCommand()
         }
+    }
+
+    override fun onUpdatePlaybackStateCommand(isPlaying: Boolean) {
+        setState { copy(isPlaying = isPlaying) }
     }
 
     override fun onToggleShuffleCommand() {

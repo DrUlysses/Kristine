@@ -117,13 +117,13 @@ object NetworkManager {
                     // Process player updates from the server
                     when (update) {
                         is NowPlayingUpdate -> {
-                            // Update the current song
-                            Player.onPlaySongCommand(update.song)
+                            // Update the current song state without triggering network calls
+                            Player.onUpdateSongCommand(update.song)
                         }
 
                         is PlaybackStateUpdate -> {
-                            // Update the playback state
-                            Player.onIsPlayingChanged(update.isPlaying)
+                            // Update the playback state without triggering network calls
+                            Player.onUpdatePlaybackStateCommand(update.isPlaying)
                         }
                     }
                 },

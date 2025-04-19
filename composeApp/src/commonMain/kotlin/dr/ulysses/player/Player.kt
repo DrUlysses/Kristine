@@ -51,12 +51,14 @@ interface PlayerService {
     var state: PlayerState
 
     fun onPlaySongCommand(song: Song)
+    fun onUpdateSongCommand(song: Song)
     fun onFindSongCommand(query: String): List<Song>
     fun onIsPlayingChanged(isPlaying: Boolean)
     fun onPlayCommand()
     fun onPauseCommand()
     fun onResumeCommand()
     fun onPlayOrPauseCommand()
+    fun onUpdatePlaybackStateCommand(isPlaying: Boolean)
     fun onToggleShuffleCommand()
     fun setShuffle(shuffle: Boolean)
     fun onSwitchRepeatCommand()
@@ -87,12 +89,14 @@ object Player {
     }
 
     fun onPlaySongCommand(song: Song) = currentPlayer.onPlaySongCommand(song)
+    fun onUpdateSongCommand(song: Song) = currentPlayer.onUpdateSongCommand(song)
     fun onFindSongCommand(query: String): List<Song> = currentPlayer.onFindSongCommand(query)
     fun onIsPlayingChanged(isPlaying: Boolean) = currentPlayer.onIsPlayingChanged(isPlaying)
     fun onPlayCommand() = currentPlayer.onPlayCommand()
     fun onPauseCommand() = currentPlayer.onPauseCommand()
     fun onResumeCommand() = currentPlayer.onResumeCommand()
     fun onPlayOrPauseCommand() = currentPlayer.onPlayOrPauseCommand()
+    fun onUpdatePlaybackStateCommand(isPlaying: Boolean) = currentPlayer.onUpdatePlaybackStateCommand(isPlaying)
     fun onToggleShuffleCommand() = currentPlayer.onToggleShuffleCommand()
     fun setShuffle(shuffle: Boolean) = currentPlayer.setShuffle(shuffle)
     fun onSwitchRepeatCommand() = currentPlayer.onSwitchRepeatCommand()
@@ -109,8 +113,7 @@ object Player {
      */
     internal fun sendNowPlayingUpdate(song: Song?) {
         if (song != null) {
-            val update = NowPlayingUpdate(song)
-            NetworkManager.sendPlayerUpdate(update)
+            NetworkManager.sendPlayerUpdate(NowPlayingUpdate(song))
         }
     }
 
@@ -119,8 +122,7 @@ object Player {
      * @param isPlaying Whether playback is active.
      */
     internal fun sendPlaybackStateUpdate(isPlaying: Boolean) {
-        val update = PlaybackStateUpdate(isPlaying)
-        NetworkManager.sendPlayerUpdate(update)
+        NetworkManager.sendPlayerUpdate(PlaybackStateUpdate(isPlaying))
     }
 }
 

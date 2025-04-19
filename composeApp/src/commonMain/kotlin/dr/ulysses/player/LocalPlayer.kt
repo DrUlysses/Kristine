@@ -36,6 +36,15 @@ internal class LocalPlayer : PlayerService {
         onResumeCommand()
     }
 
+    override fun onUpdateSongCommand(song: Song) {
+        setState {
+            copy(
+                currentSong = song,
+                currentTrackNum = state.currentPlaylist.songs.indexOf(song)
+            )
+        }
+    }
+
     override fun onFindSongCommand(query: String): List<Song> = state.currentPlaylist.songs.filter {
         it.title.contains(
             query, ignoreCase = true
@@ -69,6 +78,10 @@ internal class LocalPlayer : PlayerService {
 
     override fun onPlayOrPauseCommand() {
         if (isPlayingOnDevice()) onPauseCommand() else onResumeCommand()
+    }
+
+    override fun onUpdatePlaybackStateCommand(isPlaying: Boolean) {
+        setState { copy(isPlaying = isPlaying) }
     }
 
     override fun onToggleShuffleCommand() {
