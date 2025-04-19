@@ -9,7 +9,6 @@ import io.ktor.network.sockets.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
-import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
@@ -207,105 +206,6 @@ actual class NetworkServer {
 
                     // Launch a coroutine to call the suspend function
                     call.respond(HttpStatusCode.OK, Json.encodeToString(getAllSongs()))
-                }
-
-                // Play a song
-                post("/play") {
-                    // Add CORS headers
-                    call.response.headers.append("Access-Control-Allow-Origin", "*")
-                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                    call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
-
-                    try {
-                        val songJson = call.receiveText()
-                        val song = Json.decodeFromString<Song>(songJson)
-                        Logger.d { "Received play command for song: ${song.title}" }
-                        onPlaySongCommandCallback?.invoke(song)
-                        call.respond(HttpStatusCode.OK, "Playing song: ${song.title}")
-                    } catch (e: Exception) {
-                        Logger.e(e) { "Error processing play command" }
-                        call.respond(HttpStatusCode.BadRequest, "Invalid song data")
-                    }
-                }
-
-                // Pause playback
-                post("/pause") {
-                    // Add CORS headers
-                    call.response.headers.append("Access-Control-Allow-Origin", "*")
-                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                    call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
-
-                    Logger.d { "Received pause command" }
-                    onPauseCommandCallback?.invoke()
-                    call.respond(HttpStatusCode.OK, "Paused playback")
-                }
-
-                // Resume playback
-                post("/resume") {
-                    // Add CORS headers
-                    call.response.headers.append("Access-Control-Allow-Origin", "*")
-                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                    call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
-
-                    Logger.d { "Received resume command" }
-                    onResumeCommandCallback?.invoke()
-                    call.respond(HttpStatusCode.OK, "Resumed playback")
-                }
-
-                // Play the next song
-                post("/next") {
-                    // Add CORS headers
-                    call.response.headers.append("Access-Control-Allow-Origin", "*")
-                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                    call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
-
-                    Logger.d { "Received next command" }
-                    onNextCommandCallback?.invoke()
-                    call.respond(HttpStatusCode.OK, "Playing next song")
-                }
-
-                // Play previous song
-                post("/previous") {
-                    // Add CORS headers
-                    call.response.headers.append("Access-Control-Allow-Origin", "*")
-                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                    call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
-
-                    Logger.d { "Received previous command" }
-                    onPreviousCommandCallback?.invoke()
-                    call.respond(HttpStatusCode.OK, "Playing previous song")
-                }
-
-                // Get player updates
-                get("/updates") {
-                    // Add CORS headers
-                    call.response.headers.append("Access-Control-Allow-Origin", "*")
-                    call.response.headers.append("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                    call.response.headers.append("Access-Control-Allow-Headers", "Content-Type")
-
-                    val lastId = call.request.queryParameters["lastId"]?.toLongOrNull() ?: 0
-                    val updates = playerUpdates.filterKeys { it > lastId }
-
-                    if (updates.isNotEmpty()) {
-                        val maxId = updates.keys.maxOrNull() ?: lastId
-                        call.respond(
-                            HttpStatusCode.OK, Json.encodeToString(
-                                mapOf(
-                                    "lastId" to maxId,
-                                    "updates" to updates.values.toList()
-                                )
-                            )
-                        )
-                    } else {
-                        call.respond(
-                            HttpStatusCode.OK, Json.encodeToString(
-                                mapOf(
-                                    "lastId" to lastId,
-                                    "updates" to emptyList<String>()
-                                )
-                            )
-                        )
-                    }
                 }
 
                 // Handle OPTIONS requests for CORS preflight
