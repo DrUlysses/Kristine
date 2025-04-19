@@ -270,24 +270,18 @@ actual class NetworkClient {
      * @param song The song to play.
      */
     actual fun sendPlaySongCommand(song: Song) {
-        if (webSocketSession == null) {
+        val session = webSocketSession ?: run {
             Logger.e { "Cannot send play command: Not connected to a WebSocket server" }
             return
         }
 
         scope.launch {
             try {
-                webSocketSession?.sendSerialized<WebSocketCommand>(PlaySongCommand(song))
-                Logger.d { "Play command sent successfully via WebSocket" }
-
-                // Wait for acknowledgment from the server to prevent endless loop
-                webSocketSession?.let { session ->
-                    val response = session.incoming.receive()
-                    if (response is Frame.Text) {
-                        val text = response.readText()
-                        Logger.d { "Received acknowledgment from server: $text" }
-                        // Process the response if needed
-                    }
+                session.run {
+                    sendSerialized<WebSocketCommand>(PlaySongCommand(song))
+                    Logger.d { "Play command sent successfully via WebSocket" }
+                    val update = receiveDeserialized<PlayerUpdate>()
+                    Logger.d { "Received acknowledgment from server: $update" }
                 }
             } catch (e: Exception) {
                 Logger.e(e) { "Error sending play command via WebSocket" }
@@ -328,24 +322,18 @@ actual class NetworkClient {
      * @param commandType The updateType of command to send.
      */
     private fun sendSimpleCommand(commandType: WebSocketCommandType) {
-        if (webSocketSession == null) {
+        val session = webSocketSession ?: run {
             Logger.e { "Cannot send ${commandType.value} command: Not connected to a WebSocket server" }
             return
         }
 
         scope.launch {
             try {
-                webSocketSession?.sendSerialized<WebSocketCommand>(SimpleCommand(commandType))
-                Logger.d { "${commandType.value} command sent successfully via WebSocket" }
-
-                // Wait for acknowledgment from the server to prevent endless loop
-                webSocketSession?.let { session ->
-                    val response = session.incoming.receive()
-                    if (response is Frame.Text) {
-                        val text = response.readText()
-                        Logger.d { "Received acknowledgment from server: $text" }
-                        // Process the response if needed
-                    }
+                session.run {
+                    sendSerialized<WebSocketCommand>(SimpleCommand(commandType))
+                    Logger.d { "${commandType.value} command sent successfully via WebSocket" }
+                    val update = receiveDeserialized<PlayerUpdate>()
+                    Logger.d { "Received acknowledgment from server: $update" }
                 }
             } catch (e: Exception) {
                 Logger.e(e) { "Error sending ${commandType.value} command via WebSocket" }
