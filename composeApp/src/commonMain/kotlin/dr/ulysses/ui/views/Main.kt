@@ -32,12 +32,6 @@ import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.network.NetworkManager.currentServer
-import dr.ulysses.network.NetworkManager.isConnected
-import dr.ulysses.network.NetworkManager.pausePlaybackOnServer
-import dr.ulysses.network.NetworkManager.playNextSongOnServer
-import dr.ulysses.network.NetworkManager.playPreviousSongOnServer
-import dr.ulysses.network.NetworkManager.playSongOnServer
-import dr.ulysses.network.NetworkManager.resumePlaybackOnServer
 import dr.ulysses.player.Player
 import dr.ulysses.ui.components.*
 import dr.ulysses.ui.elements.LoadingIndicator
@@ -120,14 +114,7 @@ fun Main() {
             setTopBarText = { topBarText = it },
             pagerState = pagerState,
             onPlaySongCommand = { song ->
-                // If connected to a server, only send the play command to the server
-                // and don't try to play locally
-                if (isConnected.value) {
-                    playSongOnServer(song)
-                } else {
-                    // Only play locally if not connected to a server
-                    Player.onPlaySongCommand(song)
-                }
+                Player.onPlaySongCommand(song)
             },
             onPlaylistChanged = Player::onPlaylistChanged,
             currentPlaylist = currentPlaylist,
@@ -246,15 +233,7 @@ fun Main() {
                                     songs = allSongs,
                                     onPlaySongCommand = { song ->
                                         Player.onSongsChanged(allSongs)
-
-                                        // If connected to a server, only send the play command to the server
-                                        // and don't try to play locally
-                                        if (isConnected.value) {
-                                            playSongOnServer(song)
-                                        } else {
-                                            // Only play locally if not connected to a server
-                                            Player.onPlaySongCommand(song)
-                                        }
+                                        Player.onPlaySongCommand(song)
                                     }
                                 )
                             }
@@ -328,28 +307,12 @@ fun Main() {
                 repeatMode = playerState.repeatMode,
                 onPreviousCommand = {
                     Player.onPreviousCommand()
-                    // If connected to a server, also send the previous command to the server
-                    if (isConnected.value) {
-                        playPreviousSongOnServer()
-                    }
                 },
                 onNextCommand = {
                     Player.onNextCommand()
-                    // If connected to a server, also send the next command to the server
-                    if (isConnected.value) {
-                        playNextSongOnServer()
-                    }
                 },
                 onPlayOrPauseCommand = {
                     Player.onPlayOrPauseCommand()
-                    // If connected to a server, also send the play/pause command to the server
-                    if (isConnected.value) {
-                        if (playerState.isPlaying) {
-                            pausePlaybackOnServer()
-                        } else {
-                            resumePlaybackOnServer()
-                        }
-                    }
                 },
                 onToggleShuffleCommand = Player::onToggleShuffleCommand,
                 onSwitchRepeatCommand = Player::onSwitchRepeatCommand,
