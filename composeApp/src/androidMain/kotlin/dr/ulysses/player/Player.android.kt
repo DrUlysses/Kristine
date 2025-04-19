@@ -2,13 +2,15 @@ package dr.ulysses.player
 
 import android.content.ComponentName
 import android.content.Context
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import dr.ulysses.Logger
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import org.koin.java.KoinJavaComponent
 
 @UnstableApi
@@ -44,22 +46,31 @@ actual fun currentPlayingChangedOnDevice(onChange: (String?) -> Unit) {
 
 @UnstableApi
 actual fun setPlayListOnDevice(paths: List<String>) {
-    val mediaItems = paths.map { MediaItem.fromUri(Uri.parse(it)) }
-    PlayerObject.player?.setMediaItems(mediaItems)
+    val mediaItems = paths.map { MediaItem.fromUri(it.toUri()) }
+    // Ensure MediaController methods are called on the main thread
+    MainScope().launch {
+        PlayerObject.player?.setMediaItems(mediaItems)
+    }
 }
 
 @UnstableApi
 actual fun pauseCurrentSongOnDevice() {
-    PlayerObject.player?.pause()
+    // Ensure MediaController methods are called on the main thread
+    MainScope().launch {
+        PlayerObject.player?.pause()
+    }
 }
 
 @UnstableApi
 actual fun resumeCurrentSongOnDevice() {
     try {
-        PlayerObject.player?.apply {
-            if (!isPlayingOnDevice()) {
-                prepare()
-                play()
+        // Ensure MediaController methods are called on the main thread
+        MainScope().launch {
+            PlayerObject.player?.apply {
+                if (!isPlayingOnDevice()) {
+                    prepare()
+                    play()
+                }
             }
         }
     } catch (e: Exception) {
@@ -70,12 +81,18 @@ actual fun resumeCurrentSongOnDevice() {
 
 @UnstableApi
 actual fun stopCurrentSongOnDevice() {
-    PlayerObject.player?.stop()
+    // Ensure MediaController methods are called on the main thread
+    MainScope().launch {
+        PlayerObject.player?.stop()
+    }
 }
 
 @UnstableApi
 actual fun seekToOnDevice(position: Int) {
-    PlayerObject.player?.seekTo(position.toLong())
+    // Ensure MediaController methods are called on the main thread
+    MainScope().launch {
+        PlayerObject.player?.seekTo(position.toLong())
+    }
 }
 
 @UnstableApi
@@ -85,14 +102,20 @@ actual fun isPlayingOnDevice(): Boolean {
 
 @UnstableApi
 actual fun setCurrentTrackNumOnDevice(trackNum: Int) {
-    PlayerObject.player?.seekTo(trackNum, 0)
+    // Ensure MediaController methods are called on the main thread
+    MainScope().launch {
+        PlayerObject.player?.seekTo(trackNum, 0)
+    }
 }
 
 @UnstableApi
 actual fun playNextOnDevice() {
     try {
-        PlayerObject.player?.seekToNextMediaItem()
-        resumeCurrentSongOnDevice()
+        // Ensure MediaController methods are called on the main thread
+        MainScope().launch {
+            PlayerObject.player?.seekToNextMediaItem()
+            resumeCurrentSongOnDevice()
+        }
     } catch (e: Exception) {
         // Log the exception but don't crash
         Logger.d(e) { "Error playing next." }
@@ -102,8 +125,11 @@ actual fun playNextOnDevice() {
 @UnstableApi
 actual fun playPreviousOnDevice() {
     try {
-        PlayerObject.player?.seekToPreviousMediaItem()
-        resumeCurrentSongOnDevice()
+        // Ensure MediaController methods are called on the main thread
+        MainScope().launch {
+            PlayerObject.player?.seekToPreviousMediaItem()
+            resumeCurrentSongOnDevice()
+        }
     } catch (e: Exception) {
         // Log the exception but don't crash
         Logger.d(e) { "Error playing previous." }
