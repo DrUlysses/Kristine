@@ -1,5 +1,8 @@
 package dr.ulysses.player
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 import dr.ulysses.network.NetworkManager
@@ -75,9 +78,10 @@ interface PlayerService {
  * This allows switching between local and network player implementations.
  */
 object Player {
-    private var currentPlayer: PlayerService = LocalPlayer()
+    private var currentPlayer: PlayerService by mutableStateOf(LocalPlayer())
 
-    val state: PlayerState = currentPlayer.state
+    val state: PlayerState
+        get() = currentPlayer.state
 
     fun setLocalPlayer() {
         currentPlayer = LocalPlayer()
