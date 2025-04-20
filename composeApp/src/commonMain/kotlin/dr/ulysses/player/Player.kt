@@ -77,8 +77,7 @@ interface PlayerService {
 object Player {
     private var currentPlayer: PlayerService = LocalPlayer()
 
-    val state: PlayerState
-        get() = currentPlayer.state
+    val state: PlayerState = currentPlayer.state
 
     fun setLocalPlayer() {
         currentPlayer = LocalPlayer()

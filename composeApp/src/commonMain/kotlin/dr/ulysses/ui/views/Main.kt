@@ -53,7 +53,6 @@ fun Main() {
     val searchTooltip = stringResource(Res.string.search_tooltip)
     val permissionsGranted = rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val playerState = Player.state
     var topBarText by remember { mutableStateOf<String?>(null) }
     var previousTabIndex by remember { mutableStateOf(1) } // Default to Songs tab
 
@@ -301,10 +300,10 @@ fun Main() {
         },
         bottomBar = {
             Player(
-                currentSong = playerState.currentSong,
-                isPlaying = playerState.isPlaying,
-                isShuffling = playerState.shuffle,
-                repeatMode = playerState.repeatMode,
+                currentSong = Player.state.currentSong,
+                isPlaying = Player.state.isPlaying,
+                isShuffling = Player.state.shuffle,
+                repeatMode = Player.state.repeatMode,
                 onPreviousCommand = {
                     Player.onPreviousCommand()
                 },
