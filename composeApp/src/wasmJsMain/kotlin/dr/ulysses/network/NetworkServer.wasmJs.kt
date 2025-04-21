@@ -1,7 +1,6 @@
 package dr.ulysses.network
 
 import dr.ulysses.Logger
-import dr.ulysses.entities.Song
 
 /**
  * WASM-specific implementation of NetworkServer.
@@ -16,13 +15,6 @@ actual class NetworkServer {
     }
 
     private var serverPort: Int = 8080 // Default port for WASM
-
-    // Player control callbacks (stub implementations)
-    private var onPlaySongCommandCallback: ((Song) -> Unit)? = null
-    private var onPauseCommandCallback: (() -> Unit)? = null
-    private var onResumeCommandCallback: (() -> Unit)? = null
-    private var onNextCommandCallback: (() -> Unit)? = null
-    private var onPreviousCommandCallback: (() -> Unit)? = null
 
     /**
      * Starts the server.
@@ -40,47 +32,6 @@ actual class NetworkServer {
      */
     actual fun stop() {
         Logger.d { "Stopping NetworkServer in WASM (stub implementation)" }
-    }
-
-    /**
-     * Starts the WebSocket server for real-time communication.
-     * In WASM, this is a stub implementation that just stores the callbacks.
-     * @param onPlaySongCommand Callback that will be called when a client sends a play song command.
-     * @param onPauseCommand Callback that will be called when a client sends a pause command.
-     * @param onResumeCommand Callback that will be called when a client sends a resume command.
-     * @param onNextCommand Callback that will be called when a client sends a next command.
-     * @param onPreviousCommand Callback that will be called when a client sends a previous command.
-     */
-    actual fun startWebSocketServer(
-        onPlaySongCommand: (Song) -> Unit,
-        onPauseCommand: () -> Unit,
-        onResumeCommand: () -> Unit,
-        onNextCommand: () -> Unit,
-        onPreviousCommand: () -> Unit,
-    ) {
-        // Store the callbacks
-        onPlaySongCommandCallback = onPlaySongCommand
-        onPauseCommandCallback = onPauseCommand
-        onResumeCommandCallback = onResumeCommand
-        onNextCommandCallback = onNextCommand
-        onPreviousCommandCallback = onPreviousCommand
-
-        Logger.d { "Player control callbacks registered in WASM (stub implementation)" }
-    }
-
-    /**
-     * Stops the WebSocket server.
-     * In WASM, this is a stub implementation that just clears the callbacks.
-     */
-    actual fun stopWebSocketServer() {
-        // Clear the callbacks
-        onPlaySongCommandCallback = null
-        onPauseCommandCallback = null
-        onResumeCommandCallback = null
-        onNextCommandCallback = null
-        onPreviousCommandCallback = null
-
-        Logger.d { "Player control callbacks cleared in WASM (stub implementation)" }
     }
 
     /**

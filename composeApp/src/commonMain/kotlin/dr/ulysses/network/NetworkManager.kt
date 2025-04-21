@@ -20,7 +20,7 @@ import kotlinx.serialization.json.Json
  */
 object NetworkManager {
     private val server = NetworkServer()
-    private val client = Client()
+    private val client = NetworkClient()
     private val scope = CoroutineScope(Dispatchers.Default)
 
     // StateFlow to hold the local server port
@@ -48,25 +48,6 @@ object NetworkManager {
             val port = server.start()
             _localServerPort.value = port
 
-            // Start the WebSocket server with callbacks to the Player
-            server.startWebSocketServer(
-                onPlaySongCommand = { song ->
-                    Player.onPlaySongCommand(song)
-                },
-                onPauseCommand = {
-                    Player.onPauseCommand()
-                },
-                onResumeCommand = {
-                    Player.onResumeCommand()
-                },
-                onNextCommand = {
-                    Player.onNextCommand()
-                },
-                onPreviousCommand = {
-                    Player.onPreviousCommand()
-                }
-            )
-
             // Start the client with the updated callback
             client.startDiscovery { serverMap ->
                 _discoveredServers.value = serverMap
@@ -79,7 +60,6 @@ object NetworkManager {
      */
     fun stop() {
         server.stop()
-        server.stopWebSocketServer()
         client.stopDiscovery()
         client.disconnectFromWebSocket()
     }

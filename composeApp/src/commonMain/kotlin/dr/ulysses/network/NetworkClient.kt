@@ -25,7 +25,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
-class Client {
+class NetworkClient {
     private var discoveryJob: Job? = null
     private var updatePollingJob: Job? = null
     private var webSocketSession: DefaultClientWebSocketSession? = null

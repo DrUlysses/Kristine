@@ -1,7 +1,6 @@
 package dr.ulysses.network
 
 import dr.ulysses.Logger
-import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository.getAllSongs
 import dr.ulysses.player.Player
 import io.ktor.http.*
@@ -40,13 +39,6 @@ actual class NetworkServer {
     private var httpServer: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
     private val scope = CoroutineScope(Dispatchers.Default)
     private var serverPort: Int = 0
-
-    // Player control callbacks
-    private var onPlaySongCommandCallback: ((Song) -> Unit)? = null
-    private var onPauseCommandCallback: (() -> Unit)? = null
-    private var onResumeCommandCallback: (() -> Unit)? = null
-    private var onNextCommandCallback: (() -> Unit)? = null
-    private var onPreviousCommandCallback: (() -> Unit)? = null
 
     // Player updates
     private val playerUpdates = ConcurrentHashMap<Long, String>()
@@ -172,21 +164,21 @@ actual class NetworkServer {
                                     when (message.commandType) {
                                         WebSocketCommandType.PLAY -> {
                                             if (message is PlaySongCommand) {
-                                                onPlaySongCommandCallback?.invoke(message.song)
+                                                Player.onPlaySongCommand(message.song)
                                             }
                                         }
 
-                                        WebSocketCommandType.PAUSE -> onPauseCommandCallback?.invoke()
-                                        WebSocketCommandType.RESUME -> onResumeCommandCallback?.invoke()
-                                        WebSocketCommandType.NEXT -> onNextCommandCallback?.invoke()
-                                        WebSocketCommandType.PREVIOUS -> onPreviousCommandCallback?.invoke()
+                                        WebSocketCommandType.PAUSE -> Player.onPauseCommand()
+                                        WebSocketCommandType.RESUME -> Player.onResumeCommand()
+                                        WebSocketCommandType.NEXT -> Player.onNextCommand()
+                                        WebSocketCommandType.PREVIOUS -> Player.onPreviousCommand()
                                         WebSocketCommandType.SET_PLAYLIST -> {
                                             if (message is SetPlaylistCommand) {
                                                 // Set the playlist on the server
                                                 Player.onSongsChanged(message.songs)
                                                 // Set the current track number and play the song at that index
                                                 if (message.currentSongIndex >= 0 && message.currentSongIndex < message.songs.size) {
-                                                    onPlaySongCommandCallback?.invoke(message.songs[message.currentSongIndex])
+                                                    Player.onPlaySongCommand(message.songs[message.currentSongIndex])
                                                 }
                                             }
                                         }
@@ -249,45 +241,6 @@ actual class NetworkServer {
         playerUpdates.clear()
 
         Logger.d { "Stopped UDP broadcast server and HTTP server" }
-    }
-
-    /**
-     * Starts the WebSocket server for real-time communication.
-     * @param onPlaySongCommand Callback that will be called when a client sends a play song command.
-     * @param onPauseCommand Callback that will be called when a client sends a pause command.
-     * @param onResumeCommand Callback that will be called when a client sends a resume command.
-     * @param onNextCommand Callback that will be called when a client sends the next command.
-     * @param onPreviousCommand Callback that will be called when a client sends a previous command.
-     */
-    actual fun startWebSocketServer(
-        onPlaySongCommand: (Song) -> Unit,
-        onPauseCommand: () -> Unit,
-        onResumeCommand: () -> Unit,
-        onNextCommand: () -> Unit,
-        onPreviousCommand: () -> Unit,
-    ) {
-        // Store the callbacks
-        onPlaySongCommandCallback = onPlaySongCommand
-        onPauseCommandCallback = onPauseCommand
-        onResumeCommandCallback = onResumeCommand
-        onNextCommandCallback = onNextCommand
-        onPreviousCommandCallback = onPreviousCommand
-
-        Logger.d { "Player control callbacks registered" }
-    }
-
-    /**
-     * Stops the WebSocket server.
-     */
-    actual fun stopWebSocketServer() {
-        // Clear the callbacks
-        onPlaySongCommandCallback = null
-        onPauseCommandCallback = null
-        onResumeCommandCallback = null
-        onNextCommandCallback = null
-        onPreviousCommandCallback = null
-
-        Logger.d { "Player control callbacks cleared" }
     }
 
     /**
