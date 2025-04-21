@@ -279,8 +279,6 @@ actual class NetworkClient {
                 session.run {
                     sendSerialized<WebSocketCommand>(PlaySongCommand(song))
                     Logger.d { "Play command sent successfully via WebSocket" }
-//                    val update = receiveDeserialized<PlayerUpdate>()
-//                    Logger.d { "Received acknowledgment from server: $update" }
                 }
             } catch (e: Exception) {
                 Logger.e(e) { "Error sending play command via WebSocket" }
@@ -317,6 +315,27 @@ actual class NetworkClient {
     }
 
     /**
+     * Sends a command to set the playlist on the server.
+     * @param songs The list of songs in the playlist.
+     * @param currentSongIndex The index of the current song in the playlist.
+     */
+    actual fun sendSetPlaylistCommand(songs: List<Song>, currentSongIndex: Int) {
+        val session = webSocketSession ?: run {
+            Logger.e { "Cannot send playlist: Not connected to a WebSocket server" }
+            return
+        }
+
+        scope.launch {
+            try {
+                session.sendSerialized<WebSocketCommand>(SetPlaylistCommand(songs, currentSongIndex))
+                Logger.d { "Playlist sent successfully via WebSocket" }
+            } catch (e: Exception) {
+                Logger.e(e) { "Error sending playlist via WebSocket" }
+            }
+        }
+    }
+
+    /**
      * Sends a simple command to the server.
      * @param commandType The updateType of command to send.
      */
@@ -331,8 +350,6 @@ actual class NetworkClient {
                 session.run {
                     sendSerialized<WebSocketCommand>(SimpleCommand(commandType))
                     Logger.d { "${commandType.value} command sent successfully via WebSocket" }
-//                    val update = receiveDeserialized<PlayerUpdate>()
-//                    Logger.d { "Received acknowledgment from server: $update" }
                 }
             } catch (e: Exception) {
                 Logger.e(e) { "Error sending ${commandType.value} command via WebSocket" }

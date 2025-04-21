@@ -3,6 +3,7 @@ package dr.ulysses.network
 import dr.ulysses.Logger
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository.getAllSongs
+import dr.ulysses.player.Player
 import io.ktor.http.*
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
@@ -179,6 +180,17 @@ actual class NetworkServer {
                                         WebSocketCommandType.RESUME -> onResumeCommandCallback?.invoke()
                                         WebSocketCommandType.NEXT -> onNextCommandCallback?.invoke()
                                         WebSocketCommandType.PREVIOUS -> onPreviousCommandCallback?.invoke()
+                                        WebSocketCommandType.SET_PLAYLIST -> {
+                                            if (message is SetPlaylistCommand) {
+                                                // Set the playlist on the server
+                                                Player.onSongsChanged(message.songs)
+                                                // Set the current track number and play the song at that index
+                                                if (message.currentSongIndex >= 0 && message.currentSongIndex < message.songs.size) {
+                                                    val song = message.songs[message.currentSongIndex]
+                                                    Player.onPlaySongCommand(song)
+                                                }
+                                            }
+                                        }
                                     }
                                 } catch (e: Exception) {
                                     Logger.e(e) { "Error processing WebSocket command on Android" }

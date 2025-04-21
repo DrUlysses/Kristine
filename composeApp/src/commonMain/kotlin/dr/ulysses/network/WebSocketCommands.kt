@@ -32,7 +32,12 @@ enum class WebSocketCommandType(val value: String, val description: String) {
     /**
      * Command to play the previous song in the playlist.
      */
-    PREVIOUS("previous", "Play the previous song");
+    PREVIOUS("previous", "Play the previous song"),
+
+    /**
+     * Command to set the entire playlist on the server.
+     */
+    SET_PLAYLIST("set_playlist", "Set the entire playlist");
 }
 
 /**
@@ -61,3 +66,16 @@ data class PlaySongCommand(
 data class SimpleCommand(
     override val commandType: WebSocketCommandType,
 ) : WebSocketCommand
+
+/**
+ * Command to set the entire playlist on the server.
+ * @param songs The list of songs in the playlist.
+ * @param currentSongIndex The index of the current song in the playlist.
+ */
+@Serializable
+data class SetPlaylistCommand(
+    val songs: List<Song>,
+    val currentSongIndex: Int,
+) : WebSocketCommand {
+    override val commandType: WebSocketCommandType = WebSocketCommandType.SET_PLAYLIST
+}

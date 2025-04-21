@@ -15,7 +15,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
-import dr.ulysses.player.Player
 import dr.ulysses.player.PlayerObject.onCurrentPlayingChangedOnDevice
 import dr.ulysses.player.PlayerObject.onIsPlayingChangedOnDevice
 import kristine.composeapp.generated.resources.Res

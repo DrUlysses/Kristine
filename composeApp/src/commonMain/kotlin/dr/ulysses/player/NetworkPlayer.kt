@@ -16,7 +16,15 @@ internal class NetworkPlayer : PlayerService {
     override var state: PlayerState by mutableStateOf(PlayerState(isRemotePlaying = true))
 
     override fun onPlaySongCommand(song: Song) {
-        setState { copy(currentSong = song) }
+        onUpdateSongCommand(song)
+
+        // First, send the playlist to the server
+        val currentSongIndex = state.currentPlaylist.songs.indexOf(song)
+        if (currentSongIndex != -1) {
+            NetworkManager.sendPlaylistToServer(state.currentPlaylist.songs, currentSongIndex)
+        }
+
+        // Then send the play command
         NetworkManager.playSongOnServer(song)
     }
 
@@ -49,7 +57,7 @@ internal class NetworkPlayer : PlayerService {
     override fun onPlayCommand() {
         state.currentSong?.let {
             NetworkManager.playSongOnServer(it)
-        }
+        } ?: onIsPlayingChanged(true)
     }
 
     override fun onPauseCommand() {

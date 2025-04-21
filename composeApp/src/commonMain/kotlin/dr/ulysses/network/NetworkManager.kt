@@ -230,6 +230,16 @@ object NetworkManager {
         }
     }
 
+    /**
+     * Sends the entire playlist to the server.
+     * @param songs The list of songs in the playlist.
+     * @param currentSongIndex The index of the current song in the playlist.
+     */
+    fun sendPlaylistToServer(songs: List<Song>, currentSongIndex: Int) {
+        if (_isConnected.value) {
+            client.sendSetPlaylistCommand(songs, currentSongIndex)
+        }
+    }
 
     /**
      * Sends a player update to all connected clients.

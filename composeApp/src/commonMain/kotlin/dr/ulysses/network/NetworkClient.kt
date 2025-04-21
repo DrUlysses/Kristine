@@ -69,4 +69,11 @@ expect class NetworkClient() {
      * Sends a command to play the previous song on the server.
      */
     fun sendPreviousCommand()
+
+    /**
+     * Sends a command to set the playlist on the server.
+     * @param songs The list of songs in the playlist.
+     * @param currentSongIndex The index of the current song in the playlist.
+     */
+    fun sendSetPlaylistCommand(songs: List<Song>, currentSongIndex: Int)
 }
