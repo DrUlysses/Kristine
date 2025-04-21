@@ -20,7 +20,7 @@ import kotlinx.serialization.json.Json
  */
 object NetworkManager {
     private val server = NetworkServer()
-    private val client = NetworkClient()
+    private val client = Client()
     private val scope = CoroutineScope(Dispatchers.Default)
 
     // StateFlow to hold the local server port

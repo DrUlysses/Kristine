@@ -10,20 +10,22 @@ import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.serialization.kotlinx.*
 import io.ktor.serialization.kotlinx.json.*
-import io.ktor.utils.io.core.*
+import io.ktor.utils.io.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable.isActive
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.consumeEach
-import kotlinx.datetime.Clock
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.ExperimentalTime
 
-/**
- * Android-specific implementation of NetworkClient.
- * This implementation is similar to the JVM implementation but with Android-specific considerations.
- */
-actual class NetworkClient {
+class Client {
     private var discoveryJob: Job? = null
     private var updatePollingJob: Job? = null
     private var webSocketSession: DefaultClientWebSocketSession? = null
@@ -51,10 +53,11 @@ actual class NetworkClient {
      * Starts the discovery process to find servers on the local network.
      * @param onServersDiscovered Callback that will be called with the map of discovered servers (IP to port).
      */
-    actual fun startDiscovery(onServersDiscovered: (Map<String, Int>) -> Unit) {
+    @OptIn(ExperimentalTime::class)
+    fun startDiscovery(onServersDiscovered: (Map<String, Int>) -> Unit) {
         if (discoveryJob != null) return
 
-        Logger.d { "Starting UDP server discovery process on Android" }
+        Logger.d { "Starting UDP server discovery process" }
         discoveryJob = scope.launch {
             val selectorManager = SelectorManager(Dispatchers.Default)
             val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", NetworkServer.DISCOVERY_PORT))
@@ -73,7 +76,7 @@ actual class NetworkClient {
                 while (isActive) {
                     val datagram = socket.receive()
                     val message = datagram.packet.readText()
-                    // Extract IP address from the socket address string
+                    // Extract an IP address from the socket address string
                     val addressStr = datagram.address.toString()
                     val senderAddress = addressStr.substringBefore(':').replace("/", "")
 
@@ -93,7 +96,7 @@ actual class NetworkClient {
                                 // Store the server with its port
                                 discoveredServers[senderAddress] = serverPort
 
-                                // Update the last seen timestamp
+                                // Update the last-seen timestamp
                                 serverLastSeen[senderAddress] = currentTime
 
                                 // Notify about the updated server list
@@ -105,7 +108,7 @@ actual class NetworkClient {
 
                 cleanupJob.cancel()
             } catch (e: Exception) {
-                Logger.e(e) { "Error in UDP discovery client on Android" }
+                Logger.e(e) { "Error in UDP discovery client" }
             } finally {
                 socket.close()
                 selectorManager.close()
@@ -116,7 +119,8 @@ actual class NetworkClient {
     /**
      * Remove servers that haven't been seen recently
      */
-    private fun cleanupStaleServers() {
+    @OptIn(ExperimentalTime::class)
+    fun cleanupStaleServers() {
         val currentTime = Clock.System.now().toEpochMilliseconds()
         val staleServers = serverLastSeen.filter { (_, lastSeen) ->
             (currentTime - lastSeen) > serverTimeout
@@ -135,12 +139,12 @@ actual class NetworkClient {
     /**
      * Stops the discovery process.
      */
-    actual fun stopDiscovery() {
+    fun stopDiscovery() {
         discoveryJob?.cancel()
         discoveryJob = null
         discoveredServers.clear()
         serverLastSeen.clear()
-        Logger.d { "Stopped UDP server discovery process on Android" }
+        Logger.d { "Stopped UDP server discovery process" }
     }
 
     /**
@@ -149,13 +153,14 @@ actual class NetworkClient {
      * @param port The port number of the server.
      * @param onServersDiscovered Callback that will be called with the updated map of discovered servers.
      */
-    actual fun connectToCustomServer(address: String, port: Int, onServersDiscovered: (Map<String, Int>) -> Unit) {
-        Logger.d { "Connecting to custom server at $address:$port on Android" }
+    @OptIn(ExperimentalTime::class)
+    fun connectToCustomServer(address: String, port: Int, onServersDiscovered: (Map<String, Int>) -> Unit) {
+        Logger.d { "Connecting to custom server at $address:$port" }
 
         // Add the custom server to the discoveredServers map
         discoveredServers[address] = port
 
-        // Update the last seen timestamp
+        // Update the last-seen timestamp
         serverLastSeen[address] = Clock.System.now().toEpochMilliseconds()
 
         // Notify about the updated server list
@@ -169,7 +174,7 @@ actual class NetworkClient {
      * @param onPlayerUpdate Callback that will be called when the player state is updated.
      * @param onConnectionStateChange Callback that will be called when the connection state changes.
      */
-    actual fun connectToWebSocket(
+    fun connectToWebSocket(
         address: String,
         port: Int,
         onPlayerUpdate: (PlayerUpdate) -> Unit,
@@ -199,7 +204,7 @@ actual class NetworkClient {
                     // Store the session
                     webSocketSession = this
 
-                    // Notify that connection is established
+                    // Notify that a connection is established
                     onConnectionStateChange(true)
                     Logger.d { "WebSocket connection established" }
 
@@ -238,7 +243,7 @@ actual class NetworkClient {
     /**
      * Disconnects from the WebSocket server.
      */
-    actual fun disconnectFromWebSocket() {
+    fun disconnectFromWebSocket() {
         // Cancel the polling job
         updatePollingJob?.cancel()
         updatePollingJob = null
@@ -246,7 +251,12 @@ actual class NetworkClient {
         // Close the WebSocket session
         scope.launch {
             try {
-                webSocketSession?.close(CloseReason(CloseReason.Codes.NORMAL, "Client disconnected"))
+                webSocketSession?.close(
+                    reason = CloseReason(
+                        code = CloseReason.Codes.NORMAL,
+                        message = "Client disconnected"
+                    )
+                )
                 Logger.d { "WebSocket connection closed" }
             } catch (e: Exception) {
                 Logger.e(e) { "Error closing WebSocket connection" }
@@ -263,7 +273,7 @@ actual class NetworkClient {
      * Sends a command to play a song on the server.
      * @param song The song to play.
      */
-    actual fun sendPlaySongCommand(song: Song) {
+    fun sendPlaySongCommand(song: Song) {
         val session = webSocketSession ?: run {
             Logger.e { "Cannot send play command: Not connected to a WebSocket server" }
             return
@@ -274,8 +284,6 @@ actual class NetworkClient {
                 session.run {
                     sendSerialized<WebSocketCommand>(PlaySongCommand(song))
                     Logger.d { "Play command sent successfully via WebSocket" }
-                    val update = receiveDeserialized<PlayerUpdate>()
-                    Logger.d { "Received acknowledgment from server: $update" }
                 }
             } catch (e: Exception) {
                 Logger.e(e) { "Error sending play command via WebSocket" }
@@ -286,28 +294,28 @@ actual class NetworkClient {
     /**
      * Sends a command to pause playback on the server.
      */
-    actual fun sendPauseCommand() {
+    fun sendPauseCommand() {
         sendSimpleCommand(WebSocketCommandType.PAUSE)
     }
 
     /**
      * Sends a command to resume playback on the server.
      */
-    actual fun sendResumeCommand() {
+    fun sendResumeCommand() {
         sendSimpleCommand(WebSocketCommandType.RESUME)
     }
 
     /**
      * Sends a command to play the next song on the server.
      */
-    actual fun sendNextCommand() {
+    fun sendNextCommand() {
         sendSimpleCommand(WebSocketCommandType.NEXT)
     }
 
     /**
      * Sends a command to play the previous song on the server.
      */
-    actual fun sendPreviousCommand() {
+    fun sendPreviousCommand() {
         sendSimpleCommand(WebSocketCommandType.PREVIOUS)
     }
 
@@ -316,7 +324,7 @@ actual class NetworkClient {
      * @param songs The list of songs in the playlist.
      * @param currentSongIndex The index of the current song in the playlist.
      */
-    actual fun sendSetPlaylistCommand(songs: List<Song>, currentSongIndex: Int) {
+    fun sendSetPlaylistCommand(songs: List<Song>, currentSongIndex: Int) {
         val session = webSocketSession ?: run {
             Logger.e { "Cannot send playlist: Not connected to a WebSocket server" }
             return
@@ -336,7 +344,7 @@ actual class NetworkClient {
      * Sends a simple command to the server.
      * @param commandType The updateType of command to send.
      */
-    private fun sendSimpleCommand(commandType: WebSocketCommandType) {
+    fun sendSimpleCommand(commandType: WebSocketCommandType) {
         val session = webSocketSession ?: run {
             Logger.e { "Cannot send ${commandType.value} command: Not connected to a WebSocket server" }
             return
@@ -347,8 +355,6 @@ actual class NetworkClient {
                 session.run {
                     sendSerialized<WebSocketCommand>(SimpleCommand(commandType))
                     Logger.d { "${commandType.value} command sent successfully via WebSocket" }
-                    val update = receiveDeserialized<PlayerUpdate>()
-                    Logger.d { "Received acknowledgment from server: $update" }
                 }
             } catch (e: Exception) {
                 Logger.e(e) { "Error sending ${commandType.value} command via WebSocket" }
