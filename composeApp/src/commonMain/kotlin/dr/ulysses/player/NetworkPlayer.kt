@@ -18,14 +18,11 @@ internal class NetworkPlayer : PlayerService {
     override fun onPlaySongCommand(song: Song) {
         onUpdateSongCommand(song)
 
-        // First, send the playlist to the server
+        // Send the playlist to the server. It will play the song as well
         val currentSongIndex = state.currentPlaylist.songs.indexOf(song)
         if (currentSongIndex != -1) {
             NetworkManager.sendPlaylistToServer(state.currentPlaylist.songs, currentSongIndex)
         }
-
-        // Then send the play command
-        NetworkManager.playSongOnServer(song)
     }
 
     override fun onUpdateSongCommand(song: Song) {
@@ -57,7 +54,7 @@ internal class NetworkPlayer : PlayerService {
     override fun onPlayCommand() {
         state.currentSong?.let {
             NetworkManager.playSongOnServer(it)
-        } ?: onIsPlayingChanged(true)
+        }
     }
 
     override fun onPauseCommand() {

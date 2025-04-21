@@ -186,8 +186,7 @@ actual class NetworkServer {
                                                 Player.onSongsChanged(message.songs)
                                                 // Set the current track number and play the song at that index
                                                 if (message.currentSongIndex >= 0 && message.currentSongIndex < message.songs.size) {
-                                                    val song = message.songs[message.currentSongIndex]
-                                                    Player.onPlaySongCommand(song)
+                                                    onPlaySongCommandCallback?.invoke(message.songs[message.currentSongIndex])
                                                 }
                                             }
                                         }
