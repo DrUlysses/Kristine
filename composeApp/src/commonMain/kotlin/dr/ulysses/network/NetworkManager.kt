@@ -14,6 +14,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
+data class ServerInfo(
+    val port: Int,
+    val addresses: List<String> = emptyList(),
+)
+
 /**
  * Singleton manager for network-related functionality.
  * Provides access to discovered servers and manages the server and client instances.
@@ -24,8 +29,8 @@ object NetworkManager {
     private val scope = CoroutineScope(Dispatchers.Default)
 
     // StateFlow to hold the local server port
-    private val _localServerPort = MutableStateFlow(0)
-    val localServerPort: StateFlow<Int> = _localServerPort.asStateFlow()
+    private val _localServer = MutableStateFlow(ServerInfo(0))
+    val localServer: StateFlow<ServerInfo> = _localServer.asStateFlow()
 
     // StateFlow to hold the map of discovered servers (IP to port)
     private val _discoveredServers = MutableStateFlow<Map<String, Int>>(emptyMap())
@@ -46,7 +51,7 @@ object NetworkManager {
         scope.launch {
             // Start the server and get the dynamically assigned port
             val port = server.start()
-            _localServerPort.value = port
+            _localServer.value = port
 
             // Start the client with the updated callback
             client.startDiscovery { serverMap ->

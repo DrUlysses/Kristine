@@ -14,16 +14,14 @@ actual class NetworkServer {
         actual val DISCOVERY_PORT = 45678 // Port used only for initial discovery
     }
 
-    private var serverPort: Int = 8080 // Default port for WASM
-
     /**
      * Starts the server.
-     * In WASM, we don't actually start a server, but we return a port for compatibility.
-     * @return The port number the server would be listening on
+     * In WASM, we don't start a server, but we return a port for compatibility.
+     * @return The port number the server would be listening to on
      */
-    actual suspend fun start(): Int {
+    actual suspend fun start(): ServerInfo {
         Logger.d { "Starting NetworkServer in WASM (stub implementation)" }
-        return serverPort
+        return ServerInfo(8080)
     }
 
     /**

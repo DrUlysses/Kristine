@@ -12,9 +12,9 @@ expect class NetworkServer() {
 
     /**
      * Starts broadcasting UDP packets on the local network.
-     * @return The port number the server is listening on
+     * @return The port number the server is listening to on
      */
-    suspend fun start(): Int
+    suspend fun start(): ServerInfo
 
     /**
      * Stops the UDP broadcast server.

@@ -21,7 +21,6 @@ object Connections
 @Composable
 fun Connections() {
     val discoveredServers = remember { mutableStateOf(emptyMap<String, Int>()) }
-    val localServerPort = remember { mutableStateOf(0) }
     val customServerAddress = remember { mutableStateOf("") }
     val customServerPort = remember { mutableStateOf("") }
     val showCustomServerError = remember { mutableStateOf(false) }
@@ -29,18 +28,17 @@ fun Connections() {
     val scope = rememberCoroutineScope()
 
     // Collect the discovered servers and local server port from the NetworkManager
-    LaunchedEffect(Unit) {
+    LaunchedEffect(NetworkManager.discoveredServers) {
         NetworkManager.discoveredServers.collectLatest { servers ->
             // Filter out the local server from the discovered servers list
-            discoveredServers.value = servers.filterValues { port -> port != localServerPort.value }
+            discoveredServers.value = servers.filterValues { port -> port != NetworkManager.localServer.value.port }
         }
     }
 
     LaunchedEffect(Unit) {
-        NetworkManager.localServerPort.collectLatest { port ->
-            localServerPort.value = port
+        NetworkManager.localServer.collectLatest { server ->
             // Update the discovered servers list to exclude the local server
-            discoveredServers.value = discoveredServers.value.filterValues { it != port }
+            discoveredServers.value = discoveredServers.value.filterValues { it != server.port }
         }
     }
 
@@ -61,7 +59,7 @@ fun Connections() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Display local server information
-                LocalServerCard(localServerPort = localServerPort.value)
+                LocalServerCard(localServer = NetworkManager.localServer.value)
 
                 // Custom server connection section
                 CustomServerConnectCard(

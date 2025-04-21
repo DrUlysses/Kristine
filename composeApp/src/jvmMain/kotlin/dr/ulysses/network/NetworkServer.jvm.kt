@@ -21,6 +21,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.serialization.json.Json
+import java.net.Inet4Address
+import java.net.NetworkInterface
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.seconds
 
@@ -38,7 +40,7 @@ actual class NetworkServer {
     private var broadcastJob: Job? = null
     private var httpServer: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
     private val scope = CoroutineScope(Dispatchers.Default)
-    private var serverPort: Int = 0
+    private var server: ServerInfo = ServerInfo(0)
 
     // Player updates
     private val playerUpdates = ConcurrentHashMap<Long, String>()
@@ -50,10 +52,10 @@ actual class NetworkServer {
 
     /**
      * Starts broadcasting UDP packets on the local network.
-     * @return The port number the server is listening on
+     * @return The port number the server is listening to on
      */
-    actual suspend fun start(): Int {
-        if (broadcastJob != null) return serverPort
+    actual suspend fun start(): ServerInfo {
+        if (broadcastJob != null) return server
 
         Logger.d { "Starting UDP broadcast server" }
 
@@ -65,8 +67,11 @@ actual class NetworkServer {
 
         // Get the dynamically assigned port
         val localAddress = socket.localAddress as InetSocketAddress
-        serverPort = localAddress.port
-        Logger.d { "Server bound to port: $serverPort" }
+        server = ServerInfo(
+            port = localAddress.port,
+            addresses = listOf(localAddress.hostname)
+        )
+        Logger.d { "Server bound to: $server" }
 
         // Start the HTTP server
         startHttpServer()
@@ -93,13 +98,13 @@ actual class NetworkServer {
             }
         }
 
-        return serverPort
+        return server
     }
 
     private suspend fun sendBroadcast(socket: BoundDatagramSocket, address: String) {
         try {
             // Create a message with port information
-            val broadcastMessage = "$BROADCAST_MESSAGE_PREFIX$serverPort"
+            val broadcastMessage = "$BROADCAST_MESSAGE_PREFIX${server.port}"
             Logger.d { "Broadcasting to $address: $broadcastMessage" }
 
             socket.send(
@@ -119,11 +124,11 @@ actual class NetworkServer {
     private fun startHttpServer() {
         if (httpServer != null) return
 
-        Logger.d { "Starting HTTP server on port: $serverPort" }
+        Logger.d { "Starting HTTP server on: $server" }
 
         httpServer = embeddedServer(
             factory = CIO,
-            port = serverPort
+            port = server.port
         ) {
             install(WebSockets) {
                 contentConverter = KotlinxWebsocketSerializationConverter(Json)
@@ -224,7 +229,21 @@ actual class NetworkServer {
             }
         }.start(wait = false)
 
-        Logger.d { "HTTP server started on port: $serverPort" }
+        server = server.copy(
+            addresses = NetworkInterface.getNetworkInterfaces()
+                .toList()
+                .flatMap { networkInterface ->
+                    networkInterface.inetAddresses
+                        .toList()
+                        .filter { inetAddress ->
+                            !inetAddress.isLoopbackAddress &&
+                                    inetAddress is Inet4Address // For IPv4 only
+                        }
+                        .map { it.hostAddress }
+                }
+        )
+
+        Logger.d { "HTTP server started on: $server" }
     }
 
     /**
