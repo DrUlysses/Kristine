@@ -1,9 +1,11 @@
 package dr.ulysses.ui.views
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,32 +51,35 @@ fun Connections() {
         }
     }
 
-    Scaffold(
-        content = { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Display local server information
-                LocalServerCard(localServer = NetworkManager.localServer.value)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Display local server information
+            LocalServerCard(
+                localServer = NetworkManager.localServer.value
+            )
 
-                // Custom server connection section
-                CustomServerConnectCard(
-                    customServerAddress = customServerAddress,
-                    customServerPort = customServerPort,
-                    showCustomServerError = showCustomServerError
-                )
+            // Custom server connection section
+            CustomServerConnectCard(
+                customServerAddress = customServerAddress,
+                customServerPort = customServerPort,
+                showCustomServerError = showCustomServerError
+            )
 
-                // Discovered servers section
-                DiscoveredServersList(
-                    discoveredServers = discoveredServers.value,
-                    currentServer = currentServer.value,
-                    scope = scope
-                )
-            }
+            // Discovered servers section
+            DiscoveredServersList(
+                discoveredServers = discoveredServers.value,
+                currentServer = currentServer.value,
+                scope = scope
+            )
         }
-    )
+    }
 }
