@@ -6,10 +6,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import dr.ulysses.ui.elements.SettingsDropdownEntry
 import kotlinx.coroutines.launch
 import kristine.composeapp.generated.resources.Res
 import kristine.composeapp.generated.resources.back
@@ -21,13 +24,12 @@ import org.jetbrains.compose.resources.stringResource
 fun TabMenu(
     pagerState: PagerState,
     topText: String? = null,
-    modifier: Modifier = Modifier,
     tabs: Map<Int, String> = emptyMap(),
     navigateUp: () -> Unit = {},
-    menuEntries: List<Pair<String, () -> Unit>> = emptyList(),
+    menuEntries: List<SettingsDropdownEntry> = emptyList(),
 ) {
     val scope = rememberCoroutineScope()
-    var menuExpanded by remember { mutableStateOf(false) }
+    val menuExpanded = mutableStateOf(false)
     Row {
         Column(
             modifier = Modifier
@@ -96,7 +98,7 @@ fun TabMenu(
                     .height(40.dp)
             ) {
                 IconButton(
-                    onClick = { menuExpanded = !menuExpanded },
+                    onClick = { menuExpanded.value = !(menuExpanded.value) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
@@ -104,29 +106,10 @@ fun TabMenu(
                         contentDescription = stringResource(Res.string.more)
                     )
                 }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                    modifier = Modifier.fillMaxWidth(0.5f)
-                ) {
-                    for (menuEntry in menuEntries) {
-                        DropdownMenuItem(
-                            onClick = {
-                                scope.launch {
-                                    menuEntry.second()
-                                }
-                                menuExpanded = false
-                            },
-                            text = {
-                                Text(
-                                    text = menuEntry.first,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            },
-                            contentPadding = PaddingValues(8.dp)
-                        )
-                    }
-                }
+                SettingsDropdown(
+                    menuEntries = menuEntries,
+                    menuExpanded = menuExpanded
+                )
             }
         }
     }

@@ -8,10 +8,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -35,6 +33,7 @@ import dr.ulysses.network.NetworkManager.currentServer
 import dr.ulysses.player.Player
 import dr.ulysses.ui.components.*
 import dr.ulysses.ui.elements.LoadingIndicator
+import dr.ulysses.ui.elements.SettingsDropdownEntry
 import dr.ulysses.ui.permissions.PermissionsAlert
 import kotlinx.coroutines.launch
 import kristine.composeapp.generated.resources.*
@@ -140,6 +139,12 @@ fun Main() {
             TabMenu(
                 pagerState = pagerState,
                 topText = topBarText,
+                tabs = mapOf(
+                    0 to stringResource(Res.string.artists),
+                    1 to stringResource(Res.string.songs),
+                    2 to stringResource(Res.string.albums),
+                    3 to stringResource(Res.string.playlists),
+                ),
                 navigateUp = {
                     navBarController.navigateUp()
                     topBarText = null
@@ -152,31 +157,37 @@ fun Main() {
                         pagerState.scrollToPage(previousTabIndex)
                     }
                 },
-                tabs = mapOf(
-                    0 to stringResource(Res.string.artists),
-                    1 to stringResource(Res.string.songs),
-                    2 to stringResource(Res.string.albums),
-                    3 to stringResource(Res.string.playlists),
-                ),
                 menuEntries = listOf(
-                    addPlaylistText to {
-                        previousTabIndex = pagerState.currentPage // Save current tab index
-                        MainViewModel.setPreviousTabIndex(pagerState.currentPage)
-                        navBarController.navigate(ManagePlaylist)
-                        topBarText = addPlaylistText
-                        MainViewModel.setTopBarText(addPlaylistText)
-                    },
-                    connectionsText to {
-                        previousTabIndex = pagerState.currentPage // Save current tab index
-                        MainViewModel.setPreviousTabIndex(pagerState.currentPage)
-                        navBarController.navigate(Connections)
-                        topBarText = connectionsText
-                        MainViewModel.setTopBarText(connectionsText)
-                    },
-                    refreshSongsText to {
-                        // Call MainViewModel.loadSongs() to refresh the songs
-                        MainViewModel.loadSongs()
-                    }
+                    SettingsDropdownEntry(
+                        text = addPlaylistText,
+                        icon = Icons.AutoMirrored.Filled.PlaylistAdd,
+                        onClick = {
+                            previousTabIndex = pagerState.currentPage // Save current tab index
+                            MainViewModel.setPreviousTabIndex(pagerState.currentPage)
+                            navBarController.navigate(ManagePlaylist)
+                            topBarText = addPlaylistText
+                            MainViewModel.setTopBarText(addPlaylistText)
+                        }
+                    ),
+                    SettingsDropdownEntry(
+                        text = connectionsText,
+                        icon = Icons.Default.Link,
+                        onClick = {
+                            previousTabIndex = pagerState.currentPage // Save current tab index
+                            MainViewModel.setPreviousTabIndex(pagerState.currentPage)
+                            navBarController.navigate(Connections)
+                            topBarText = connectionsText
+                            MainViewModel.setTopBarText(connectionsText)
+                        }
+                    ),
+                    SettingsDropdownEntry(
+                        text = refreshSongsText,
+                        icon = Icons.Default.Refresh,
+                        onClick = {
+                            // Call MainViewModel.loadSongs() to refresh the songs
+                            MainViewModel.loadSongs()
+                        }
+                    )
                 )
             )
         },
