@@ -1,7 +1,7 @@
 [versions]
 # Main
 kristine = "1.0.4"
-kotlin = "2.1.20"
+kotlin = "2.1.21-RC"
 ktor = "3.1.2"
 koin = "4.0.4"
 agp = "8.2.2"
@@ -40,7 +40,7 @@ androidx-appcompat = "1.7.0"
 androidx-core = "1.12.0"
 androidx-media3 = "1.6.1"
 
-jetbrains-navigation = "2.8.0-alpha11"
+jetbrains-navigation = "2.9.0-alpha16"
 
 # Desktop
 caprica-vlcj = "4.8.2"
