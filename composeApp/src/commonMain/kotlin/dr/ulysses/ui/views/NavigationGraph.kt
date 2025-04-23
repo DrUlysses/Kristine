@@ -182,4 +182,8 @@ fun NavGraphBuilder.addNavigationGraph(
     composable<Connections> {
         Connections()
     }
+
+    composable<Settings> {
+        Settings()
+    }
 }

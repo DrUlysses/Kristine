@@ -51,6 +51,7 @@ fun Main() {
     val editText = stringResource(Res.string.edit)
     val connectionsText = stringResource(Res.string.connections)
     val refreshSongsText = stringResource(Res.string.refresh_songs)
+    val settingsText = stringResource(Res.string.settings)
     val searchTooltip = stringResource(Res.string.search_tooltip)
     val permissionsGranted = rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -201,6 +202,17 @@ fun Main() {
                         onClick = {
                             // Call MainViewModel.loadSongs() to refresh the songs
                             MainViewModel.loadSongs()
+                        }
+                    ),
+                    SettingsDropdownEntry(
+                        text = settingsText,
+                        icon = Icons.Default.Settings,
+                        onClick = {
+                            previousTabIndex = pagerState.currentPage // Save current tab index
+                            MainViewModel.setPreviousTabIndex(pagerState.currentPage)
+                            navBarController.navigate(Settings)
+                            topBarText = settingsText
+                            MainViewModel.setTopBarText(settingsText)
                         }
                     )
                 )
