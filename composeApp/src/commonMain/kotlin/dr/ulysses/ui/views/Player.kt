@@ -9,20 +9,21 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
+import dr.ulysses.player.Player
 import dr.ulysses.player.RepeatMode
 import dr.ulysses.ui.components.PlayerButtons
 
 @Composable
 fun Player(
-    currentSong: Song?,
-    isPlaying: Boolean,
-    isShuffling: Boolean,
-    repeatMode: RepeatMode,
-    onPreviousCommand: () -> Unit,
-    onNextCommand: () -> Unit,
-    onPlayOrPauseCommand: () -> Unit,
-    onToggleShuffleCommand: () -> Unit,
-    onSwitchRepeatCommand: () -> Unit,
+    currentSong: Song? = Player.state.currentSong,
+    isPlaying: Boolean = Player.state.isPlaying,
+    isShuffling: Boolean = Player.state.shuffle,
+    repeatMode: RepeatMode = Player.state.repeatMode,
+    onPreviousCommand: () -> Unit = Player::onPreviousCommand,
+    onNextCommand: () -> Unit = Player::onNextCommand,
+    onPlayOrPauseCommand: () -> Unit = Player::onPlayOrPauseCommand,
+    onToggleShuffleCommand: () -> Unit = Player::onToggleShuffleCommand,
+    onSwitchRepeatCommand: () -> Unit = Player::onSwitchRepeatCommand,
 ) {
     BottomAppBar {
         Row {

@@ -39,6 +39,7 @@
     <string name="retrieving_form">Retrieving form</string>
     <string name="search">Search</string>
     <string name="search_tooltip">Search everywhere</string>
+    <string name="edit">Edit</string>
     <string name="select_a_file">Select a file</string>
     <string name="sending_file_please_wait">Sending file please wait</string>
     <string name="set_server_ip">Set server IP</string>

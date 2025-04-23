@@ -163,7 +163,7 @@ fun ManagePlaylist(
                 modifier = modifier.fillMaxWidth(),
                 songs = entries,
                 onSongsChanged = { entries = it },
-                onPlaySongCommand = { song ->
+                onClick = { song ->
                     updatedPlaylist = updatedPlaylist.copy(songs = updatedPlaylist.songs + song)
                     onPlaylistChanged(updatedPlaylist)
                 }

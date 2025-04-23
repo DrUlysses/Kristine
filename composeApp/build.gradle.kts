@@ -98,6 +98,7 @@ kotlin {
             implementation(libs.koin.android)
             implementation(libs.sqldelight.android.driver)
             implementation(libs.accompanist.permissions)
+            implementation(libs.jthink.jaudiotagger)
             implementation(libs.androidx.media3.exoplayer)
             implementation(libs.androidx.media3.exoplayer.dash)
             implementation(libs.androidx.media3.ui)
@@ -110,6 +111,7 @@ kotlin {
             implementation(libs.sqldelight.driver)
             implementation(libs.appdirs)
             implementation(libs.caprica.vlcj)
+            implementation(libs.jthink.jaudiotagger)
             implementation(libs.kotlinx.coroutines.swing)
         }
         wasmJsMain.dependencies {

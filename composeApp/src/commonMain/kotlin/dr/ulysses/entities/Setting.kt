@@ -7,9 +7,23 @@ import kotlinx.serialization.Serializable
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+enum class SettingKey {
+    SongsPath,
+    PlaylistPath,
+    DefaultServerAddress;
+
+    override fun toString() = name
+
+    companion object {
+        fun fromString(value: String?) = value?.let { value ->
+            entries.find { it.name == value }
+        } ?: SongsPath
+    }
+}
+
 @Serializable
 data class Setting(
-    val key: String,
+    val key: SettingKey,
     val value: String?,
 )
 
@@ -20,14 +34,14 @@ object SettingsRepository : KoinComponent {
         key: String,
         value: String?,
     ): Setting = Setting(
-        key = key,
+        key = SettingKey.fromString(key),
         value = value
     )
 
     suspend fun insert(setting: Setting) = sharedDatabase { appDatabase ->
         appDatabase.settingQueries.transactionWithResult {
             appDatabase.settingQueries.insert(
-                key = setting.key,
+                key = setting.key.toString(),
                 value_ = setting.value,
             )
         }
@@ -42,8 +56,8 @@ object SettingsRepository : KoinComponent {
         }
     }
 
-    suspend fun get(key: String): Setting? = sharedDatabase { appDatabase ->
-        appDatabase.settingQueries.selectFirstByKey(key).awaitAsOneOrNull()?.let {
+    suspend fun get(key: SettingKey): Setting? = sharedDatabase { appDatabase ->
+        appDatabase.settingQueries.selectFirstByKey(key.toString()).awaitAsOneOrNull()?.let {
             mapSetting(
                 key = it.key,
                 value = it.value_,
@@ -54,15 +68,15 @@ object SettingsRepository : KoinComponent {
     suspend fun update(setting: Setting) = sharedDatabase { appDatabase ->
         appDatabase.settingQueries.transactionWithResult {
             appDatabase.settingQueries.updateByKey(
-                key = setting.key,
+                key = setting.key.toString(),
                 value_ = setting.value,
             )
         }
     }
 
-    suspend fun delete(key: String) = sharedDatabase { appDatabase ->
+    suspend fun delete(key: SettingKey) = sharedDatabase { appDatabase ->
         appDatabase.settingQueries.transactionWithResult {
-            appDatabase.settingQueries.deleteByKey(key)
+            appDatabase.settingQueries.deleteByKey(key.toString())
         }
     }
 }

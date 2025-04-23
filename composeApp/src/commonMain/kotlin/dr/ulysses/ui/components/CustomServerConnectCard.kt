@@ -68,7 +68,7 @@ fun CustomServerConnectCard(
                     value = customServerAddress.value,
                     maxLines = 1,
                     onValueChange = { customServerAddress.value = it },
-                    label = { Text("Server Address") },
+                    label = { Text("Address") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     keyboardActions = KeyboardActions(
                         onNext = {
@@ -99,7 +99,7 @@ fun CustomServerConnectCard(
                             customServerPort.value = it
                         }
                     },
-                    label = { Text("Server Port") },
+                    label = { Text("Port") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier
                         .weight(1f)

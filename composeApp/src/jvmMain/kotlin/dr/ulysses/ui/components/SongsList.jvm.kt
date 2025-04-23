@@ -28,7 +28,7 @@ actual fun SongsList(
     modifier: Modifier,
     songs: List<Song>,
     onSongsChanged: (List<Song>) -> Unit,
-    onPlaySongCommand: (Song) -> Unit,
+    onClick: (Song) -> Unit,
     rearrangeable: Boolean,
 ) {
     val listState = rememberSaveable(saver = LazyListState.Saver) {
@@ -62,7 +62,7 @@ actual fun SongsList(
                         image = image,
                         title = song.title,
                         artist = song.artist,
-                        onClick = { onPlaySongCommand(song) },
+                        onClick = { onClick(song) },
                         modifier = if (!rearrangeable) Modifier
                         else Modifier
                             .fillMaxWidth()
