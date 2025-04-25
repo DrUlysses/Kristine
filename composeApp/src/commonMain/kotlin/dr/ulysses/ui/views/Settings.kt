@@ -6,6 +6,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import dr.ulysses.entities.Setting
+import dr.ulysses.entities.SettingKey
 import dr.ulysses.entities.SettingsRepository
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -18,21 +19,24 @@ fun Settings(
 
 ) {
     val scope = rememberCoroutineScope()
-    var currentSettings by remember { mutableStateOf(mutableListOf<Setting>()) }
-    scope.launch {
-        currentSettings = SettingsRepository.getAll().toMutableList()
+    var currentSettings by remember { mutableStateOf(mutableMapOf<SettingKey, String>()) }
+    LaunchedEffect(Unit) {
+        currentSettings = SettingsRepository.getAll().associate { it.key to it.value.orEmpty() }.toMutableMap()
     }
 
     Column {
-        currentSettings.forEach { setting ->
+        currentSettings.forEach { (key, value) ->
             Row {
-                Text(
-                    text = setting.key.toString(),
-                )
+                var settingText by mutableStateOf(value)
+                Text(text = key.toString())
                 TextField(
-                    value = setting.value.orEmpty(),
-                    onValueChange = { value ->
-                        currentSettings[currentSettings.indexOf(setting)] = setting.copy(value = value)
+                    value = settingText,
+                    onValueChange = { newValue ->
+                        settingText = newValue
+                        currentSettings[key] = newValue
+                        scope.launch {
+                            SettingsRepository.upsert(Setting(key, newValue))
+                        }
                     }
                 )
             }

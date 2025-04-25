@@ -24,10 +24,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.createGraph
-import dr.ulysses.entities.Playlist
-import dr.ulysses.entities.PlaylistRepository
-import dr.ulysses.entities.Song
-import dr.ulysses.entities.SongRepository
+import dr.ulysses.entities.*
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.network.NetworkManager.currentServer
 import dr.ulysses.player.Player
@@ -426,6 +423,31 @@ fun Main() {
                         )
                     }
                 }
+
+                destination?.hasRoute<Settings>() == true ->
+                    FloatingActionButton(
+                        onClick = {
+                            scope.launch {
+                                allSongs = refreshSongs()
+                                MainViewModel.loadSongs() // This will update allSongs in the ViewModel
+                                val newPlaylist = Playlist(songs = allSongs)
+                                currentPlaylist = newPlaylist
+                                MainViewModel.setCurrentPlaylist(newPlaylist)
+                                navBarController.navigateUp()
+                                topBarText = null
+                                MainViewModel.setTopBarText(null)
+                                // Restore the previous tab index when navigating back from playlist management
+                                scope.launch {
+                                    pagerState.scrollToPage(previousTabIndex)
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = searchTooltip
+                        )
+                    }
 
                 pagerState.currentPage == 3 ->
                     FloatingActionButton(

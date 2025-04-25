@@ -48,7 +48,7 @@ jaudiotagger = "3.0.1"
 
 # Compose
 compose-compiler = "1.5.6"
-compose-plugin = "1.8.0-beta02"
+compose-plugin = "1.8.0-rc01"
 
 [libraries]
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }

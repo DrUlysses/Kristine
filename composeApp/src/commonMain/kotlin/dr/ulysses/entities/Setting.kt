@@ -74,6 +74,22 @@ object SettingsRepository : KoinComponent {
         }
     }
 
+    suspend fun upsert(setting: Setting) = sharedDatabase { appDatabase ->
+        appDatabase.settingQueries.transactionWithResult {
+            runCatching {
+                appDatabase.settingQueries.updateByKey(
+                    key = setting.key.toString(),
+                    value_ = setting.value,
+                )
+            }.onFailure {
+                appDatabase.settingQueries.insert(
+                    key = setting.key.toString(),
+                    value_ = setting.value,
+                )
+            }
+        }
+    }
+
     suspend fun delete(key: SettingKey) = sharedDatabase { appDatabase ->
         appDatabase.settingQueries.transactionWithResult {
             appDatabase.settingQueries.deleteByKey(key.toString())
