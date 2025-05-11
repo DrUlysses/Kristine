@@ -15,9 +15,7 @@ import kotlinx.serialization.Serializable
 object Settings
 
 @Composable
-fun Settings(
-
-) {
+fun Settings() {
     val scope = rememberCoroutineScope()
     var currentSettings by remember { mutableStateOf(mutableMapOf<SettingKey, String>()) }
     LaunchedEffect(Unit) {

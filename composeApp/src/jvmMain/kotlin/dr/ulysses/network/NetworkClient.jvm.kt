@@ -24,7 +24,7 @@ actual fun startDiscovery(
     cleanupStaleServers: () -> Unit,
     onServersDiscovered: (Map<String, Int>) -> Unit,
 ) {
-    if (discoveryJob != null) return
+    if (discoveryJob.value != null) return
 
     Logger.d { "Starting UDP server discovery process" }
     discoveryJob.value = scope.launch {

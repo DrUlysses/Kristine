@@ -8,7 +8,6 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
-import androidx.navigation.toRoute
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.PlaylistRepository
 import dr.ulysses.entities.Song
@@ -19,7 +18,7 @@ import dr.ulysses.ui.elements.LoadingIndicator
 import kotlinx.coroutines.launch
 
 @Composable
-fun NavGraphBuilder.addNavigationGraph(
+fun NavGraphBuilder.AddNavigationGraph(
     navBarController: NavController,
     setTopBarText: (String?) -> Unit,
     pagerState: PagerState,
@@ -158,20 +157,19 @@ fun NavGraphBuilder.addNavigationGraph(
             ManageUnsortedList(
                 unsortedSongs = unsortedSongs,
                 onClick = { song ->
-                    navBarController.navigate(ManageSong(path = song.path))
+                    MainViewModel.setSelectedSong(song)
+                    navBarController.navigate(ManageSong)
                 }
             )
         }
 
         composable<ManageSong> { backStackEntry ->
-            var song by remember { mutableStateOf<Song?>(null) }
-            scope.launch {
-                song = SongRepository.getByPathOrNull(backStackEntry.toRoute<ManageSong>().path)
-            }
-            song?.let {
-                MainViewModel.setSelectedSong(song)
+            MainViewModel.state.selectedSong?.let {
                 ManageUnsortedSong(
-                    song = MainViewModel.state.selectedSong!!
+                    song = it,
+                    onSongEdited = { edited ->
+                        MainViewModel.setSelectedSong(edited)
+                    }
                 )
             } ?: run {
                 LoadingIndicator()

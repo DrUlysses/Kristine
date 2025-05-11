@@ -15,9 +15,10 @@ actual fun onSongSave(song: Song): Result<Song> {
         AudioFileIO.read(file).apply {
             tag.apply {
                 setField(FieldKey.TITLE, song.title)
-                setField(FieldKey.ALBUM, song.album)
+                setField(FieldKey.ALBUM, song.album.orEmpty())
                 setField(FieldKey.ARTIST, song.artist)
                 setField(FieldKey.TRACK_TOTAL, song.duration.toString())
+                song.artwork?.let { firstArtwork.binaryData = it }
             }
             commit()
         }

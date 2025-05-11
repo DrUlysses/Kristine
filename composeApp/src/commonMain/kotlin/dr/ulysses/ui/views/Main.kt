@@ -24,6 +24,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.createGraph
+import dr.ulysses.Logger
 import dr.ulysses.entities.*
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.network.NetworkManager.currentServer
@@ -32,6 +33,8 @@ import dr.ulysses.ui.components.*
 import dr.ulysses.ui.elements.LoadingIndicator
 import dr.ulysses.ui.elements.SettingsDropdownEntry
 import dr.ulysses.ui.permissions.PermissionsAlert
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kristine.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -109,7 +112,7 @@ fun Main() {
     val navGraph = navBarController.createGraph(
         startDestination = SongsList
     ) {
-        addNavigationGraph(
+        AddNavigationGraph(
             navBarController = navBarController,
             setTopBarText = { topBarText = it },
             pagerState = pagerState,
@@ -121,7 +124,7 @@ fun Main() {
             onCurrentPlaylistChanged = { currentPlaylist = it },
             searchText = searchText,
             currentArtistSongsList = currentArtistSongsList,
-            currentAlbumSongsList = currentAlbumSongsList,
+            currentAlbumSongsList = currentAlbumSongsList
         )
     }
 
@@ -393,13 +396,19 @@ fun Main() {
                     FloatingActionButton(
                         onClick = {
                             scope.launch {
-                                selectedSong?.let {
-                                    onSongSave(it).onSuccess {
+                                selectedSong?.let { selected ->
+                                    onSongSave(selected).onSuccess {
+                                        SongRepository.upsert(it)
                                         selectedSong = null
+                                    }.onFailure {
+                                        Logger.e(it) {
+                                            it.message ?: it.toString()
+                                        }
                                     }
-                                    SongRepository.upsert(it)
                                 }
-                                allSongs = SongRepository.getAllSongs()
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    allSongs = SongRepository.getAllSongs()
+                                }
                                 MainViewModel.loadSongs() // This will update allSongs in the ViewModel
                                 val newPlaylist = Playlist(songs = allSongs)
                                 currentPlaylist = newPlaylist
@@ -411,9 +420,7 @@ fun Main() {
                                 returningFromDetail = true
                                 MainViewModel.setReturningFromDetail(true)
                                 // Restore the previous tab index when navigating back from playlist management
-                                scope.launch {
-                                    pagerState.scrollToPage(previousTabIndex)
-                                }
+                                pagerState.scrollToPage(previousTabIndex)
                             }
                         }
                     ) {
