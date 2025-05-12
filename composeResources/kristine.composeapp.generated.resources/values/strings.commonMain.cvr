@@ -16,6 +16,7 @@ string|cover_url|Q292ZXIgVVJM
 string|cover|Q292ZXI=
 string|disconnected|RGlzY29ubmVjdGVk
 string|done|RG9uZQ==
+string|edit|RWRpdA==
 string|enter_server_address|RW50ZXIgc2VydmVyIGFkZHJlc3M=
 string|enter_song_name|RW50ZXIgc29uZyBuYW1l
 string|error_connecting|RXJyb3IgY29ubmVjdGluZw==
@@ -42,6 +43,7 @@ string|search|U2VhcmNo
 string|select_a_file|U2VsZWN0IGEgZmlsZQ==
 string|sending_file_please_wait|U2VuZGluZyBmaWxlIHBsZWFzZSB3YWl0
 string|set_server_ip|U2V0IHNlcnZlciBJUA==
+string|settings|U2V0dGluZ3M=
 string|shuffle|U2h1ZmZsZQ==
 string|some_error|U29tZSBlcnJvcg==
 string|song_cover|U29uZyBjb3Zlcg==
