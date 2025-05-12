@@ -5,10 +5,10 @@ import app.cash.sqldelight.async.coroutines.awaitCreate
 class SharedDatabase(
     private val driverFactory: DriverFactory,
 ) {
-    private var database: Database? = null
+    lateinit var database: Database
 
     private suspend fun initDatabase() {
-        if (database == null) {
+        if (!::database.isInitialized) {
             val driver = driverFactory.createDriver("kristine.db")
             database = Database(driver).also {
                 Database.Schema.awaitCreate(driver)
@@ -18,6 +18,6 @@ class SharedDatabase(
 
     suspend operator fun <R> invoke(block: suspend (Database) -> R): R {
         initDatabase()
-        return block(database!!)
+        return block(database)
     }
 }

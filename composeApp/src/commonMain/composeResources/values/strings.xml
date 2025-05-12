@@ -10,12 +10,13 @@
     <string name="cancel">Cancel</string>
     <string name="choose_file">Choose file</string>
     <string name="choose_file_and_enter_name">Choose file and enter name</string>
-    <string name="connections">Connections</string>
     <string name="connected">Connected</string>
+    <string name="connections">Connections</string>
     <string name="cover">Cover</string>
     <string name="cover_url">Cover URL</string>
     <string name="disconnected">Disconnected</string>
     <string name="done">Done</string>
+    <string name="edit">Edit</string>
     <string name="enter_server_address">Enter server address</string>
     <string name="enter_song_name">Enter song name</string>
     <string name="error_connecting">Error connecting</string>
@@ -42,6 +43,7 @@
     <string name="select_a_file">Select a file</string>
     <string name="sending_file_please_wait">Sending file please wait</string>
     <string name="set_server_ip">Set server IP</string>
+    <string name="settings">Settings</string>
     <string name="shuffle">Shuffle</string>
     <string name="some_error">Some error</string>
     <string name="song_cover">Song cover</string>

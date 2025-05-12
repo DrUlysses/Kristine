@@ -23,8 +23,14 @@ SELECT DISTINCT album FROM song;
 selectByPath:
 SELECT * FROM song WHERE path = ?;
 
+selectByNotState:
+SELECT * FROM song WHERE state != ?;
+
 selectArtworkByPath:
 SELECT artwork FROM song WHERE path = ?;
+
+getOrNull:
+SELECT * FROM song WHERE path = ? LIMIT 1;
 
 insert:
 INSERT INTO song(title, album, artist, path, duration, state, artwork) VALUES(?, ?, ?, ?, ?, ?, ?);

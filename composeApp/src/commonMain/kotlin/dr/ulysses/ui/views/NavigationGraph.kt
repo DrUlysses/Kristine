@@ -11,11 +11,14 @@ import androidx.navigation.compose.navigation
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.PlaylistRepository
 import dr.ulysses.entities.Song
+import dr.ulysses.entities.SongRepository
+import dr.ulysses.models.MainViewModel
 import dr.ulysses.ui.components.*
+import dr.ulysses.ui.elements.LoadingIndicator
 import kotlinx.coroutines.launch
 
 @Composable
-fun NavGraphBuilder.addNavigationGraph(
+fun NavGraphBuilder.AddNavigationGraph(
     navBarController: NavController,
     setTopBarText: (String?) -> Unit,
     pagerState: PagerState,
@@ -44,7 +47,7 @@ fun NavGraphBuilder.addNavigationGraph(
         composable<ArtistSongs> {
             SongsList(
                 songs = currentArtistSongsList,
-                onPlaySongCommand = { song ->
+                onClick = { song ->
                     onPlaylistChanged(Playlist(songs = currentArtistSongsList))
                     onPlaySongCommand(song)
                 },
@@ -73,7 +76,7 @@ fun NavGraphBuilder.addNavigationGraph(
         composable<AlbumSongs> {
             SongsList(
                 songs = currentAlbumSongsList,
-                onPlaySongCommand = { song ->
+                onClick = { song ->
                     onPlaylistChanged(Playlist(songs = currentAlbumSongsList))
                     onPlaySongCommand(song)
                 },
@@ -102,7 +105,7 @@ fun NavGraphBuilder.addNavigationGraph(
 
             SongsList(
                 songs = songs,
-                onPlaySongCommand = { song ->
+                onClick = { song ->
                     onPlaylistChanged(currentPlaylist.copy(songs = songs))
                     onPlaySongCommand(song)
                 },
@@ -137,7 +140,48 @@ fun NavGraphBuilder.addNavigationGraph(
         )
     }
 
+    navigation<ManageUnsortedGraph>(
+        startDestination = ManageUnsortedList,
+        popExitTransition = {
+            setTopBarText(null)
+            fadeOut(animationSpec = tween(1))
+        }
+    ) {
+        composable<ManageUnsortedList> {
+            var unsortedSongs by remember { mutableStateOf(emptyList<Song>()) }
+
+            scope.launch {
+                unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
+            }
+
+            ManageUnsortedList(
+                unsortedSongs = unsortedSongs,
+                onClick = { song ->
+                    MainViewModel.setSelectedSong(song)
+                    navBarController.navigate(ManageSong)
+                }
+            )
+        }
+
+        composable<ManageSong> { backStackEntry ->
+            MainViewModel.state.selectedSong?.let {
+                ManageUnsortedSong(
+                    song = it,
+                    onSongEdited = { edited ->
+                        MainViewModel.setSelectedSong(edited)
+                    }
+                )
+            } ?: run {
+                LoadingIndicator()
+            }
+        }
+    }
+
     composable<Connections> {
         Connections()
+    }
+
+    composable<Settings> {
+        Settings()
     }
 }

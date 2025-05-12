@@ -84,8 +84,13 @@ object MainViewModel {
         state = state.copy(currentPlaylist = playlist)
     }
 
+    fun setSelectedSong(song: Song?) {
+        state = state.copy(selectedSong = song)
+    }
+
     data class MainState(
         val allSongs: List<Song> = emptyList(),
+        val selectedSong: Song? = null,
         val isLoadingSongs: Boolean = true,
         val currentArtistSongsList: List<Song> = emptyList(),
         val currentAlbumSongsList: List<Song> = emptyList(),

@@ -13,6 +13,6 @@ expect fun SongsList(
     modifier: Modifier = Modifier,
     songs: List<Song>,
     onSongsChanged: (List<Song>) -> Unit = {},
-    onPlaySongCommand: (Song) -> Unit = {},
+    onClick: (Song) -> Unit = {},
     rearrangeable: Boolean = false,
 )

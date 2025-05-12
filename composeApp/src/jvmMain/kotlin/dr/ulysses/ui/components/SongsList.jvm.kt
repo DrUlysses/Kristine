@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.ui.elements.SongListEntry
+import org.jaudiotagger.audio.AudioFileIO
+import kotlin.io.path.Path
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -28,7 +30,7 @@ actual fun SongsList(
     modifier: Modifier,
     songs: List<Song>,
     onSongsChanged: (List<Song>) -> Unit,
-    onPlaySongCommand: (Song) -> Unit,
+    onClick: (Song) -> Unit,
     rearrangeable: Boolean,
 ) {
     val listState = rememberSaveable(saver = LazyListState.Saver) {
@@ -54,15 +56,26 @@ actual fun SongsList(
             content = {
                 itemsIndexed(items = rememberedSongs) { index, song ->
                     val isDragging = draggedIndex == index
-                    val image: ByteArray? = remember { song.artwork }
-                    image ?: LaunchedEffect(image) {
-                        SongRepository.getArtwork(song.path)
+                    var image: ByteArray? by remember { mutableStateOf(song.artwork) }
+                    if (image == null) {
+                        LaunchedEffect(song.path) {
+                            image = SongRepository.getArtwork(song.path)
+
+                            if (image == null) {
+                                runCatching {
+                                    image = AudioFileIO.read(Path(song.path).toFile()).tag.firstArtwork.binaryData
+                                    if (image != null) {
+                                        SongRepository.upsert(song.copy(artwork = image))
+                                    }
+                                }
+                            }
+                        }
                     }
                     SongListEntry(
                         image = image,
                         title = song.title,
                         artist = song.artist,
-                        onClick = { onPlaySongCommand(song) },
+                        onClick = { onClick(song) },
                         modifier = if (!rearrangeable) Modifier
                         else Modifier
                             .fillMaxWidth()

@@ -1,24 +1,21 @@
 package dr.ulysses.network
 
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import dr.ulysses.Logger
 import dr.ulysses.entities.Song
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.http.*
-import io.ktor.network.selector.*
-import io.ktor.network.sockets.*
 import io.ktor.serialization.kotlinx.*
 import io.ktor.serialization.kotlinx.json.*
-import io.ktor.utils.io.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable.isActive
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.consumeEach
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -26,7 +23,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 class NetworkClient {
-    private var discoveryJob: Job? = null
+    private var discoveryJob: MutableState<Job?> = mutableStateOf(null)
     private var updatePollingJob: Job? = null
     private var webSocketSession: DefaultClientWebSocketSession? = null
     private val httpClient = HttpClient {
@@ -55,65 +52,14 @@ class NetworkClient {
      */
     @OptIn(ExperimentalTime::class)
     fun startDiscovery(onServersDiscovered: (Map<String, Int>) -> Unit) {
-        if (discoveryJob != null) return
-
-        Logger.d { "Starting UDP server discovery process" }
-        discoveryJob = scope.launch {
-            val selectorManager = SelectorManager(Dispatchers.Default)
-            val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", NetworkServer.DISCOVERY_PORT))
-
-            try {
-                // Start a periodic job to clean up stale servers
-                val cleanupJob = launch {
-                    while (isActive) {
-                        cleanupStaleServers()
-                        onServersDiscovered(discoveredServers)
-                        delay(5.seconds)
-                    }
-                }
-
-                // Listen for incoming UDP broadcasts
-                while (isActive) {
-                    val datagram = socket.receive()
-                    val message = datagram.packet.readText()
-                    // Extract an IP address from the socket address string
-                    val addressStr = datagram.address.toString()
-                    val senderAddress = addressStr.substringBefore(':').replace("/", "")
-
-                    // Check if the message starts with the broadcast prefix
-                    if (message.startsWith(NetworkServer.BROADCAST_MESSAGE_PREFIX)) {
-                        val currentTime = Clock.System.now().toEpochMilliseconds()
-
-                        // Extract the port from the message
-                        val serverPort =
-                            message.substring(NetworkServer.BROADCAST_MESSAGE_PREFIX.length).toIntOrNull() ?: 0
-
-                        if (serverPort > 0) {
-                            // Use the actual sender IP instead of the broadcast address
-                            if (senderAddress != "0.0.0.0" && senderAddress != "255.255.255.255") {
-                                Logger.d { "Server discovered at: $senderAddress:$serverPort" }
-
-                                // Store the server with its port
-                                discoveredServers[senderAddress] = serverPort
-
-                                // Update the last-seen timestamp
-                                serverLastSeen[senderAddress] = currentTime
-
-                                // Notify about the updated server list
-                                onServersDiscovered(discoveredServers)
-                            }
-                        }
-                    }
-                }
-
-                cleanupJob.cancel()
-            } catch (e: Exception) {
-                Logger.e(e) { "Error in UDP discovery client" }
-            } finally {
-                socket.close()
-                selectorManager.close()
-            }
-        }
+        startDiscovery(
+            discoveryJob = discoveryJob,
+            scope = scope,
+            discoveredServers = discoveredServers,
+            serverLastSeen = serverLastSeen,
+            cleanupStaleServers = { cleanupStaleServers() },
+            onServersDiscovered = onServersDiscovered
+        )
     }
 
     /**
@@ -140,8 +86,8 @@ class NetworkClient {
      * Stops the discovery process.
      */
     fun stopDiscovery() {
-        discoveryJob?.cancel()
-        discoveryJob = null
+        discoveryJob.value?.cancel()
+        discoveryJob.value = null
         discoveredServers.clear()
         serverLastSeen.clear()
         Logger.d { "Stopped UDP server discovery process" }
@@ -362,3 +308,12 @@ class NetworkClient {
         }
     }
 }
+
+expect fun startDiscovery(
+    discoveryJob: MutableState<Job?> = mutableStateOf(null),
+    scope: CoroutineScope,
+    discoveredServers: MutableMap<String, Int> = mutableMapOf(),
+    serverLastSeen: MutableMap<String, Long> = mutableMapOf(),
+    cleanupStaleServers: () -> Unit = {},
+    onServersDiscovered: (Map<String, Int>) -> Unit,
+)

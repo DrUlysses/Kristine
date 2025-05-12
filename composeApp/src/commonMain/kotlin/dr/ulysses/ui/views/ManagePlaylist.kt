@@ -23,7 +23,7 @@ import io.github.vinceglb.filekit.core.PickerType
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kristine.composeapp.generated.resources.Res
-import kristine.composeapp.generated.resources.compose_multiplatform
+import kristine.composeapp.generated.resources.icon
 import org.jetbrains.compose.resources.painterResource
 
 @Serializable
@@ -35,7 +35,6 @@ fun ManagePlaylist(
     playlist: Playlist,
     onPlaylistChanged: (Playlist) -> Unit,
 ) {
-    var updatedPlaylist by remember { mutableStateOf(playlist) }
     val scope = rememberCoroutineScope()
     var updatedImage by remember { mutableStateOf(playlist.artwork) }
     val imagePicker = rememberFilePickerLauncher(
@@ -44,8 +43,7 @@ fun ManagePlaylist(
         image?.let {
             scope.launch {
                 updatedImage = image.readBytes()
-                updatedPlaylist = updatedPlaylist.copy(artwork = updatedImage)
-                onPlaylistChanged(updatedPlaylist)
+                onPlaylistChanged(playlist.copy(artwork = updatedImage))
             }
         }
     }
@@ -83,7 +81,7 @@ fun ManagePlaylist(
                     },
                     failure = {
                         Image(
-                            painter = painterResource(Res.drawable.compose_multiplatform),
+                            painter = painterResource(Res.drawable.icon),
                             contentDescription = "Art",
                             modifier = Modifier
                                 .padding(8.dp)
@@ -101,10 +99,9 @@ fun ManagePlaylist(
                             start = 8.dp,
                             end = 8.dp,
                         ),
-                    value = updatedPlaylist.name,
+                    value = playlist.name,
                     onValueChange = {
-                        updatedPlaylist = updatedPlaylist.copy(name = it)
-                        onPlaylistChanged(updatedPlaylist)
+                        onPlaylistChanged(playlist.copy(name = it))
                     },
                     singleLine = true
                 )
@@ -119,7 +116,7 @@ fun ManagePlaylist(
             )
         }
 
-        if (updatedPlaylist.songs.isNotEmpty()) {
+        if (playlist.songs.isNotEmpty()) {
             Column(
                 modifier = modifier
                     .weight(1f)
@@ -129,10 +126,9 @@ fun ManagePlaylist(
                     modifier = modifier
                         .fillMaxWidth()
                         .padding(8.dp),
-                    songs = updatedPlaylist.songs,
+                    songs = playlist.songs,
                     onSongsChanged = { songs ->
-                        updatedPlaylist = updatedPlaylist.copy(songs = songs)
-                        onPlaylistChanged(updatedPlaylist)
+                        onPlaylistChanged(playlist.copy(songs = songs))
                     },
                     rearrangeable = true,
                 )
@@ -163,9 +159,8 @@ fun ManagePlaylist(
                 modifier = modifier.fillMaxWidth(),
                 songs = entries,
                 onSongsChanged = { entries = it },
-                onPlaySongCommand = { song ->
-                    updatedPlaylist = updatedPlaylist.copy(songs = updatedPlaylist.songs + song)
-                    onPlaylistChanged(updatedPlaylist)
+                onClick = { song ->
+                    onPlaylistChanged(playlist.copy(songs = playlist.songs + song))
                 }
             )
         }

@@ -1,7 +1,7 @@
 [versions]
 # Main
 kristine = "1.0.4"
-kotlin = "2.1.20"
+kotlin = "2.1.21-RC"
 ktor = "3.1.2"
 koin = "4.0.4"
 agp = "8.2.2"
@@ -44,10 +44,11 @@ jetbrains-navigation = "2.8.0-alpha11"
 
 # Desktop
 caprica-vlcj = "4.8.2"
+jaudiotagger = "3.0.1"
 
 # Compose
 compose-compiler = "1.5.6"
-compose-plugin = "1.8.0-beta02"
+compose-plugin = "1.8.0-rc01"
 
 [libraries]
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
@@ -77,6 +78,7 @@ kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-
 navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "jetbrains-navigation" }
 
 caprica-vlcj = { module = "uk.co.caprica:vlcj", version.ref = "caprica-vlcj" }
+jthink-jaudiotagger = { module = "net.jthink:jaudiotagger", version.ref = "jaudiotagger" }
 
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
