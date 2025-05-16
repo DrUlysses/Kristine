@@ -1,15 +1,13 @@
 package dr.ulysses.entities
 
 import dr.ulysses.SUPPORTED_EXTENSIONS
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
 
+@OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
 actual suspend fun refreshSongs(): List<Song> {
     val songsRootPath: String =
         (SettingsRepository.get(SettingKey.SongsPath)?.value ?: Path("./music").absolutePathString())
@@ -32,7 +30,7 @@ actual suspend fun refreshSongs(): List<Song> {
     }
 
     songs.forEach {
-        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch(newSingleThreadContext("Refresh songs")) {
             SongRepository.upsert(it)
         }
     }

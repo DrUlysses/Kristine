@@ -447,7 +447,7 @@ fun Main() {
                                 val refreshedSongs = refreshSongs()
 
                                 // Update UI on the main thread after refresh completes
-                                withContext(Dispatchers.Main + SupervisorJob()) {
+                                withContext(Dispatchers.Main) {
                                     allSongs = refreshedSongs
                                     MainViewModel.loadSongs() // This will update allSongs in the ViewModel
                                     val newPlaylist = Playlist(songs = allSongs)
