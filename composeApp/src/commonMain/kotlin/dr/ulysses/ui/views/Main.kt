@@ -33,9 +33,7 @@ import dr.ulysses.ui.components.*
 import dr.ulysses.ui.elements.LoadingIndicator
 import dr.ulysses.ui.elements.SettingsDropdownEntry
 import dr.ulysses.ui.permissions.PermissionsAlert
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kristine.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
@@ -434,18 +432,27 @@ fun Main() {
                 destination?.hasRoute<Settings>() == true ->
                     FloatingActionButton(
                         onClick = {
+                            // Navigate back immediately to prevent UI freezing
+                            navBarController.navigateUp()
+                            topBarText = null
+                            MainViewModel.setTopBarText(null)
+
+                            // Restore the previous tab index when navigating back from playlist management
                             scope.launch {
-                                allSongs = refreshSongs()
-                                MainViewModel.loadSongs() // This will update allSongs in the ViewModel
-                                val newPlaylist = Playlist(songs = allSongs)
-                                currentPlaylist = newPlaylist
-                                MainViewModel.setCurrentPlaylist(newPlaylist)
-                                navBarController.navigateUp()
-                                topBarText = null
-                                MainViewModel.setTopBarText(null)
-                                // Restore the previous tab index when navigating back from playlist management
-                                scope.launch {
-                                    pagerState.scrollToPage(previousTabIndex)
+                                pagerState.scrollToPage(previousTabIndex)
+                            }
+
+                            // Refresh songs in the background
+                            CoroutineScope(Dispatchers.Default + SupervisorJob()).launch {
+                                val refreshedSongs = refreshSongs()
+
+                                // Update UI on the main thread after refresh completes
+                                withContext(Dispatchers.Main + SupervisorJob()) {
+                                    allSongs = refreshedSongs
+                                    MainViewModel.loadSongs() // This will update allSongs in the ViewModel
+                                    val newPlaylist = Playlist(songs = allSongs)
+                                    currentPlaylist = newPlaylist
+                                    MainViewModel.setCurrentPlaylist(newPlaylist)
                                 }
                             }
                         }

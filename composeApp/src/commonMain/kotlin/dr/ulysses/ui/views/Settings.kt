@@ -1,10 +1,12 @@
 package dr.ulysses.ui.views
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import dr.ulysses.entities.Setting
 import dr.ulysses.entities.SettingKey
 import dr.ulysses.entities.SettingsRepository
@@ -22,11 +24,13 @@ fun Settings() {
         currentSettings = SettingsRepository.getAll().associate { it.key to it.value.orEmpty() }.toMutableMap()
     }
 
-    Column {
+    Column(
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         currentSettings.forEach { (key, value) ->
             Row {
                 var settingText by mutableStateOf(value)
-                Text(text = key.toString())
                 TextField(
                     value = settingText,
                     onValueChange = { newValue ->
@@ -35,6 +39,11 @@ fun Settings() {
                         scope.launch {
                             SettingsRepository.upsert(Setting(key, newValue))
                         }
+                    },
+                    supportingText = {
+                        Text(
+                            text = key.toString()
+                        )
                     }
                 )
             }
