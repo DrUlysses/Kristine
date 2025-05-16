@@ -10,9 +10,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -427,6 +425,10 @@ fun Main() {
                             contentDescription = editText
                         )
                     }
+                }
+
+                destination?.hasRoute<ManageUnsortedList>() == true -> {
+                    UnsortedFabMenu()
                 }
 
                 destination?.hasRoute<Settings>() == true ->
