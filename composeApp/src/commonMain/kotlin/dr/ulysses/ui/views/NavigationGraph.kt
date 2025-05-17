@@ -15,6 +15,8 @@ import dr.ulysses.entities.SongRepository
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.ui.components.*
 import dr.ulysses.ui.elements.LoadingIndicator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Composable
@@ -150,17 +152,21 @@ fun NavGraphBuilder.AddNavigationGraph(
         composable<ManageUnsortedList> {
             var unsortedSongs by remember { mutableStateOf(emptyList<Song>()) }
 
-            scope.launch {
+            CoroutineScope(Dispatchers.Default).launch {
                 unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
             }
 
-            ManageUnsortedList(
-                unsortedSongs = unsortedSongs,
-                onClick = { song ->
-                    MainViewModel.setSelectedSong(song)
-                    navBarController.navigate(ManageSong)
-                }
-            )
+            if (unsortedSongs.isNotEmpty()) {
+                ManageUnsortedList(
+                    unsortedSongs = unsortedSongs,
+                    onClick = { song ->
+                        MainViewModel.setSelectedSong(song)
+                        navBarController.navigate(ManageSong)
+                    }
+                )
+            } else {
+                LoadingIndicator()
+            }
         }
 
         composable<ManageSong> { backStackEntry ->
@@ -169,6 +175,10 @@ fun NavGraphBuilder.AddNavigationGraph(
                     song = it,
                     onSongEdited = { edited ->
                         MainViewModel.setSelectedSong(edited)
+                        // Save the edited song to the database
+                        scope.launch {
+                            SongRepository.upsert(edited)
+                        }
                     }
                 )
             } ?: run {
@@ -182,6 +192,9 @@ fun NavGraphBuilder.AddNavigationGraph(
     }
 
     composable<Settings> {
-        Settings()
+        Settings(
+            onPendingSaveJobsChanged = MainViewModel::setPendingSaveJobs,
+            onSongsPathChanged = MainViewModel::setSongsPathChanged
+        )
     }
 }

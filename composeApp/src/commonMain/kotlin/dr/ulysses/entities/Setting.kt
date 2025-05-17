@@ -10,7 +10,9 @@ import org.koin.core.component.inject
 enum class SettingKey {
     SongsPath,
     PlaylistPath,
-    DefaultServerAddress;
+    DefaultServerAddress,
+    SpotifyClientId,
+    SpotifyClientSecret;
 
     override fun toString() = name
 
@@ -76,12 +78,20 @@ object SettingsRepository : KoinComponent {
 
     suspend fun upsert(setting: Setting) = sharedDatabase { appDatabase ->
         appDatabase.settingQueries.transactionWithResult {
-            runCatching {
+            // First check if the setting exists
+            val exists = appDatabase
+                .settingQueries
+                .selectFirstByKey(setting.key.toString())
+                .executeAsOneOrNull() != null
+
+            if (exists) {
+                // Update existing setting
                 appDatabase.settingQueries.updateByKey(
                     key = setting.key.toString(),
                     value_ = setting.value,
                 )
-            }.onFailure {
+            } else {
+                // Insert new setting
                 appDatabase.settingQueries.insert(
                     key = setting.key.toString(),
                     value_ = setting.value,

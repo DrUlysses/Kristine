@@ -86,6 +86,7 @@ kotlin {
             implementation(libs.filekit.compose)
             implementation(libs.landscapist.coil3)
             implementation(libs.coil.compose)
+            implementation(libs.spotify.api.kotlin.core)
 
             implementation(libs.bundles.ktor.client)
             implementation(libs.bundles.ktor.server)

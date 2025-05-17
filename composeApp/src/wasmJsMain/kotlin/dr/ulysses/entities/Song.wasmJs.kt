@@ -24,3 +24,10 @@ actual suspend fun refreshSongs(): List<Song> {
     // Return empty list since a file system is not available in WASM
     return emptyList()
 }
+
+/**
+ * WasmJs implementation of fileExists.
+ * In a browser environment, we can't directly check if a file exists on the file system.
+ * This implementation always returns true since we don't expect to have local file paths in a web app.
+ */
+actual fun fileExists(path: String): Boolean = true

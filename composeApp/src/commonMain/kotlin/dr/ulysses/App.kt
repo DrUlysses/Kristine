@@ -19,12 +19,10 @@ object Logger : Logger(
 
 @Composable
 internal fun App() = AppTheme {
-    // Start the network manager when the app starts
     LaunchedEffect(Unit) {
         NetworkManager.start()
     }
 
-    // Clean up when the app is closed
     DisposableEffect(Unit) {
         onDispose {
             NetworkManager.stop()
