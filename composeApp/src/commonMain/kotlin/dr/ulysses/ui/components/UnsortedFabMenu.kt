@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,6 +16,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.SongRepository
+import dr.ulysses.entities.refreshSongs
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -24,13 +26,22 @@ import kotlinx.coroutines.launch
 private data class UnsortedFabMenuState(
     val expanded: Boolean = false,
     val showRemoveDialog: Boolean = false,
+    val showUpdateDurationDialog: Boolean = false,
     val showResultDialog: Boolean = false,
     val showProgressDialog: Boolean = false,
     val removedCount: Int = 0,
+    val updatedCount: Int = 0,
     val processedCount: Int = 0,
     val totalCount: Int = 0,
     val progress: Float = 0f,
+    val operationType: OperationType = OperationType.NONE,
 )
+
+private enum class OperationType {
+    NONE,
+    REMOVE_NON_EXISTING,
+    UPDATE_DURATIONS
+}
 
 /**
  * A FAB menu for the ManageUnsortedList screen.
@@ -46,7 +57,7 @@ fun UnsortedFabMenu() {
     val rotation by animateFloatAsState(targetValue = if (state.expanded) 90f else 0f, label = "rotation")
     val fabScale by animateFloatAsState(targetValue = if (state.expanded) 1.1f else 1.0f, label = "fabScale")
 
-    // Show confirmation dialog
+    // Show confirmation dialog for removing non-existing songs
     if (state.showRemoveDialog) {
         AlertDialog(
             onDismissRequest = { state = state.copy(showRemoveDialog = false) },
@@ -56,7 +67,8 @@ fun UnsortedFabMenu() {
                 TextButton(onClick = {
                     state = state.copy(
                         showRemoveDialog = false,
-                        showProgressDialog = true
+                        showProgressDialog = true,
+                        operationType = OperationType.REMOVE_NON_EXISTING
                     )
 
                     // Launch a coroutine to remove non-existing songs
@@ -89,11 +101,56 @@ fun UnsortedFabMenu() {
         )
     }
 
+    // Show confirmation dialog for updating song durations
+    if (state.showUpdateDurationDialog) {
+        AlertDialog(
+            onDismissRequest = { state = state.copy(showUpdateDurationDialog = false) },
+            title = { Text("Update song durations?") },
+            text = { Text("This will update the duration for all songs in the database from their metadata. This can fix issues with the player slider.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    state = state.copy(
+                        showUpdateDurationDialog = false,
+                        showProgressDialog = true,
+                        operationType = OperationType.UPDATE_DURATIONS
+                    )
+
+                    // Launch a coroutine to update song durations
+                    coroutineScope.launch {
+                        // Refresh songs to update metadata
+                        val songs = refreshSongs()
+
+                        // Show result dialog
+                        state = state.copy(
+                            showProgressDialog = false,
+                            showResultDialog = true,
+                            updatedCount = songs.size
+                        )
+                    }
+                }) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { state = state.copy(showUpdateDurationDialog = false) }) {
+                    Text("No")
+                }
+            }
+        )
+    }
+
+
     // Show progress dialog
     if (state.showProgressDialog) {
         AlertDialog(
             onDismissRequest = { /* Prevent dismissal while the operation is in progress */ },
-            title = { Text("Removing non-existing songs") },
+            title = {
+                when (state.operationType) {
+                    OperationType.REMOVE_NON_EXISTING -> Text("Removing non-existing songs")
+                    OperationType.UPDATE_DURATIONS -> Text("Updating song durations")
+                    else -> Text("Processing...")
+                }
+            },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -111,11 +168,28 @@ fun UnsortedFabMenu() {
                         trackColor = ProgressIndicatorDefaults.linearTrackColor,
                         strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
                     )
-                    Text(
-                        "Removed ${state.removedCount} songs so far",
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                    when (state.operationType) {
+                        OperationType.REMOVE_NON_EXISTING ->
+                            Text(
+                                "Removed ${state.removedCount} songs so far",
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+
+                        OperationType.UPDATE_DURATIONS ->
+                            Text(
+                                "Updated ${state.updatedCount} songs so far",
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+
+                        else ->
+                            Text(
+                                "Processing...",
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                    }
                 }
             },
             confirmButton = { /* No confirmation button during operation */ }
@@ -127,7 +201,18 @@ fun UnsortedFabMenu() {
         AlertDialog(
             onDismissRequest = { state = state.copy(showResultDialog = false) },
             title = { Text("Operation Complete") },
-            text = { Text("Removed ${state.removedCount} non-existing song${if (state.removedCount != 1) "s" else ""} from the database.") },
+            text = {
+                when (state.operationType) {
+                    OperationType.REMOVE_NON_EXISTING ->
+                        Text("Removed ${state.removedCount} non-existing song${if (state.removedCount != 1) "s" else ""} from the database.")
+
+                    OperationType.UPDATE_DURATIONS ->
+                        Text("Updated metadata for ${state.updatedCount} song${if (state.updatedCount != 1) "s" else ""}. The player slider should now work correctly.")
+
+                    else ->
+                        Text("Operation completed successfully.")
+                }
+            },
             confirmButton = {
                 TextButton(onClick = { state = state.copy(showResultDialog = false) }) {
                     Text("OK")
@@ -158,6 +243,23 @@ fun UnsortedFabMenu() {
                 Icon(
                     imageVector = Icons.Filled.Delete,
                     contentDescription = "Remove non-existing"
+                )
+            }
+
+            // Option 2: Update song durations
+            SmallFloatingActionButton(
+                onClick = {
+                    state = state.copy(
+                        expanded = false,
+                        showUpdateDurationDialog = true
+                    )
+                },
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.padding(bottom = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Update,
+                    contentDescription = "Update song durations"
                 )
             }
 

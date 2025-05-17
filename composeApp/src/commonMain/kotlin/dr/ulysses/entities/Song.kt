@@ -122,6 +122,20 @@ object SongRepository : KoinComponent {
     )
 
     /**
+     * Represents the progress of the song duration update operation.
+     * @param processed Number of songs processed so far
+     * @param total Total number of songs to process
+     * @param updated Number of songs updated so far
+     * @param isComplete Whether the operation is complete
+     */
+    data class UpdateDurationProgress(
+        val processed: Int = 0,
+        val total: Int = 0,
+        val updated: Int = 0,
+        val isComplete: Boolean = false,
+    )
+
+    /**
      * Removes songs from the database where the path starts with "file" and the file doesn't exist on the device.
      * @return A Flow that emits progress updates during the operation
      */
@@ -189,6 +203,90 @@ object SongRepository : KoinComponent {
         }
     }.flowOn(Dispatchers.Default) // Run on background thread
 
+    /**
+     * Updates song durations from metadata for all songs in the database.
+     * @return A Flow that emits progress updates during the operation
+     */
+    fun updateSongDurations(): Flow<UpdateDurationProgress> = channelFlow {
+        sharedDatabase { appDatabase ->
+            val allSongs = appDatabase.songQueries.selectAll().awaitAsList()
+            val totalSongs = allSongs.size
+
+            // Send initial progress
+            send(
+                UpdateDurationProgress(
+                    processed = 0,
+                    total = totalSongs,
+                    updated = 0,
+                    isComplete = false
+                )
+            )
+
+            var updatedCount = 0
+            var processedCount = 0
+            val mutex = Mutex() // For thread safety of shared counters
+
+            coroutineScope {
+                val deferredResults = allSongs.map { song ->
+                    async {
+                        val path = song.path
+                        val updated = if (path.startsWith("file") && fileExists(path)) {
+                            // Get duration from metadata
+                            val updatedDuration = getDurationFromMetadata(path)
+
+                            if (updatedDuration != null && (song.duration == null || song.duration == 0L)) {
+                                // Update song in database with new duration
+                                appDatabase.songQueries.update(
+                                    path = song.path,
+                                    title = song.title,
+                                    album = song.album,
+                                    artist = song.artist,
+                                    artwork = song.artwork,
+                                    duration = updatedDuration.toLong(),
+                                    state = song.state
+                                )
+                                1
+                            } else {
+                                0
+                            }
+                        } else {
+                            0
+                        }
+
+                        // Update counters and send progress under mutex protection
+                        mutex.withLock {
+                            updatedCount += updated
+                            processedCount++
+
+                            // Send progress update
+                            send(
+                                UpdateDurationProgress(
+                                    processed = processedCount,
+                                    total = totalSongs,
+                                    updated = updatedCount,
+                                    isComplete = false
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // Wait for all parallel operations to complete
+                deferredResults.awaitAll()
+            }
+
+            // Send final progress with isComplete = true
+            send(
+                UpdateDurationProgress(
+                    processed = totalSongs,
+                    total = totalSongs,
+                    updated = updatedCount,
+                    isComplete = true
+                )
+            )
+        }
+    }.flowOn(Dispatchers.Default) // Run on background thread
+
     suspend fun getAllSongs(): List<Song> = sharedDatabase { appDatabase ->
         appDatabase.songQueries.selectAllSongs().awaitAsList().map {
             Song(
@@ -196,6 +294,7 @@ object SongRepository : KoinComponent {
                 title = it.title,
                 artist = it.artist,
                 album = it.album,
+                duration = it.duration?.toInt()
             )
         }
     }
@@ -219,6 +318,7 @@ object SongRepository : KoinComponent {
                 title = it.title,
                 artist = it.artist,
                 album = it.album,
+                duration = it.duration?.toInt()
             )
         } + appDatabase.playlistSongQueries.search(input).awaitAsList().flatMap { playlistSong ->
             appDatabase.songQueries.selectByPath(playlistSong.song_path).awaitAsList().map {
@@ -227,6 +327,7 @@ object SongRepository : KoinComponent {
                     title = it.title,
                     artist = it.artist,
                     album = it.album,
+                    duration = it.duration?.toInt()
                 )
             }
         }
@@ -263,6 +364,13 @@ object SongRepository : KoinComponent {
 
 expect suspend fun refreshSongs(): List<Song>
 expect fun fileExists(path: String): Boolean
+
+/**
+ * Gets the duration in seconds from the metadata of a file.
+ * @param path The path to the file
+ * @return The duration in seconds, or null if it couldn't be determined
+ */
+expect fun getDurationFromMetadata(path: String): Int?
 
 // There should be some SQL query to replace this hack, but I'm too lazy to write it
 fun SongQueries.search(input: String) = search(input, input, input)

@@ -40,3 +40,19 @@ actual suspend fun refreshSongs(): List<Song> {
 }
 
 actual fun fileExists(path: String): Boolean = Path(path.substringAfter("file:///")).exists()
+
+/**
+ * Gets the duration in seconds from the metadata of a file.
+ * @param path The path to the file
+ * @return The duration in seconds, or null if it couldn't be determined
+ */
+actual fun getDurationFromMetadata(path: String): Int? {
+    return try {
+        val file = Path(path.substringAfter("file:///")).toFile()
+        val audioFile = AudioFileIO.read(file)
+        audioFile.audioHeader.trackLength
+    } catch (e: Exception) {
+        println("Error reading duration metadata for $path: ${e.message}")
+        null
+    }
+}
