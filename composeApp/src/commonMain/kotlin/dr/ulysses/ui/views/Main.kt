@@ -10,7 +10,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -431,7 +433,10 @@ fun Main() {
                     UnsortedFabMenu()
                 }
 
-                destination?.hasRoute<Settings>() == true ->
+                destination?.hasRoute<Settings>() == true -> {
+                    // Get whether SongsPath was changed from the CompositionLocal
+                    val songsPathChanged = LocalSongsPathChanged.current
+
                     FloatingActionButton(
                         onClick = {
                             // Navigate back immediately to prevent UI freezing
@@ -444,17 +449,20 @@ fun Main() {
                                 pagerState.scrollToPage(previousTabIndex)
                             }
 
-                            // Refresh songs in the background
-                            CoroutineScope(Dispatchers.Default + SupervisorJob()).launch {
-                                val refreshedSongs = refreshSongs()
+                            // Only refresh songs if SongsPath was changed
+                            if (songsPathChanged) {
+                                // Refresh songs in the background
+                                CoroutineScope(Dispatchers.Default + SupervisorJob()).launch {
+                                    val refreshedSongs = refreshSongs()
 
-                                // Update UI on the main thread after refresh completes
-                                withContext(Dispatchers.Main) {
-                                    allSongs = refreshedSongs
-                                    MainViewModel.loadSongs() // This will update allSongs in the ViewModel
-                                    val newPlaylist = Playlist(songs = allSongs)
-                                    currentPlaylist = newPlaylist
-                                    MainViewModel.setCurrentPlaylist(newPlaylist)
+                                    // Update UI on the main thread after refresh completes
+                                    withContext(Dispatchers.Main) {
+                                        allSongs = refreshedSongs
+                                        MainViewModel.loadSongs() // This will update allSongs in the ViewModel
+                                        val newPlaylist = Playlist(songs = allSongs)
+                                        currentPlaylist = newPlaylist
+                                        MainViewModel.setCurrentPlaylist(newPlaylist)
+                                    }
                                 }
                             }
                         }
@@ -464,6 +472,7 @@ fun Main() {
                             contentDescription = searchTooltip
                         )
                     }
+                }
 
                 pagerState.currentPage == 3 ->
                     FloatingActionButton(

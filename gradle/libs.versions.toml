@@ -5,6 +5,7 @@ kotlin = "2.1.21"
 ktor = "3.1.3"
 koin = "4.0.4"
 agp = "8.2.2"
+spotify-api = "4.1.3"
 
 # Platform
 android-compileSdk = "35"
@@ -98,6 +99,7 @@ ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negoti
 landscapist-coil3 = { module = "com.github.skydoves:landscapist-coil3", version.ref = "landscapist-coil3" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 filekit-compose = { module = "io.github.vinceglb:filekit-compose", version.ref = "filekit" }
+spotify-api-kotlin-core = { module = "com.adamratzman:spotify-api-kotlin-core", version.ref = "spotify-api" }
 
 [plugins]
 compose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }

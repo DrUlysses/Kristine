@@ -156,13 +156,17 @@ fun NavGraphBuilder.AddNavigationGraph(
                 unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
             }
 
-            ManageUnsortedList(
-                unsortedSongs = unsortedSongs,
-                onClick = { song ->
-                    MainViewModel.setSelectedSong(song)
-                    navBarController.navigate(ManageSong)
-                }
-            )
+            if (unsortedSongs.isNotEmpty()) {
+                ManageUnsortedList(
+                    unsortedSongs = unsortedSongs,
+                    onClick = { song ->
+                        MainViewModel.setSelectedSong(song)
+                        navBarController.navigate(ManageSong)
+                    }
+                )
+            } else {
+                LoadingIndicator()
+            }
         }
 
         composable<ManageSong> { backStackEntry ->

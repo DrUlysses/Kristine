@@ -10,7 +10,9 @@ import org.koin.core.component.inject
 enum class SettingKey {
     SongsPath,
     PlaylistPath,
-    DefaultServerAddress;
+    DefaultServerAddress,
+    SpotifyClientId,
+    SpotifyClientSecret;
 
     override fun toString() = name
 
