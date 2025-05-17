@@ -91,8 +91,7 @@ fun Player(
                             currentPosition.toFloat()
                         } else 0f,
                         onValueChange = {
-                            // Calculate new position in milliseconds (same unit as currentPosition)
-                            currentPosition = (it * duration).toInt()
+                            currentPosition = it.toInt()
                             onSeekCommand(currentPosition)
                         },
                         modifier = Modifier.weight(1f).height(20.dp)
