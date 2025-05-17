@@ -6,6 +6,15 @@ import dr.ulysses.database.PlaylistSongQueries
 import dr.ulysses.database.SharedDatabase
 import dr.ulysses.database.SongQueries
 import dr.ulysses.entities.base.Searchable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -98,6 +107,88 @@ object SongRepository : KoinComponent {
         }
     }
 
+    /**
+     * Represents the progress of the non-existing songs removal operation.
+     * @param processed Number of songs processed so far
+     * @param total Total number of songs to process
+     * @param removed Number of songs removed so far
+     * @param isComplete Whether the operation is complete
+     */
+    data class RemoveNonExistingProgress(
+        val processed: Int = 0,
+        val total: Int = 0,
+        val removed: Int = 0,
+        val isComplete: Boolean = false,
+    )
+
+    /**
+     * Removes songs from the database where the path starts with "file" and the file doesn't exist on the device.
+     * @return A Flow that emits progress updates during the operation
+     */
+    fun removeNonExistingSongs(): Flow<RemoveNonExistingProgress> = channelFlow {
+        sharedDatabase { appDatabase ->
+            val allSongs = appDatabase.songQueries.selectAll().awaitAsList()
+            val totalSongs = allSongs.size
+
+            // Send initial progress
+            send(
+                RemoveNonExistingProgress(
+                    processed = 0,
+                    total = totalSongs,
+                    removed = 0,
+                    isComplete = false
+                )
+            )
+
+            var removedCount = 0
+            var processedCount = 0
+            val mutex = Mutex() // For thread safety of shared counters
+
+            coroutineScope {
+                val deferredResults = allSongs.map { song ->
+                    async {
+                        val path = song.path
+                        val removed = if (path.startsWith("file") && !fileExists(path)) {
+                            appDatabase.songQueries.deleteByPath(path)
+                            1
+                        } else {
+                            0
+                        }
+
+                        // Update counters and send progress under mutex protection
+                        mutex.withLock {
+                            removedCount += removed
+                            processedCount++
+
+                            // Send progress update
+                            send(
+                                RemoveNonExistingProgress(
+                                    processed = processedCount,
+                                    total = totalSongs,
+                                    removed = removedCount,
+                                    isComplete = false
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // Wait for all parallel operations to complete
+                deferredResults.awaitAll()
+            }
+
+            // Send final progress with isComplete = true
+            send(
+                RemoveNonExistingProgress(
+                    processed = totalSongs,
+                    total = totalSongs,
+                    removed = removedCount,
+                    isComplete = true
+                )
+            )
+        }
+    }.flowOn(Dispatchers.Default) // Run on background thread
+
     suspend fun getAllSongs(): List<Song> = sharedDatabase { appDatabase ->
         appDatabase.songQueries.selectAllSongs().awaitAsList().map {
             Song(
@@ -171,6 +262,7 @@ object SongRepository : KoinComponent {
 }
 
 expect suspend fun refreshSongs(): List<Song>
+expect fun fileExists(path: String): Boolean
 
 // There should be some SQL query to replace this hack, but I'm too lazy to write it
 fun SongQueries.search(input: String) = search(input, input, input)

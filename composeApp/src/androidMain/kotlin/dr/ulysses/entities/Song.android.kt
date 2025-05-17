@@ -15,6 +15,8 @@ import dr.ulysses.network.NetworkManager.currentServer
 import dr.ulysses.network.NetworkManager.fetchSongsFromCurrentServer
 import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.TimeUnit
+import kotlin.io.path.Path
+import kotlin.io.path.exists
 
 @RequiresApi(Build.VERSION_CODES.Q)
 actual suspend fun refreshSongs(): List<Song> {
@@ -104,3 +106,5 @@ actual suspend fun refreshSongs(): List<Song> {
     Logger.d { "Loaded ${localSongs.size} songs from local storage" }
     return localSongs
 }
+
+actual fun fileExists(path: String): Boolean = Path(path.substringAfter("file:///")).exists()

@@ -6,6 +6,7 @@ import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
+import kotlin.io.path.exists
 
 @OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
 actual suspend fun refreshSongs(): List<Song> {
@@ -37,3 +38,5 @@ actual suspend fun refreshSongs(): List<Song> {
 
     return songs.toList()
 }
+
+actual fun fileExists(path: String): Boolean = Path(path.substringAfter("file:///")).exists()

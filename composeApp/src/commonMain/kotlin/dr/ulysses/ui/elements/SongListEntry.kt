@@ -31,9 +31,11 @@ fun SongListEntry(
             .clickable(onClick = onClick)
     ) {
         Image(
-            painter = image
-                ?.let { BitmapPainter(it.decodeToImageBitmap()) }
-                ?: painterResource(Res.drawable.compose_multiplatform),
+            painter = image?.let {
+                runCatching {
+                    BitmapPainter(it.decodeToImageBitmap())
+                }.getOrNull()
+            } ?: painterResource(Res.drawable.compose_multiplatform),
             contentDescription = "Art",
             modifier = Modifier
                 .padding(8.dp)
