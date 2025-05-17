@@ -8,7 +8,7 @@ import kotlin.io.path.Path
 actual fun onSongSave(song: Song): Result<Song> {
     val file = Path(song.path).toFile().also {
         if (!it.exists()) {
-            return Result.failure(IllegalArgumentException("Song file doesn't exists"))
+            return Result.failure(IllegalArgumentException("Song file $it doesn't exists"))
         }
     }
     return runCatching {

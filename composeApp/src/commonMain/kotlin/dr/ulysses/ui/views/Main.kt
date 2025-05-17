@@ -434,34 +434,41 @@ fun Main() {
                 }
 
                 destination?.hasRoute<Settings>() == true -> {
-                    // Get whether SongsPath was changed from the CompositionLocal
-                    val songsPathChanged = LocalSongsPathChanged.current
+                    // Get whether SongsPath was changed and pending jobs from MainViewModel
+                    val songsPathChanged = MainViewModel.state.songsPathChanged
+                    val pendingSaveJobs = MainViewModel.state.pendingSaveJobs
 
                     FloatingActionButton(
                         onClick = {
-                            // Navigate back immediately to prevent UI freezing
-                            navBarController.navigateUp()
-                            topBarText = null
-                            MainViewModel.setTopBarText(null)
-
-                            // Restore the previous tab index when navigating back from playlist management
+                            // Wait for all pending save operations to complete before navigating
                             scope.launch {
+                                // If there are pending save jobs, wait for them to complete
+                                if (pendingSaveJobs.isNotEmpty()) {
+                                    pendingSaveJobs.forEach { it.join() }
+                                }
+
+                                // Now that all settings are saved, navigate back
+                                navBarController.navigateUp()
+                                topBarText = null
+                                MainViewModel.setTopBarText(null)
+
+                                // Restore the previous tab index when navigating back from playlist management
                                 pagerState.scrollToPage(previousTabIndex)
-                            }
 
-                            // Only refresh songs if SongsPath was changed
-                            if (songsPathChanged) {
-                                // Refresh songs in the background
-                                CoroutineScope(Dispatchers.Default + SupervisorJob()).launch {
-                                    val refreshedSongs = refreshSongs()
+                                // Only refresh songs if SongsPath was changed
+                                if (songsPathChanged) {
+                                    // Refresh songs in the background
+                                    CoroutineScope(Dispatchers.Default + SupervisorJob()).launch {
+                                        val refreshedSongs = refreshSongs()
 
-                                    // Update UI on the main thread after refresh completes
-                                    withContext(Dispatchers.Main) {
-                                        allSongs = refreshedSongs
-                                        MainViewModel.loadSongs() // This will update allSongs in the ViewModel
-                                        val newPlaylist = Playlist(songs = allSongs)
-                                        currentPlaylist = newPlaylist
-                                        MainViewModel.setCurrentPlaylist(newPlaylist)
+                                        // Update UI on the main thread after refresh completes
+                                        withContext(Dispatchers.Main) {
+                                            allSongs = refreshedSongs
+                                            MainViewModel.loadSongs() // This will update allSongs in the ViewModel
+                                            val newPlaylist = Playlist(songs = allSongs)
+                                            currentPlaylist = newPlaylist
+                                            MainViewModel.setCurrentPlaylist(newPlaylist)
+                                        }
                                     }
                                 }
                             }

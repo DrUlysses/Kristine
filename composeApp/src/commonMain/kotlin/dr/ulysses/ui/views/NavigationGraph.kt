@@ -175,6 +175,10 @@ fun NavGraphBuilder.AddNavigationGraph(
                     song = it,
                     onSongEdited = { edited ->
                         MainViewModel.setSelectedSong(edited)
+                        // Save the edited song to the database
+                        scope.launch {
+                            SongRepository.upsert(edited)
+                        }
                     }
                 )
             } ?: run {
@@ -188,6 +192,9 @@ fun NavGraphBuilder.AddNavigationGraph(
     }
 
     composable<Settings> {
-        Settings()
+        Settings(
+            onPendingSaveJobsChanged = MainViewModel::setPendingSaveJobs,
+            onSongsPathChanged = MainViewModel::setSongsPathChanged
+        )
     }
 }

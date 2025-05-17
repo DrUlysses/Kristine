@@ -28,6 +28,9 @@ import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import io.github.vinceglb.filekit.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.core.PickerType
+import io.ktor.client.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kristine.composeapp.generated.resources.Res
@@ -69,26 +72,40 @@ fun ManageUnsortedSong(
     }
 
     // Perform Spotify search when song changes
-    LaunchedEffect(song) {
+    // Using DisposableEffect to ensure proper cleanup when the composable leaves the composition
+    DisposableEffect(song) {
         spotifySearchState = spotifySearchState.copy(isSearching = true)
 
         // Create search query from song info
         val query = "${song.title} ${song.artist} ${song.album ?: ""}"
 
-        // Search Spotify
-        SpotifyAppApi.searchTrack(query).fold(
-            onSuccess = { results ->
-                spotifySearchState = SpotifySearchState(
-                    isSearching = false,
-                    results = results,
-                    selectedResult = results.firstOrNull()
+        // Launch in the scope that will be cancelled when the effect leaves composition
+        val job = scope.launch {
+            try {
+                // Search Spotify
+                SpotifyAppApi.searchTrack(query).fold(
+                    onSuccess = { results ->
+                        spotifySearchState = SpotifySearchState(
+                            isSearching = false,
+                            results = results,
+                            selectedResult = results.firstOrNull()
+                        )
+                    },
+                    onFailure = { error ->
+                        Logger.e { "Failed to search Spotify: ${error.message}" }
+                        spotifySearchState = SpotifySearchState(isSearching = false)
+                    }
                 )
-            },
-            onFailure = { error ->
-                Logger.e { "Failed to search Spotify: ${error.message}" }
+            } catch (e: Exception) {
+                Logger.e { "Exception during Spotify search: ${e.message}" }
                 spotifySearchState = SpotifySearchState(isSearching = false)
             }
-        )
+        }
+
+        // Provide a cleanup function that cancels the job when the effect leaves composition
+        onDispose {
+            job.cancel()
+        }
     }
 
     val imagePicker = rememberFilePickerLauncher(
@@ -98,7 +115,15 @@ fun ManageUnsortedSong(
         image?.let {
             scope.launch {
                 val bytes = image.readBytes()
-                onSongEdited(song.copy(artwork = bytes))
+
+                // Create updated song with the selected image
+                val updatedSong = song.copy(artwork = bytes)
+
+                // Explicitly save the song to the repository
+                SongRepository.upsert(updatedSong)
+
+                // Update the UI
+                onSongEdited(updatedSong)
             }
         } ?: Logger.e {
             "Image not found"
@@ -109,8 +134,17 @@ fun ManageUnsortedSong(
         type = PickerType.File(SUPPORTED_EXTENSIONS),
         initialDirectory = songsPathState.value
     ) { songFile ->
-        songFile?.path?.let {
-            onSongEdited(song.copy(path = it))
+        songFile?.path?.let { path ->
+            scope.launch {
+                // Create updated song with the selected path
+                val updatedSong = song.copy(path = path)
+
+                // Explicitly save the song to the repository
+                SongRepository.upsert(updatedSong)
+
+                // Update the UI
+                onSongEdited(updatedSong)
+            }
         }
     }
 
@@ -121,27 +155,50 @@ fun ManageUnsortedSong(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Card(
-            shape = RoundedCornerShape(8.dp),
+        ElevatedCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(bottom = 16.dp)
+                .padding(bottom = 16.dp),
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.elevatedCardElevation(
+                defaultElevation = 4.dp
+            )
         ) {
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
-                // Clickable path at the top
-                Text(
-                    text = "Path: ${song.path}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                // Clickable path at the top with Material 3 styling
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { songPicker.launch() }
-                        .padding(bottom = 16.dp)
-                )
+                        .padding(bottom = 16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(8.dp),
+                    tonalElevation = 1.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .clickable { songPicker.launch() }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Path: ",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = song.path,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
 
                 // Two columns layout
                 Row(
@@ -153,11 +210,20 @@ fun ManageUnsortedSong(
                             .weight(1f)
                             .padding(end = 8.dp)
                     ) {
-                        Text(
-                            text = "Spotify Data",
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "Spotify Data",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                        }
 
                         if (spotifySearchState.isSearching) {
                             CircularProgressIndicator(
@@ -174,19 +240,37 @@ fun ManageUnsortedSong(
                                 onValueChange = { },
                                 label = { Text("Title") },
                                 readOnly = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                    cursorColor = MaterialTheme.colorScheme.primary,
+                                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                    disabledTextColor = MaterialTheme.colorScheme.onSurface
+                                ),
+                                shape = RoundedCornerShape(8.dp),
                                 trailingIcon = {
                                     IconButton(
                                         onClick = {
-                                            onSongEdited(song.copy(title = selectedResult?.title.orEmpty()))
+                                            scope.launch {
+                                                // Create updated song with the Spotify title
+                                                val updatedSong = song.copy(title = selectedResult?.title.orEmpty())
+
+                                                // Explicitly save the song to the repository
+                                                SongRepository.upsert(updatedSong)
+
+                                                // Update the UI
+                                                onSongEdited(updatedSong)
+                                            }
                                         }
                                     ) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = "Use Spotify title"
+                                            contentDescription = "Use Spotify title",
+                                            tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                             )
 
                             // Album - Using OutlinedTextField for consistent height with Song column
@@ -195,19 +279,37 @@ fun ManageUnsortedSong(
                                 onValueChange = { },
                                 label = { Text("Album") },
                                 readOnly = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                    cursorColor = MaterialTheme.colorScheme.primary,
+                                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                    disabledTextColor = MaterialTheme.colorScheme.onSurface
+                                ),
+                                shape = RoundedCornerShape(8.dp),
                                 trailingIcon = {
                                     IconButton(
                                         onClick = {
-                                            onSongEdited(song.copy(album = selectedResult?.album.orEmpty()))
+                                            scope.launch {
+                                                // Create updated song with the Spotify album
+                                                val updatedSong = song.copy(album = selectedResult?.album.orEmpty())
+
+                                                // Explicitly save the song to the repository
+                                                SongRepository.upsert(updatedSong)
+
+                                                // Update the UI
+                                                onSongEdited(updatedSong)
+                                            }
                                         }
                                     ) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = "Use Spotify album"
+                                            contentDescription = "Use Spotify album",
+                                            tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                             )
 
                             // Artist - Using OutlinedTextField for consistent height with Song column
@@ -216,73 +318,126 @@ fun ManageUnsortedSong(
                                 onValueChange = { },
                                 label = { Text("Artist") },
                                 readOnly = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                    cursorColor = MaterialTheme.colorScheme.primary,
+                                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                    disabledTextColor = MaterialTheme.colorScheme.onSurface
+                                ),
+                                shape = RoundedCornerShape(8.dp),
                                 trailingIcon = {
                                     IconButton(
                                         onClick = {
-                                            onSongEdited(song.copy(artist = selectedResult?.artist.orEmpty()))
+                                            scope.launch {
+                                                // Create updated song with the Spotify artist
+                                                val updatedSong = song.copy(artist = selectedResult?.artist.orEmpty())
+
+                                                // Explicitly save the song to the repository
+                                                SongRepository.upsert(updatedSong)
+
+                                                // Update the UI
+                                                onSongEdited(updatedSong)
+                                            }
                                         }
                                     ) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = "Use Spotify artist"
+                                            contentDescription = "Use Spotify artist",
+                                            tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                             )
 
                             // Artwork
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(vertical = 4.dp)
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(8.dp),
+                                tonalElevation = 1.dp
                             ) {
-                                Text(
-                                    text = "Artwork",
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
-                                Box(
-                                    modifier = Modifier.weight(1f)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(12.dp)
                                 ) {
-                                    CoilImage(
-                                        imageRequest = {
-                                            ImageRequest
-                                                .Builder(context)
-                                                .data(selectedResult?.artworkUrl)
-                                                .build()
-                                        },
-                                        imageLoader = {
-                                            ImageLoader.Builder(context).build()
-                                        },
-                                        modifier = Modifier.size(64.dp),
-                                        success = { _, painter ->
-                                            Image(
-                                                painter = painter,
-                                                contentDescription = "Spotify Artwork",
-                                                modifier = Modifier.size(64.dp)
-                                            )
-                                        },
-                                        failure = {
-                                            Image(
-                                                painter = painterResource(Res.drawable.icon),
-                                                contentDescription = "Default Artwork",
-                                                modifier = Modifier.size(64.dp)
-                                            )
-                                        }
+                                    Text(
+                                        text = "Artwork",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(end = 12.dp)
                                     )
-                                }
-                                IconButton(
-                                    onClick = {
-                                        // We can't directly use the artwork URL, but in a real implementation
-                                        // we would download the image and convert it to ByteArray
-                                        song.artwork?.let {
-                                            onSongEdited(song.copy(artwork = it))
+                                    Box(
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.size(72.dp)
+                                        ) {
+                                            CoilImage(
+                                                imageRequest = {
+                                                    ImageRequest
+                                                        .Builder(context)
+                                                        .data(selectedResult?.artworkUrl)
+                                                        .build()
+                                                },
+                                                imageLoader = {
+                                                    ImageLoader.Builder(context).build()
+                                                },
+                                                modifier = Modifier.size(72.dp),
+                                                success = { _, painter ->
+                                                    Image(
+                                                        painter = painter,
+                                                        contentDescription = "Spotify Artwork",
+                                                        modifier = Modifier.size(72.dp)
+                                                    )
+                                                },
+                                                failure = {
+                                                    Image(
+                                                        painter = painterResource(Res.drawable.icon),
+                                                        contentDescription = "Default Artwork",
+                                                        modifier = Modifier.size(72.dp)
+                                                    )
+                                                }
+                                            )
                                         }
                                     }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = "Use Spotify artwork"
-                                    )
+                                    IconButton(
+                                        onClick = {
+                                            // Download the artwork from Spotify and update the song
+                                            selectedResult?.artworkUrl?.let { artworkUrl ->
+                                                scope.launch {
+                                                    try {
+                                                        // Use HttpClient to download the image
+                                                        val client = HttpClient()
+                                                        val response = client.get(artworkUrl)
+                                                        val imageBytes = response.bodyAsBytes()
+                                                        client.close()
+
+                                                        // Create updated song with the downloaded artwork
+                                                        val updatedSong = song.copy(artwork = imageBytes)
+
+                                                        // Explicitly save the song to the repository
+                                                        SongRepository.upsert(updatedSong)
+
+                                                        // Update the UI
+                                                        onSongEdited(updatedSong)
+                                                    } catch (e: Exception) {
+                                                        Logger.e { "Failed to download artwork: ${e.message}" }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = "Use Spotify artwork",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
                             }
                         } else {
@@ -298,76 +453,146 @@ fun ManageUnsortedSong(
                     Column(
                         modifier = Modifier.weight(1f).padding(start = 8.dp)
                     ) {
-                        Text(
-                            text = "Song Data",
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "Song Data",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                        }
 
                         // Title
                         OutlinedTextField(
                             value = song.title,
                             onValueChange = { value ->
-                                onSongEdited(song.copy(title = value))
+                                scope.launch {
+                                    // Create updated song with the new title
+                                    val updatedSong = song.copy(title = value)
+
+                                    // Explicitly save the song to the repository
+                                    SongRepository.upsert(updatedSong)
+
+                                    // Update the UI
+                                    onSongEdited(updatedSong)
+                                }
                             },
                             label = { Text("Title") },
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                                focusedLabelColor = MaterialTheme.colorScheme.secondary,
+                                cursorColor = MaterialTheme.colorScheme.secondary
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                         )
 
                         // Album
                         OutlinedTextField(
                             value = song.album ?: "Unknown Album",
                             onValueChange = { value ->
-                                onSongEdited(song.copy(album = value))
+                                scope.launch {
+                                    // Create updated song with the new album
+                                    val updatedSong = song.copy(album = value)
+
+                                    // Explicitly save the song to the repository
+                                    SongRepository.upsert(updatedSong)
+
+                                    // Update the UI
+                                    onSongEdited(updatedSong)
+                                }
                             },
                             label = { Text("Album") },
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                                focusedLabelColor = MaterialTheme.colorScheme.secondary,
+                                cursorColor = MaterialTheme.colorScheme.secondary
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                         )
 
                         // Artist
                         OutlinedTextField(
                             value = song.artist,
                             onValueChange = { value ->
-                                onSongEdited(song.copy(artist = value))
+                                scope.launch {
+                                    // Create updated song with the new artist
+                                    val updatedSong = song.copy(artist = value)
+
+                                    // Explicitly save the song to the repository
+                                    SongRepository.upsert(updatedSong)
+
+                                    // Update the UI
+                                    onSongEdited(updatedSong)
+                                }
                             },
                             label = { Text("Artist") },
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                                focusedLabelColor = MaterialTheme.colorScheme.secondary,
+                                cursorColor = MaterialTheme.colorScheme.secondary
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                         )
 
                         // Artwork
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 4.dp)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp),
+                            tonalElevation = 1.dp
                         ) {
-                            Text(
-                                text = "Artwork",
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                            CoilImage(
-                                imageRequest = {
-                                    ImageRequest.Builder(context).data(song.artwork).build()
-                                },
-                                imageLoader = {
-                                    ImageLoader.Builder(context).build()
-                                },
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clickable { imagePicker.launch() },
-                                success = { _, painter ->
-                                    Image(
-                                        painter = painter,
-                                        contentDescription = "Artwork",
-                                        modifier = Modifier.size(64.dp)
-                                    )
-                                },
-                                failure = {
-                                    Image(
-                                        painter = painterResource(Res.drawable.icon),
-                                        contentDescription = "Default Artwork",
-                                        modifier = Modifier.size(64.dp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(12.dp)
+                            ) {
+                                Text(
+                                    text = "Artwork",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.padding(end = 12.dp)
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .clickable { imagePicker.launch() }
+                                ) {
+                                    CoilImage(
+                                        imageRequest = {
+                                            ImageRequest.Builder(context).data(song.artwork).build()
+                                        },
+                                        imageLoader = {
+                                            ImageLoader.Builder(context).build()
+                                        },
+                                        modifier = Modifier.size(72.dp),
+                                        success = { _, painter ->
+                                            Image(
+                                                painter = painter,
+                                                contentDescription = "Artwork",
+                                                modifier = Modifier.size(72.dp)
+                                            )
+                                        },
+                                        failure = {
+                                            Image(
+                                                painter = painterResource(Res.drawable.icon),
+                                                contentDescription = "Default Artwork",
+                                                modifier = Modifier.size(72.dp)
+                                            )
+                                        }
                                     )
                                 }
-                            )
+                            }
                         }
                     }
                 }
@@ -378,41 +603,60 @@ fun ManageUnsortedSong(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp)
-                    .weight(1f)
+                    .padding(16.dp)
             ) {
-                Button(
+                FilledTonalButton(
                     onClick = {
                         if (currentIndex > 0) {
                             val previousSong = unsortedSongsState.value[currentIndex - 1]
                             onSongEdited(previousSong)
                         }
                     },
-                    enabled = currentIndex > 0
+                    enabled = currentIndex > 0,
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    ),
+                    modifier = Modifier.padding(end = 8.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = "Previous Song"
+                        contentDescription = "Previous Song",
+                        modifier = Modifier.padding(end = 4.dp)
                     )
                     Text("Previous")
                 }
 
-                Button(
+                FilledTonalButton(
                     onClick = {
                         // Save current song as sorted
-                        onSongEdited(song.copy(state = Song.State.Sorted))
+                        val sortedSong = song.copy(state = Song.State.Sorted)
 
-                        // Navigate to next song if available
-                        if (currentIndex < unsortedSongsState.value.size - 1) {
-                            val nextSong = unsortedSongsState.value[currentIndex + 1]
-                            onSongEdited(nextSong)
+                        // Explicitly save the song to the repository
+                        scope.launch {
+                            SongRepository.upsert(sortedSong)
+
+                            // Navigate to the next song if available
+                            if (currentIndex < unsortedSongsState.value.size - 1) {
+                                val nextSong = unsortedSongsState.value[currentIndex + 1]
+                                onSongEdited(nextSong)
+                            }
                         }
-                    }
+
+                        // Update the UI immediately
+                        onSongEdited(sortedSong)
+                    },
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    modifier = Modifier.padding(start = 8.dp)
                 ) {
                     Text("Save & Next")
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Next Song"
+                        contentDescription = "Next Song",
+                        modifier = Modifier.padding(start = 4.dp)
                     )
                 }
             }

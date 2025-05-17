@@ -11,6 +11,7 @@ import dr.ulysses.network.NetworkManager.currentServer
 import dr.ulysses.network.NetworkManager.fetchSongsFromCurrentServer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -88,6 +89,14 @@ object MainViewModel {
         state = state.copy(selectedSong = song)
     }
 
+    fun setPendingSaveJobs(jobs: List<Job>) {
+        state = state.copy(pendingSaveJobs = jobs)
+    }
+
+    fun setSongsPathChanged(changed: Boolean) {
+        state = state.copy(songsPathChanged = changed)
+    }
+
     data class MainState(
         val allSongs: List<Song> = emptyList(),
         val selectedSong: Song? = null,
@@ -100,5 +109,7 @@ object MainViewModel {
         val topBarText: String? = null,
         val previousTabIndex: Int = 1, // Default to Songs tab
         val returningFromDetail: Boolean = false,
+        val pendingSaveJobs: List<Job> = emptyList(),
+        val songsPathChanged: Boolean = false,
     )
 }
