@@ -1,45 +1,51 @@
 package dr.ulysses.ui.views
 
-import androidx.compose.foundation.Image
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
+import dr.ulysses.entities.SongRepository
 import dr.ulysses.player.Player
 import dr.ulysses.player.PlayerObject
+import kotlinx.coroutines.launch
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent
-import org.jetbrains.skia.Image as SkiaImage
 
 @Composable
 actual fun VideoPlayer(
     modifier: Modifier,
 ) {
-    val currentSong = Player.state.currentSong
-    val artworkBitmap = remember(currentSong?.path) {
-        currentSong?.artwork?.let { artworkData ->
-            runCatching {
-                val skiaImage = SkiaImage.makeFromEncoded(artworkData)
-                skiaImage.asImageBitmap()
-            }.getOrNull()
+    val currentSong by mutableStateOf(Player.state.currentSong)
+    val context = LocalPlatformContext.current
+    val scope = rememberCoroutineScope()
+    var artworkData by remember(currentSong?.path) { mutableStateOf<ByteArray?>(null) }
+
+    // Fetch artwork from SongRepository if currentSong is not null
+    LaunchedEffect(currentSong?.path) {
+        if (currentSong != null) {
+            scope.launch {
+                // Try to get artwork from SongRepository
+                artworkData = SongRepository.getArtwork(currentSong!!.path)
+            }
         }
     }
 
-    if (artworkBitmap != null) {
-        // Display artwork if available and successfully converted
-        Image(
-            bitmap = artworkBitmap,
+    if (artworkData != null) {
+        // Display artwork using Coil's AsyncImage
+        AsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(artworkData)
+                .build(),
             contentDescription = "Album Artwork",
             modifier = modifier,
             contentScale = ContentScale.Crop
         )
     } else {
-        // If no artwork or conversion failed, use the media player
+        // If no artwork, use the media player
         DefaultVideoPlayer(modifier, currentSong)
     }
 }

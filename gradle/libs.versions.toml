@@ -11,7 +11,7 @@ spotify-api = "4.1.3"
 android-compileSdk = "35"
 android-minSdk = "24"
 android-targetSdk = "31"
-android-jvmTarget = "1.8"
+android-jvmTarget = "11"
 jvmTarget = "17"
 
 # Database
@@ -30,9 +30,8 @@ accompanist = "0.37.3"
 appdirs = "1.4.0"
 napier = "2.7.1"
 kermit = "2.0.5"
-landscapist-coil3 = "2.4.5"
 filekit = "0.8.8"
-coil = "3.1.0"
+coil = "3.2.0"
 
 # AndroidX
 androidx-activityCompose = "1.10.1"
@@ -96,7 +95,6 @@ ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 ktor-server-websockets = { module = "io.ktor:ktor-server-websockets", version.ref = "ktor" }
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
 
-landscapist-coil3 = { module = "com.github.skydoves:landscapist-coil3", version.ref = "landscapist-coil3" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 filekit-compose = { module = "io.github.vinceglb:filekit-compose", version.ref = "filekit" }
 spotify-api-kotlin-core = { module = "com.adamratzman:spotify-api-kotlin-core", version.ref = "spotify-api" }

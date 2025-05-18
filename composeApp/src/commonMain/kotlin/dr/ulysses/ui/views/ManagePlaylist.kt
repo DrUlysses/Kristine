@@ -1,6 +1,5 @@
 package dr.ulysses.ui.views
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.HorizontalDivider
@@ -10,10 +9,9 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import coil3.ImageLoader
+import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
-import com.skydoves.landscapist.coil3.CoilImage
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
@@ -56,38 +54,16 @@ fun ManagePlaylist(
     ) {
         Row {
             Column {
-                CoilImage(
-                    imageRequest = {
-                        ImageRequest.Builder(context).data(updatedImage).build()
-                    },
-                    imageLoader = {
-                        ImageLoader.Builder(context)
-                            .build()
-                    },
+                AsyncImage(
+                    model = ImageRequest.Builder(context).data(updatedImage).build(),
+                    contentDescription = "Art",
                     modifier = Modifier
                         .padding(8.dp)
                         .size(64.dp)
                         .clickable {
                             imagePicker.launch()
                         },
-                    success = { _, painter ->
-                        Image(
-                            painter = painter,
-                            contentDescription = "Art",
-                            modifier = Modifier
-                                .padding(8.dp)
-                                .size(64.dp)
-                        )
-                    },
-                    failure = {
-                        Image(
-                            painter = painterResource(Res.drawable.icon),
-                            contentDescription = "Art",
-                            modifier = Modifier
-                                .padding(8.dp)
-                                .size(64.dp)
-                        )
-                    }
+                    error = painterResource(Res.drawable.icon)
                 )
             }
 

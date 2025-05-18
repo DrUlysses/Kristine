@@ -68,52 +68,51 @@ kotlin {
             }
         }
         commonMain.dependencies {
-            implementation(compose.runtime)
+            implementation(compose.components.resources)
             implementation(compose.foundation)
             implementation(compose.material3)
             implementation(compose.materialIconsExtended)
+            implementation(compose.runtime)
             implementation(compose.ui)
-            implementation(compose.components.resources)
-            implementation(libs.napier)
+            implementation(libs.bundles.ktor.client)
+            implementation(libs.bundles.ktor.server)
+            implementation(libs.coil.compose)
+            implementation(libs.filekit.compose)
             implementation(libs.kermit)
             implementation(libs.koin.core)
             implementation(libs.kotlinx.coroutines.core)
-            implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.kotlinx.serialization.json)
             implementation(libs.multiplatformSettings)
-            implementation(libs.sqldelight.coroutines.extension)
+            implementation(libs.napier)
             implementation(libs.navigation.compose)
-            implementation(libs.filekit.compose)
-            implementation(libs.landscapist.coil3)
-            implementation(libs.coil.compose)
-            implementation(libs.spotify.api.kotlin.core)
-
-            implementation(libs.bundles.ktor.client)
-            implementation(libs.bundles.ktor.server)
+            implementation(libs.sqldelight.coroutines.extension)
         }
         androidMain.dependencies {
-            implementation(libs.androidx.activity.compose)
-            implementation(libs.ktor.client.okhttp)
-            implementation(libs.androidx.appcompat)
-            implementation(libs.koin.core)
-            implementation(libs.koin.android)
-            implementation(libs.sqldelight.android.driver)
             implementation(libs.accompanist.permissions)
-            implementation(libs.jthink.jaudiotagger)
+            implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.appcompat)
             implementation(libs.androidx.media3.exoplayer)
             implementation(libs.androidx.media3.exoplayer.dash)
-            implementation(libs.androidx.media3.ui)
             implementation(libs.androidx.media3.session)
+            implementation(libs.androidx.media3.ui)
+            implementation(libs.jthink.jaudiotagger)
+            implementation(libs.koin.android)
+            implementation(libs.koin.core)
+            implementation(libs.ktor.client.okhttp)
+            implementation(libs.spotify.api.kotlin.core)
+            implementation(libs.sqldelight.android.driver)
         }
         jvmMain.dependencies {
             implementation(compose.desktop.common)
             implementation(compose.desktop.currentOs)
-            implementation(libs.ktor.client.okhttp)
-            implementation(libs.sqldelight.driver)
             implementation(libs.appdirs)
             implementation(libs.caprica.vlcj)
             implementation(libs.jthink.jaudiotagger)
             implementation(libs.kotlinx.coroutines.swing)
+            implementation(libs.ktor.client.okhttp)
+            implementation(libs.spotify.api.kotlin.core)
+            implementation(libs.sqldelight.driver)
         }
         wasmJsMain.dependencies {
             implementation(libs.ktor.client.js)
@@ -143,6 +142,10 @@ android {
         targetSdk = projTargetSdk
         versionCode = 1
         versionName = libs.versions.kristine.get()
+
+        // Add placeholder values for Spotify OAuth redirect
+        manifestPlaceholders["redirectHostName"] = "localhost"
+        manifestPlaceholders["redirectSchemeName"] = "kristine"
     }
     packaging {
         resources {

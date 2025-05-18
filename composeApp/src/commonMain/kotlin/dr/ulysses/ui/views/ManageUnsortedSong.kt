@@ -1,6 +1,5 @@
 package dr.ulysses.ui.views
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,16 +7,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.ImageLoader
+import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
-import com.skydoves.landscapist.coil3.CoilImage
+import coil3.request.crossfade
 import dr.ulysses.Logger
 import dr.ulysses.SUPPORTED_EXTENSIONS
 import dr.ulysses.api.SpotifyAppApi
@@ -26,6 +27,7 @@ import dr.ulysses.entities.SettingKey
 import dr.ulysses.entities.SettingsRepository
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
+import dr.ulysses.player.Player
 import io.github.vinceglb.filekit.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.core.PickerType
 import io.ktor.client.*
@@ -57,6 +59,13 @@ fun ManageUnsortedSong(
 
     // Reduced state variables
     var spotifySearchState by remember { mutableStateOf(SpotifySearchState()) }
+
+    // State variables for artwork
+    var spotifyArtworkLoaded by remember { mutableStateOf(false) }
+    var songArtworkLoaded by remember { mutableStateOf(false) }
+
+    // State variable to track if artwork is being downloaded
+    var isDownloadingArtwork by remember { mutableStateOf(false) }
 
     // These state variables are derived when needed
     val unsortedSongsState = produceState(initialValue = emptyList()) {
@@ -377,38 +386,54 @@ fun ManageUnsortedSong(
                                             shape = RoundedCornerShape(8.dp),
                                             modifier = Modifier.size(72.dp)
                                         ) {
-                                            CoilImage(
-                                                imageRequest = {
-                                                    ImageRequest
-                                                        .Builder(context)
-                                                        .data(selectedResult?.artworkUrl)
-                                                        .build()
-                                                },
-                                                imageLoader = {
-                                                    ImageLoader.Builder(context).build()
-                                                },
-                                                modifier = Modifier.size(72.dp),
-                                                success = { _, painter ->
-                                                    Image(
-                                                        painter = painter,
-                                                        contentDescription = "Spotify Artwork",
-                                                        modifier = Modifier.size(72.dp)
+                                            if (isDownloadingArtwork) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(72.dp),
+                                                    strokeWidth = 2.dp
+                                                )
+                                            } else {
+                                                val artworkUrl = selectedResult?.artworkUrl
+                                                Logger.d { "Using Spotify artwork URL: $artworkUrl" }
+
+                                                // If artworkUrl is null, we'll use a placeholder
+                                                if (artworkUrl == null) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.MusicNote,
+                                                        contentDescription = "No Spotify Artwork",
+                                                        modifier = Modifier.size(72.dp),
+                                                        tint = MaterialTheme.colorScheme.primary
                                                     )
-                                                },
-                                                failure = {
-                                                    Image(
-                                                        painter = painterResource(Res.drawable.icon),
-                                                        contentDescription = "Default Artwork",
-                                                        modifier = Modifier.size(72.dp)
+                                                    Logger.d { "No Spotify artwork URL available, using placeholder" }
+                                                } else {
+                                                    AsyncImage(
+                                                        model = ImageRequest
+                                                            .Builder(context)
+                                                            .data(artworkUrl)
+                                                            .crossfade(true)  // Add crossfade for smoother loading
+                                                            .build(),
+                                                        contentDescription = "Spotify Artwork",
+                                                        modifier = Modifier.size(72.dp),
+                                                        error = painterResource(Res.drawable.icon),
+                                                        onSuccess = {
+                                                            spotifyArtworkLoaded = true
+                                                            Logger.d { "Spotify artwork loaded successfully" }
+                                                        },
+                                                        onError = {
+                                                            spotifyArtworkLoaded = false
+                                                            Logger.e { "Failed to load Spotify artwork from URL: $artworkUrl" }
+                                                        }
                                                     )
                                                 }
-                                            )
+                                            }
                                         }
                                     }
                                     IconButton(
                                         onClick = {
                                             // Download the artwork from Spotify and update the song
                                             selectedResult?.artworkUrl?.let { artworkUrl ->
+                                                // Set downloading state to show progress indicator
+                                                isDownloadingArtwork = true
+
                                                 scope.launch {
                                                     try {
                                                         // Use HttpClient to download the image
@@ -425,8 +450,15 @@ fun ManageUnsortedSong(
 
                                                         // Update the UI
                                                         onSongEdited(updatedSong)
+
+                                                        // Set artwork as loaded
+                                                        songArtworkLoaded = true
                                                     } catch (e: Exception) {
                                                         Logger.e { "Failed to download artwork: ${e.message}" }
+                                                        songArtworkLoaded = false
+                                                    } finally {
+                                                        // Reset downloading state
+                                                        isDownloadingArtwork = false
                                                     }
                                                 }
                                             }
@@ -568,28 +600,13 @@ fun ManageUnsortedSong(
                                         .size(72.dp)
                                         .clickable { imagePicker.launch() }
                                 ) {
-                                    CoilImage(
-                                        imageRequest = {
-                                            ImageRequest.Builder(context).data(song.artwork).build()
-                                        },
-                                        imageLoader = {
-                                            ImageLoader.Builder(context).build()
-                                        },
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(context).data(song.artwork).build(),
+                                        contentDescription = "Artwork",
                                         modifier = Modifier.size(72.dp),
-                                        success = { _, painter ->
-                                            Image(
-                                                painter = painter,
-                                                contentDescription = "Artwork",
-                                                modifier = Modifier.size(72.dp)
-                                            )
-                                        },
-                                        failure = {
-                                            Image(
-                                                painter = painterResource(Res.drawable.icon),
-                                                contentDescription = "Default Artwork",
-                                                modifier = Modifier.size(72.dp)
-                                            )
-                                        }
+                                        error = painterResource(Res.drawable.icon),
+                                        onSuccess = { songArtworkLoaded = true },
+                                        onError = { songArtworkLoaded = false }
                                     )
                                 }
                             }
@@ -625,6 +642,25 @@ fun ManageUnsortedSong(
                         modifier = Modifier.padding(end = 4.dp)
                     )
                     Text("Previous")
+                }
+
+                // Play button
+                FilledTonalButton(
+                    onClick = {
+                        // Play the current song
+                        Player.onPlaySongCommand(song)
+                    },
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Play Song",
+                        modifier = Modifier.padding(end = 4.dp)
+                    )
+                    Text("Play")
                 }
 
                 FilledTonalButton(
