@@ -91,14 +91,12 @@ actual fun stopCurrentSongOnDevice() {
 actual fun seekToOnDevice(position: Int) {
     // Ensure MediaController methods are called on the main thread
     MainScope().launch {
-        PlayerObject.player?.seekTo(position.toLong())
+        PlayerObject.player?.seekTo((position * 1000L))
     }
 }
 
 @UnstableApi
-actual fun isPlayingOnDevice(): Boolean {
-    return PlayerObject.player?.isPlaying == true
-}
+actual fun isPlayingOnDevice(): Boolean = PlayerObject.player?.isPlaying == true
 
 @UnstableApi
 actual fun setCurrentTrackNumOnDevice(trackNum: Int) {

@@ -26,8 +26,22 @@ actual suspend fun refreshSongs(): List<Song> {
 }
 
 /**
- * WasmJs implementation of fileExists.
- * In a browser environment, we can't directly check if a file exists on the file system.
- * This implementation always returns true since we don't expect to have local file paths in a web app.
+ * Stub implementation for checking if a file exists in WASM JS
+ * Always returns false
  */
-actual fun fileExists(path: String): Boolean = true
+actual fun fileExists(path: String): Boolean {
+    Logger.d { "WASM JS: fileExists not implemented, path was: $path" }
+    return false
+}
+
+/**
+ * Gets the duration in seconds from the metadata of a file.
+ * @param path The path to the file
+ * @return The duration in seconds, or null if it couldn't be determined
+ *
+ * In WASM JS, this is a stub implementation that always returns null
+ */
+actual fun getDurationFromMetadata(path: String): Int? {
+    Logger.d { "WASM JS: getDurationFromMetadata not implemented, path was: $path" }
+    return null
+}

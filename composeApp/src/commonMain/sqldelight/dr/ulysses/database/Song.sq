@@ -12,7 +12,7 @@ selectAll:
 SELECT * FROM song;
 
 selectAllSongs:
-SELECT path, title, artist, album FROM song;
+SELECT path, title, artist, album, duration FROM song;
 
 selectAllArtists:
 SELECT DISTINCT artist FROM song;
@@ -42,4 +42,4 @@ deleteByPath:
 DELETE FROM song WHERE path = ?;
 
 search:
-SELECT path, title, artist, album, state FROM song WHERE title LIKE ? OR artist LIKE ? OR album LIKE ?;
+SELECT path, title, artist, album, duration, state FROM song WHERE title LIKE ? OR artist LIKE ? OR album LIKE ?;

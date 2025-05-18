@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import android.database.CursorIndexOutOfBoundsException
 import android.database.sqlite.SQLiteConstraintException
+import android.media.MediaMetadataRetriever
 import android.os.Build
 import android.provider.MediaStore
 import android.provider.MediaStore.MediaColumns.*
@@ -108,3 +109,26 @@ actual suspend fun refreshSongs(): List<Song> {
 }
 
 actual fun fileExists(path: String): Boolean = Path(path.substringAfter("file:///")).exists()
+
+/**
+ * Gets the duration in seconds from the metadata of a file.
+ * @param path The path to the file
+ * @return The duration in seconds, or null if it couldn't be determined
+ */
+actual fun getDurationFromMetadata(path: String): Int? {
+    return try {
+        val retriever = MediaMetadataRetriever()
+        val filePath = path.substringAfter("file:///")
+        retriever.setDataSource(filePath)
+
+        // Get duration in milliseconds and convert to seconds
+        val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0
+        val durationSec = (durationMs / 1000).toInt()
+
+        retriever.release()
+        durationSec
+    } catch (e: Exception) {
+        Logger.e { "Error reading duration metadata for $path: ${e.message}" }
+        null
+    }
+}

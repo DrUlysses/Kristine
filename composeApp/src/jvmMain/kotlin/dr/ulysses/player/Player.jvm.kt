@@ -91,7 +91,7 @@ actual fun stopCurrentSongOnDevice() {
 }
 
 actual fun seekToOnDevice(position: Int) {
-    PlayerObject.player.mediaPlayer().mediaPlayer().controls().setPosition(position.toFloat() / 1000f)
+    PlayerObject.player.mediaPlayer().mediaPlayer().controls().setTime(position * 1000L)
 }
 
 actual fun isPlayingOnDevice(): Boolean {
