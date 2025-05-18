@@ -77,6 +77,7 @@ kotlin {
             implementation(libs.bundles.ktor.client)
             implementation(libs.bundles.ktor.server)
             implementation(libs.coil.compose)
+            implementation(libs.coil.ktor)
             implementation(libs.filekit.compose)
             implementation(libs.kermit)
             implementation(libs.koin.core)

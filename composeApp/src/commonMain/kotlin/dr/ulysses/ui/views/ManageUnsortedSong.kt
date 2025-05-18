@@ -7,7 +7,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,7 +17,6 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
-import coil3.request.crossfade
 import dr.ulysses.Logger
 import dr.ulysses.SUPPORTED_EXTENSIONS
 import dr.ulysses.api.SpotifyAppApi
@@ -60,19 +58,12 @@ fun ManageUnsortedSong(
     // Reduced state variables
     var spotifySearchState by remember { mutableStateOf(SpotifySearchState()) }
 
-    // State variables for artwork
-    var spotifyArtworkLoaded by remember { mutableStateOf(false) }
-    var songArtworkLoaded by remember { mutableStateOf(false) }
-
-    // State variable to track if artwork is being downloaded
-    var isDownloadingArtwork by remember { mutableStateOf(false) }
-
     // These state variables are derived when needed
     val unsortedSongsState = produceState(initialValue = emptyList()) {
         value = SongRepository.getByNotState(Song.State.Sorted)
     }
 
-    // Derive current index from unsorted songs list and current song
+    // Derive current index from an unsorted songs list and current song
     val currentIndex = unsortedSongsState.value.indexOfFirst { it.path == song.path }
 
     // Derive directory from settings when needed
@@ -85,10 +76,10 @@ fun ManageUnsortedSong(
     DisposableEffect(song) {
         spotifySearchState = spotifySearchState.copy(isSearching = true)
 
-        // Create search query from song info
+        // Create a search query from song info
         val query = "${song.title} ${song.artist} ${song.album ?: ""}"
 
-        // Launch in the scope that will be cancelled when the effect leaves composition
+        // Launch in the scope that will be canceled when the effect leaves composition
         val job = scope.launch {
             try {
                 // Search Spotify
@@ -386,54 +377,19 @@ fun ManageUnsortedSong(
                                             shape = RoundedCornerShape(8.dp),
                                             modifier = Modifier.size(72.dp)
                                         ) {
-                                            if (isDownloadingArtwork) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(72.dp),
-                                                    strokeWidth = 2.dp
-                                                )
-                                            } else {
-                                                val artworkUrl = selectedResult?.artworkUrl
-                                                Logger.d { "Using Spotify artwork URL: $artworkUrl" }
-
-                                                // If artworkUrl is null, we'll use a placeholder
-                                                if (artworkUrl == null) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.MusicNote,
-                                                        contentDescription = "No Spotify Artwork",
-                                                        modifier = Modifier.size(72.dp),
-                                                        tint = MaterialTheme.colorScheme.primary
-                                                    )
-                                                    Logger.d { "No Spotify artwork URL available, using placeholder" }
-                                                } else {
-                                                    AsyncImage(
-                                                        model = ImageRequest
-                                                            .Builder(context)
-                                                            .data(artworkUrl)
-                                                            .crossfade(true)  // Add crossfade for smoother loading
-                                                            .build(),
-                                                        contentDescription = "Spotify Artwork",
-                                                        modifier = Modifier.size(72.dp),
-                                                        error = painterResource(Res.drawable.icon),
-                                                        onSuccess = {
-                                                            spotifyArtworkLoaded = true
-                                                            Logger.d { "Spotify artwork loaded successfully" }
-                                                        },
-                                                        onError = {
-                                                            spotifyArtworkLoaded = false
-                                                            Logger.e { "Failed to load Spotify artwork from URL: $artworkUrl" }
-                                                        }
-                                                    )
-                                                }
-                                            }
+                                            AsyncImage(
+                                                model = selectedResult?.artworkUrl,
+//                                                model = "https://coil-kt.github.io/coil/logo.svg",
+                                                contentDescription = "Spotify Artwork",
+                                                modifier = Modifier.fillMaxSize(),
+                                                placeholder = painterResource(Res.drawable.icon),
+                                            )
                                         }
                                     }
                                     IconButton(
                                         onClick = {
                                             // Download the artwork from Spotify and update the song
                                             selectedResult?.artworkUrl?.let { artworkUrl ->
-                                                // Set downloading state to show progress indicator
-                                                isDownloadingArtwork = true
-
                                                 scope.launch {
                                                     try {
                                                         // Use HttpClient to download the image
@@ -443,6 +399,7 @@ fun ManageUnsortedSong(
                                                         client.close()
 
                                                         // Create updated song with the downloaded artwork
+                                                        selectedResult.artworkUrl
                                                         val updatedSong = song.copy(artwork = imageBytes)
 
                                                         // Explicitly save the song to the repository
@@ -450,15 +407,8 @@ fun ManageUnsortedSong(
 
                                                         // Update the UI
                                                         onSongEdited(updatedSong)
-
-                                                        // Set artwork as loaded
-                                                        songArtworkLoaded = true
                                                     } catch (e: Exception) {
-                                                        Logger.e { "Failed to download artwork: ${e.message}" }
-                                                        songArtworkLoaded = false
-                                                    } finally {
-                                                        // Reset downloading state
-                                                        isDownloadingArtwork = false
+                                                        Logger.e(e) { "Failed to download artwork." }
                                                     }
                                                 }
                                             }
@@ -604,9 +554,7 @@ fun ManageUnsortedSong(
                                         model = ImageRequest.Builder(context).data(song.artwork).build(),
                                         contentDescription = "Artwork",
                                         modifier = Modifier.size(72.dp),
-                                        error = painterResource(Res.drawable.icon),
-                                        onSuccess = { songArtworkLoaded = true },
-                                        onError = { songArtworkLoaded = false }
+                                        placeholder = painterResource(Res.drawable.icon)
                                     )
                                 }
                             }
