@@ -170,18 +170,20 @@ fun NavGraphBuilder.AddNavigationGraph(
         }
 
         composable<ManageSong> { backStackEntry ->
-            MainViewModel.state.selectedSong?.let {
+            var song by remember { mutableStateOf(MainViewModel.state.selectedSong) }
+            if (song != null) {
                 ManageUnsortedSong(
-                    song = it,
+                    song = song!!,
                     onSongEdited = { edited ->
                         MainViewModel.setSelectedSong(edited)
                         // Save the edited song to the database
                         scope.launch {
                             SongRepository.upsert(edited)
+                            song = onSongSave(edited).getOrThrow()
                         }
                     }
                 )
-            } ?: run {
+            } else {
                 LoadingIndicator()
             }
         }

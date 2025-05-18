@@ -9,7 +9,7 @@ import kotlin.io.path.Path
 
 @RequiresApi(Build.VERSION_CODES.O)
 actual fun onSongSave(song: Song): Result<Song> {
-    val file = Path(song.path).toFile().also {
+    val file = Path(song.path.substringAfter("file:///")).toFile().also {
         if (!it.exists()) {
             return Result.failure(IllegalArgumentException("Song file doesn't exists"))
         }

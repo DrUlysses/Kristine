@@ -20,7 +20,7 @@ import java.io.File
 suspend fun loadArtworkFromFile(path: String): ByteArray? = withContext(Dispatchers.IO) {
     val context: Context by inject(Context::class.java)
     try {
-        val file = File(path)
+        val file = File(path.substringAfter("file:///"))
         if (!file.exists()) {
             return@withContext null
         }
