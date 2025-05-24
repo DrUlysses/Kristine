@@ -8,4 +8,5 @@ plugins {
     alias(libs.plugins.kotlinJvm) apply false
     alias(libs.plugins.multiplatform) apply false
     alias(libs.plugins.sqlDelight) apply false
+    alias(libs.plugins.compose.hot.reload) apply false
 }

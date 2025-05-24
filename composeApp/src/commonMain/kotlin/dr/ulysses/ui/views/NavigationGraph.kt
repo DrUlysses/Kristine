@@ -170,16 +170,14 @@ fun NavGraphBuilder.AddNavigationGraph(
         }
 
         composable<ManageSong> { backStackEntry ->
-            var song by remember { mutableStateOf(MainViewModel.state.selectedSong) }
-            if (song != null) {
+            if (MainViewModel.state.selectedSong != null) {
                 ManageUnsortedSong(
-                    song = song!!,
+                    song = MainViewModel.state.selectedSong!!,
                     onSongEdited = { edited ->
-                        MainViewModel.setSelectedSong(edited)
                         // Save the edited song to the database
-                        scope.launch {
+                        CoroutineScope(Dispatchers.Main).launch {
                             SongRepository.upsert(edited)
-                            song = onSongSave(edited).getOrThrow()
+                            MainViewModel.setSelectedSong(onSongSave(edited).getOrThrow())
                         }
                     }
                 )

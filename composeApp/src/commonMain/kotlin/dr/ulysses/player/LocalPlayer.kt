@@ -22,18 +22,16 @@ internal class LocalPlayer : PlayerService {
                 setPlayListOnDevice(state.currentPlaylist.songs.map { it.path })
             setCurrentTrackNumOnDevice(currentTrackNum)
         }
-        // If the song is not in the current track sequence, add it to the playlist and set it as the current track
+        // If the song is not in the current track sequence, set it as the first track
         else {
-            val updatedSongs = state.currentPlaylist.songs + song
             setState {
                 copy(
-                    currentPlaylist = state.currentPlaylist.copy(songs = updatedSongs),
-                    currentTrackNum = updatedSongs.size - 1,
+                    currentTrackNum = 0,
                     currentSong = song
                 )
             }
-            setPlayListOnDevice(updatedSongs.map { it.path })
-            setCurrentTrackNumOnDevice(updatedSongs.size - 1)
+            setPlayListOnDevice(state.currentPlaylist.songs.map { it.path })
+            setCurrentTrackNumOnDevice(0)
         }
         onResumeCommand()
     }

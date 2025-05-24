@@ -53,7 +53,6 @@ fun ManageUnsortedSong(
     song: Song,
     onSongEdited: (Song) -> Unit,
 ) {
-    val context = LocalPlatformContext.current
     val scope = rememberCoroutineScope()
 
     // Reduced state variables
@@ -471,14 +470,13 @@ fun ManageUnsortedSong(
                                         .clickable { imagePicker.launch() }
                                 ) {
                                     AsyncImage(
-                                        model = ImageRequest
-                                            .Builder(context)
+                                        model = ImageRequest.Builder(LocalPlatformContext.current)
                                             .data(song.artwork)
                                             .build(),
                                         contentDescription = "Artwork",
                                         modifier = Modifier
                                             .size(72.dp),
-                                        placeholder = painterResource(Res.drawable.icon)
+                                        placeholder = painterResource(Res.drawable.icon),
                                     )
                                 }
                             }

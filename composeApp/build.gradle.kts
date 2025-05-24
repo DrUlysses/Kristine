@@ -14,6 +14,7 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.sqlDelight)
+    alias(libs.plugins.compose.hot.reload)
 }
 
 composeCompiler {
