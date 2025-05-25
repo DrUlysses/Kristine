@@ -55,10 +55,11 @@ internal class LocalPlayer : PlayerService {
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         setState { copy(isPlaying = isPlaying) }
-        if (isPlaying)
+        if (isPlaying) {
             resumeCurrentSongOnDevice()
-        else
+        } else {
             pauseCurrentSongOnDevice()
+        }
     }
 
     override fun onPlayCommand() {

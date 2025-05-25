@@ -21,11 +21,10 @@ import dr.ulysses.Logger
 import dr.ulysses.SUPPORTED_EXTENSIONS
 import dr.ulysses.api.SpotifyAppApi
 import dr.ulysses.api.SpotifySearchResult
+import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.SettingKey
 import dr.ulysses.entities.SettingsRepository
 import dr.ulysses.entities.Song
-import dr.ulysses.entities.SongRepository
-import dr.ulysses.models.MainViewModel
 import dr.ulysses.player.Player
 import io.github.vinceglb.filekit.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.core.PickerType
@@ -51,20 +50,16 @@ private data class SpotifySearchState(
 @Composable
 fun ManageUnsortedSong(
     song: Song,
+    unsortedSongs: List<Song>,
     onSongEdited: (Song) -> Unit,
+    onNextSong: () -> Unit,
+    onPreviousSong: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
 
     // Reduced state variables
     var spotifySearchState by remember { mutableStateOf(SpotifySearchState()) }
-
-    // These state variables are derived when needed
-    val unsortedSongsState = produceState(initialValue = emptyList()) {
-        value = SongRepository.getByNotState(Song.State.Sorted)
-    }
-
-    // Derive current index from an unsorted songs list and current song
-    val currentIndex = unsortedSongsState.value.indexOfFirst { it.path == song.path }
+    var songArtwork by mutableStateOf(song.artwork)
 
     // Derive directory from settings when needed
     val songsPathState = produceState(initialValue = song.path) {
@@ -77,7 +72,7 @@ fun ManageUnsortedSong(
         spotifySearchState = spotifySearchState.copy(isSearching = true)
 
         // Create a search query from song info
-        val query = "${song.title} ${song.artist} ${song.album ?: ""}"
+        val query = "${song.title} ${song.artist}"
 
         // Launch in the scope that will be canceled when the effect leaves composition
         val job = scope.launch {
@@ -349,10 +344,11 @@ fun ManageUnsortedSong(
                                                     try {
                                                         // Use HttpClient to download the image
                                                         val imageBytes = HttpClient().use { client ->
-                                                            client.get(artworkUrl).bodyAsBytes()
-                                                        }
+                                                            client.get(artworkUrl)
+                                                        }.bodyAsBytes()
                                                         // Update the UI
                                                         onSongEdited(song.copy(artwork = imageBytes))
+                                                        songArtwork = imageBytes
                                                     } catch (e: Exception) {
                                                         Logger.e(e) { "Failed to download artwork." }
                                                     }
@@ -471,7 +467,7 @@ fun ManageUnsortedSong(
                                 ) {
                                     AsyncImage(
                                         model = ImageRequest.Builder(LocalPlatformContext.current)
-                                            .data(song.artwork)
+                                            .data(songArtwork)
                                             .build(),
                                         contentDescription = "Artwork",
                                         modifier = Modifier
@@ -493,13 +489,8 @@ fun ManageUnsortedSong(
                     .padding(16.dp)
             ) {
                 FilledTonalButton(
-                    onClick = {
-                        if (currentIndex > 0) {
-                            val previousSong = unsortedSongsState.value[currentIndex - 1]
-                            onSongEdited(previousSong)
-                        }
-                    },
-                    enabled = currentIndex > 0,
+                    onClick = onPreviousSong,
+                    enabled = unsortedSongs.indexOfFirst { it.path == song.path } > 0,
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -518,6 +509,7 @@ fun ManageUnsortedSong(
                 FilledTonalButton(
                     onClick = {
                         // Play the current song
+                        Player.onPlaylistChanged(Playlist(songs = listOf(song)))
                         Player.onPlaySongCommand(song)
                     },
                     colors = ButtonDefaults.filledTonalButtonColors(
@@ -535,20 +527,8 @@ fun ManageUnsortedSong(
 
                 FilledTonalButton(
                     onClick = {
-                        // Save current song as sorted
-                        val sortedSong = song.copy(state = Song.State.Sorted)
-
-                        // Explicitly save the song to the repository
-                        scope.launch {
-                            // Navigate to the next song if available
-                            if (currentIndex < unsortedSongsState.value.size - 1) {
-                                val nextSong = unsortedSongsState.value[currentIndex + 1]
-                                MainViewModel.setSelectedSong(nextSong)
-                            }
-                        }
-
-                        // Update the UI immediately
-                        onSongEdited(sortedSong)
+                        onSongEdited(song)
+                        onNextSong()
                     },
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,

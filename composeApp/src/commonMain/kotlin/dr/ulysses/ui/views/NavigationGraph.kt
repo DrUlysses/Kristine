@@ -4,6 +4,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -169,16 +170,30 @@ fun NavGraphBuilder.AddNavigationGraph(
             }
         }
 
-        composable<ManageSong> { backStackEntry ->
-            if (MainViewModel.state.selectedSong != null) {
+        composable<ManageSong> {
+            var unsortedSongs by rememberSaveable { mutableStateOf(emptyList<Song>()) }
+            CoroutineScope(Dispatchers.Default).launch {
+                unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
+            }
+            val currentSong = MainViewModel.state.selectedSong
+            val currentSongIndex = unsortedSongs.indexOf(currentSong)
+            if (currentSong != null && unsortedSongs.isNotEmpty()) {
                 ManageUnsortedSong(
-                    song = MainViewModel.state.selectedSong!!,
+                    song = currentSong,
+                    unsortedSongs = unsortedSongs,
                     onSongEdited = { edited ->
                         // Save the edited song to the database
-                        CoroutineScope(Dispatchers.Main).launch {
+                        CoroutineScope(Dispatchers.Default).launch {
                             SongRepository.upsert(edited)
-                            MainViewModel.setSelectedSong(onSongSave(edited).getOrThrow())
+                            onSongSave(edited)
                         }
+                        MainViewModel.setSelectedSong(edited)
+                    },
+                    onNextSong = {
+                        MainViewModel.setSelectedSong(unsortedSongs.getOrNull(currentSongIndex + 1))
+                    },
+                    onPreviousSong = {
+                        MainViewModel.setSelectedSong(unsortedSongs.getOrNull(currentSongIndex - 1))
                     }
                 )
             } else {
