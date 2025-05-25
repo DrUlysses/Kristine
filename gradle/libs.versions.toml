@@ -15,7 +15,7 @@ android-jvmTarget = "11"
 jvmTarget = "17"
 
 # Database
-sqlDelight = "2.1.0-SNAPSHOT"
+sqlDelight = "2.1.0"
 sqlJs = "1.8.0"
 webPackPlugin = "9.1.0"
 multiplatformSettings = "1.1.1"
