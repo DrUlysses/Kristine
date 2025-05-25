@@ -63,7 +63,11 @@ actual fun SongsList(
 
                             if (image == null) {
                                 runCatching {
-                                    image = AudioFileIO.read(Path(song.path).toFile()).tag.firstArtwork.binaryData
+                                    image = AudioFileIO
+                                        .read(Path(song.path.substringAfter("file:///")).toFile())
+                                        .tag
+                                        .firstArtwork
+                                        .binaryData
                                     if (image != null) {
                                         SongRepository.upsert(song.copy(artwork = image))
                                     }

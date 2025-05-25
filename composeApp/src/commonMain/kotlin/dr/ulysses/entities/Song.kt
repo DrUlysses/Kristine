@@ -235,7 +235,7 @@ object SongRepository : KoinComponent {
                             val updatedDuration = getDurationFromMetadata(path)
 
                             if (updatedDuration != null && (song.duration == null || song.duration == 0L)) {
-                                // Update song in database with new duration
+                                // Update song in a database with new duration
                                 appDatabase.songQueries.update(
                                     path = song.path,
                                     title = song.title,

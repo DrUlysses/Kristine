@@ -15,7 +15,7 @@ android-jvmTarget = "11"
 jvmTarget = "17"
 
 # Database
-sqlDelight = "2.1.0-SNAPSHOT"
+sqlDelight = "2.1.0"
 sqlJs = "1.8.0"
 webPackPlugin = "9.1.0"
 multiplatformSettings = "1.1.1"
@@ -38,7 +38,7 @@ androidx-activityCompose = "1.10.1"
 androidx-appcompat = "1.7.0"
 #noinspection GradleDependency androidx.core:core-ktx:1.16.0' requires Android Gradle plugin 8.6.0 or higher
 androidx-core = "1.12.0"
-androidx-media3 = "1.6.1"
+androidx-media3 = "1.7.1"
 
 jetbrains-navigation = "2.8.0-alpha11"
 
@@ -48,7 +48,8 @@ jaudiotagger = "3.0.1"
 
 # Compose
 compose-compiler = "1.5.6"
-compose-plugin = "1.8.0"
+compose-plugin = "1.8.1"
+compose-hot-reload = "1.0.0-alpha10"
 
 [libraries]
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
@@ -96,12 +97,14 @@ ktor-server-websockets = { module = "io.ktor:ktor-server-websockets", version.re
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
 
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
 filekit-compose = { module = "io.github.vinceglb:filekit-compose", version.ref = "filekit" }
 spotify-api-kotlin-core = { module = "com.adamratzman:spotify-api-kotlin-core", version.ref = "spotify-api" }
 
 [plugins]
 compose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+compose-hot-reload = { id = "org.jetbrains.compose.hot-reload", version.ref = "compose-hot-reload" }
 multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

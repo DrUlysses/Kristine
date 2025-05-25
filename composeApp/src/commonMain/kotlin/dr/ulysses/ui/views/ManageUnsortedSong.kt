@@ -7,7 +7,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,7 +17,6 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
-import coil3.request.crossfade
 import dr.ulysses.Logger
 import dr.ulysses.SUPPORTED_EXTENSIONS
 import dr.ulysses.api.SpotifyAppApi
@@ -26,7 +24,6 @@ import dr.ulysses.api.SpotifySearchResult
 import dr.ulysses.entities.SettingKey
 import dr.ulysses.entities.SettingsRepository
 import dr.ulysses.entities.Song
-import dr.ulysses.entities.SongRepository
 import dr.ulysses.player.Player
 import io.github.vinceglb.filekit.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.core.PickerType
@@ -52,28 +49,16 @@ private data class SpotifySearchState(
 @Composable
 fun ManageUnsortedSong(
     song: Song,
+    unsortedSongs: List<Song>,
     onSongEdited: (Song) -> Unit,
+    onNextSong: () -> Unit,
+    onPreviousSong: () -> Unit,
 ) {
-    val context = LocalPlatformContext.current
     val scope = rememberCoroutineScope()
 
     // Reduced state variables
     var spotifySearchState by remember { mutableStateOf(SpotifySearchState()) }
-
-    // State variables for artwork
-    var spotifyArtworkLoaded by remember { mutableStateOf(false) }
-    var songArtworkLoaded by remember { mutableStateOf(false) }
-
-    // State variable to track if artwork is being downloaded
-    var isDownloadingArtwork by remember { mutableStateOf(false) }
-
-    // These state variables are derived when needed
-    val unsortedSongsState = produceState(initialValue = emptyList()) {
-        value = SongRepository.getByNotState(Song.State.Sorted)
-    }
-
-    // Derive current index from unsorted songs list and current song
-    val currentIndex = unsortedSongsState.value.indexOfFirst { it.path == song.path }
+    var songArtwork by mutableStateOf(song.artwork)
 
     // Derive directory from settings when needed
     val songsPathState = produceState(initialValue = song.path) {
@@ -85,10 +70,10 @@ fun ManageUnsortedSong(
     DisposableEffect(song) {
         spotifySearchState = spotifySearchState.copy(isSearching = true)
 
-        // Create search query from song info
-        val query = "${song.title} ${song.artist} ${song.album ?: ""}"
+        // Create a search query from song info
+        val query = "${song.title} ${song.artist}"
 
-        // Launch in the scope that will be cancelled when the effect leaves composition
+        // Launch in the scope that will be canceled when the effect leaves composition
         val job = scope.launch {
             try {
                 // Search Spotify
@@ -124,15 +109,7 @@ fun ManageUnsortedSong(
         image?.let {
             scope.launch {
                 val bytes = image.readBytes()
-
-                // Create updated song with the selected image
-                val updatedSong = song.copy(artwork = bytes)
-
-                // Explicitly save the song to the repository
-                SongRepository.upsert(updatedSong)
-
-                // Update the UI
-                onSongEdited(updatedSong)
+                onSongEdited(song.copy(artwork = bytes))
             }
         } ?: Logger.e {
             "Image not found"
@@ -144,16 +121,7 @@ fun ManageUnsortedSong(
         initialDirectory = songsPathState.value
     ) { songFile ->
         songFile?.path?.let { path ->
-            scope.launch {
-                // Create updated song with the selected path
-                val updatedSong = song.copy(path = path)
-
-                // Explicitly save the song to the repository
-                SongRepository.upsert(updatedSong)
-
-                // Update the UI
-                onSongEdited(updatedSong)
-            }
+            onSongEdited(song.copy(path = path))
         }
     }
 
@@ -260,16 +228,7 @@ fun ManageUnsortedSong(
                                 trailingIcon = {
                                     IconButton(
                                         onClick = {
-                                            scope.launch {
-                                                // Create updated song with the Spotify title
-                                                val updatedSong = song.copy(title = selectedResult?.title.orEmpty())
-
-                                                // Explicitly save the song to the repository
-                                                SongRepository.upsert(updatedSong)
-
-                                                // Update the UI
-                                                onSongEdited(updatedSong)
-                                            }
+                                            onSongEdited(song.copy(title = selectedResult?.title.orEmpty()))
                                         }
                                     ) {
                                         Icon(
@@ -299,16 +258,7 @@ fun ManageUnsortedSong(
                                 trailingIcon = {
                                     IconButton(
                                         onClick = {
-                                            scope.launch {
-                                                // Create updated song with the Spotify album
-                                                val updatedSong = song.copy(album = selectedResult?.album.orEmpty())
-
-                                                // Explicitly save the song to the repository
-                                                SongRepository.upsert(updatedSong)
-
-                                                // Update the UI
-                                                onSongEdited(updatedSong)
-                                            }
+                                            onSongEdited(song.copy(album = selectedResult?.album.orEmpty()))
                                         }
                                     ) {
                                         Icon(
@@ -338,16 +288,7 @@ fun ManageUnsortedSong(
                                 trailingIcon = {
                                     IconButton(
                                         onClick = {
-                                            scope.launch {
-                                                // Create updated song with the Spotify artist
-                                                val updatedSong = song.copy(artist = selectedResult?.artist.orEmpty())
-
-                                                // Explicitly save the song to the repository
-                                                SongRepository.upsert(updatedSong)
-
-                                                // Update the UI
-                                                onSongEdited(updatedSong)
-                                            }
+                                            onSongEdited(song.copy(artist = selectedResult?.artist.orEmpty()))
                                         }
                                     ) {
                                         Icon(
@@ -386,79 +327,29 @@ fun ManageUnsortedSong(
                                             shape = RoundedCornerShape(8.dp),
                                             modifier = Modifier.size(72.dp)
                                         ) {
-                                            if (isDownloadingArtwork) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(72.dp),
-                                                    strokeWidth = 2.dp
-                                                )
-                                            } else {
-                                                val artworkUrl = selectedResult?.artworkUrl
-                                                Logger.d { "Using Spotify artwork URL: $artworkUrl" }
-
-                                                // If artworkUrl is null, we'll use a placeholder
-                                                if (artworkUrl == null) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.MusicNote,
-                                                        contentDescription = "No Spotify Artwork",
-                                                        modifier = Modifier.size(72.dp),
-                                                        tint = MaterialTheme.colorScheme.primary
-                                                    )
-                                                    Logger.d { "No Spotify artwork URL available, using placeholder" }
-                                                } else {
-                                                    AsyncImage(
-                                                        model = ImageRequest
-                                                            .Builder(context)
-                                                            .data(artworkUrl)
-                                                            .crossfade(true)  // Add crossfade for smoother loading
-                                                            .build(),
-                                                        contentDescription = "Spotify Artwork",
-                                                        modifier = Modifier.size(72.dp),
-                                                        error = painterResource(Res.drawable.icon),
-                                                        onSuccess = {
-                                                            spotifyArtworkLoaded = true
-                                                            Logger.d { "Spotify artwork loaded successfully" }
-                                                        },
-                                                        onError = {
-                                                            spotifyArtworkLoaded = false
-                                                            Logger.e { "Failed to load Spotify artwork from URL: $artworkUrl" }
-                                                        }
-                                                    )
-                                                }
-                                            }
+                                            AsyncImage(
+                                                model = selectedResult?.artworkUrl,
+                                                contentDescription = "Spotify Artwork",
+                                                modifier = Modifier.fillMaxSize(),
+                                                placeholder = painterResource(Res.drawable.icon),
+                                            )
                                         }
                                     }
                                     IconButton(
                                         onClick = {
                                             // Download the artwork from Spotify and update the song
                                             selectedResult?.artworkUrl?.let { artworkUrl ->
-                                                // Set downloading state to show progress indicator
-                                                isDownloadingArtwork = true
-
                                                 scope.launch {
                                                     try {
                                                         // Use HttpClient to download the image
-                                                        val client = HttpClient()
-                                                        val response = client.get(artworkUrl)
-                                                        val imageBytes = response.bodyAsBytes()
-                                                        client.close()
-
-                                                        // Create updated song with the downloaded artwork
-                                                        val updatedSong = song.copy(artwork = imageBytes)
-
-                                                        // Explicitly save the song to the repository
-                                                        SongRepository.upsert(updatedSong)
-
+                                                        val imageBytes = HttpClient().use { client ->
+                                                            client.get(artworkUrl)
+                                                        }.bodyAsBytes()
                                                         // Update the UI
-                                                        onSongEdited(updatedSong)
-
-                                                        // Set artwork as loaded
-                                                        songArtworkLoaded = true
+                                                        onSongEdited(song.copy(artwork = imageBytes))
+                                                        songArtwork = imageBytes
                                                     } catch (e: Exception) {
-                                                        Logger.e { "Failed to download artwork: ${e.message}" }
-                                                        songArtworkLoaded = false
-                                                    } finally {
-                                                        // Reset downloading state
-                                                        isDownloadingArtwork = false
+                                                        Logger.e(e) { "Failed to download artwork." }
                                                     }
                                                 }
                                             }
@@ -504,16 +395,7 @@ fun ManageUnsortedSong(
                         OutlinedTextField(
                             value = song.title,
                             onValueChange = { value ->
-                                scope.launch {
-                                    // Create updated song with the new title
-                                    val updatedSong = song.copy(title = value)
-
-                                    // Explicitly save the song to the repository
-                                    SongRepository.upsert(updatedSong)
-
-                                    // Update the UI
-                                    onSongEdited(updatedSong)
-                                }
+                                onSongEdited(song.copy(title = value))
                             },
                             label = { Text("Title") },
                             colors = OutlinedTextFieldDefaults.colors(
@@ -529,16 +411,7 @@ fun ManageUnsortedSong(
                         OutlinedTextField(
                             value = song.album ?: "Unknown Album",
                             onValueChange = { value ->
-                                scope.launch {
-                                    // Create updated song with the new album
-                                    val updatedSong = song.copy(album = value)
-
-                                    // Explicitly save the song to the repository
-                                    SongRepository.upsert(updatedSong)
-
-                                    // Update the UI
-                                    onSongEdited(updatedSong)
-                                }
+                                onSongEdited(song.copy(album = value))
                             },
                             label = { Text("Album") },
                             colors = OutlinedTextFieldDefaults.colors(
@@ -554,16 +427,7 @@ fun ManageUnsortedSong(
                         OutlinedTextField(
                             value = song.artist,
                             onValueChange = { value ->
-                                scope.launch {
-                                    // Create updated song with the new artist
-                                    val updatedSong = song.copy(artist = value)
-
-                                    // Explicitly save the song to the repository
-                                    SongRepository.upsert(updatedSong)
-
-                                    // Update the UI
-                                    onSongEdited(updatedSong)
-                                }
+                                onSongEdited(song.copy(artist = value))
                             },
                             label = { Text("Artist") },
                             colors = OutlinedTextFieldDefaults.colors(
@@ -601,12 +465,13 @@ fun ManageUnsortedSong(
                                         .clickable { imagePicker.launch() }
                                 ) {
                                     AsyncImage(
-                                        model = ImageRequest.Builder(context).data(song.artwork).build(),
+                                        model = ImageRequest.Builder(LocalPlatformContext.current)
+                                            .data(songArtwork)
+                                            .build(),
                                         contentDescription = "Artwork",
-                                        modifier = Modifier.size(72.dp),
-                                        error = painterResource(Res.drawable.icon),
-                                        onSuccess = { songArtworkLoaded = true },
-                                        onError = { songArtworkLoaded = false }
+                                        modifier = Modifier
+                                            .size(72.dp),
+                                        placeholder = painterResource(Res.drawable.icon),
                                     )
                                 }
                             }
@@ -623,13 +488,8 @@ fun ManageUnsortedSong(
                     .padding(16.dp)
             ) {
                 FilledTonalButton(
-                    onClick = {
-                        if (currentIndex > 0) {
-                            val previousSong = unsortedSongsState.value[currentIndex - 1]
-                            onSongEdited(previousSong)
-                        }
-                    },
-                    enabled = currentIndex > 0,
+                    onClick = onPreviousSong,
+                    enabled = unsortedSongs.indexOfFirst { it.path == song.path } > 0,
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -648,6 +508,7 @@ fun ManageUnsortedSong(
                 FilledTonalButton(
                     onClick = {
                         // Play the current song
+                        Player.onSongsChanged(listOf(song))
                         Player.onPlaySongCommand(song)
                     },
                     colors = ButtonDefaults.filledTonalButtonColors(
@@ -665,22 +526,8 @@ fun ManageUnsortedSong(
 
                 FilledTonalButton(
                     onClick = {
-                        // Save current song as sorted
-                        val sortedSong = song.copy(state = Song.State.Sorted)
-
-                        // Explicitly save the song to the repository
-                        scope.launch {
-                            SongRepository.upsert(sortedSong)
-
-                            // Navigate to the next song if available
-                            if (currentIndex < unsortedSongsState.value.size - 1) {
-                                val nextSong = unsortedSongsState.value[currentIndex + 1]
-                                onSongEdited(nextSong)
-                            }
-                        }
-
-                        // Update the UI immediately
-                        onSongEdited(sortedSong)
+                        onSongEdited(song)
+                        onNextSong()
                     },
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,

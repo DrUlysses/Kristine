@@ -14,6 +14,7 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.sqlDelight)
+    alias(libs.plugins.compose.hot.reload)
 }
 
 composeCompiler {
@@ -77,6 +78,7 @@ kotlin {
             implementation(libs.bundles.ktor.client)
             implementation(libs.bundles.ktor.server)
             implementation(libs.coil.compose)
+            implementation(libs.coil.ktor)
             implementation(libs.filekit.compose)
             implementation(libs.kermit)
             implementation(libs.koin.core)
