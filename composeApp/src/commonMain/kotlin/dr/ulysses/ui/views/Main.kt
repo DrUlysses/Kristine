@@ -226,13 +226,13 @@ fun Main() {
                     modifier = Modifier.fillMaxSize(),
                     state = pagerState
                 ) { page ->
-                    if (topBarText != null)
+                    if (topBarText != null) {
                         NavHost(
                             modifier = Modifier.fillMaxSize(),
                             navController = navBarController,
                             graph = navGraph
                         )
-                    else
+                    } else {
                         when (page) {
                             0 -> if (isLoadingSongs) {
                                 LoadingIndicator()
@@ -331,6 +331,7 @@ fun Main() {
                                 }
                             }
                         }
+                    }
                 }
             }
         },

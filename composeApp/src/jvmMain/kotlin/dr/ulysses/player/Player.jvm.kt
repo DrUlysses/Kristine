@@ -80,14 +80,17 @@ actual fun setPlayListOnDevice(paths: List<String>) {
 
 actual fun pauseCurrentSongOnDevice() {
     PlayerObject.player.controls().pause()
+    PlayerObject.onMediaStateChanged(false)
 }
 
 actual fun resumeCurrentSongOnDevice() {
     PlayerObject.player.controls().play()
+    PlayerObject.onMediaStateChanged(true)
 }
 
 actual fun stopCurrentSongOnDevice() {
     PlayerObject.player.controls().stop()
+    PlayerObject.onMediaStateChanged(false)
 }
 
 actual fun seekToOnDevice(position: Int) {

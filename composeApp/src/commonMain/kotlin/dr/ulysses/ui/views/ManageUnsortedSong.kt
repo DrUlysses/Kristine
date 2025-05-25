@@ -21,7 +21,6 @@ import dr.ulysses.Logger
 import dr.ulysses.SUPPORTED_EXTENSIONS
 import dr.ulysses.api.SpotifyAppApi
 import dr.ulysses.api.SpotifySearchResult
-import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.SettingKey
 import dr.ulysses.entities.SettingsRepository
 import dr.ulysses.entities.Song
@@ -509,7 +508,7 @@ fun ManageUnsortedSong(
                 FilledTonalButton(
                     onClick = {
                         // Play the current song
-                        Player.onPlaylistChanged(Playlist(songs = listOf(song)))
+                        Player.onSongsChanged(listOf(song))
                         Player.onPlaySongCommand(song)
                     },
                     colors = ButtonDefaults.filledTonalButtonColors(
