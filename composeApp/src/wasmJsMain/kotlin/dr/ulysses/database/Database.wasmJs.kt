@@ -13,4 +13,4 @@ actual class DriverFactory {
 }
 
 fun jsWorker(): Worker =
-    js("""new Worker(new URL("./sqljs.worker.js", import.meta.url))""")
+    js("""new URL("@cashapp/sqldelight-sqljs-worker/sqljs.worker.js", import.meta.url)""")

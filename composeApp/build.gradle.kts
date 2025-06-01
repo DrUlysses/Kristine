@@ -120,6 +120,7 @@ kotlin {
             implementation(libs.ktor.client.js)
             implementation(libs.sqldelight.webworker.driver)
             implementation(npm("sql.js", libs.versions.sqlJs.get()))
+            implementation(npm("@cashapp/sqldelight-sqljs-worker", libs.versions.sqlDelight.get()))
             implementation(devNpm("copy-webpack-plugin", libs.versions.webPackPlugin.get()))
         }
     }
