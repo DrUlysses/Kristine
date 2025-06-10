@@ -11,6 +11,4 @@ fun main() {
     ComposeViewport(body) {
         App()
     }
-
-//    CanvasBasedWindow { App() }
 }

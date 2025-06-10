@@ -140,7 +140,7 @@ fun Main() {
     Scaffold(
         topBar = {
             TabMenu(
-                pagerState = pagerState,
+                pagerState = pagerState, // TODO: pagerState vs dynamic tabs here
                 topText = topBarText,
                 tabs = mapOf(
                     0 to stringResource(Res.string.artists),
@@ -252,7 +252,7 @@ fun Main() {
                                         returningFromDetail = false // Reset when navigating to detail
                                         MainViewModel.setReturningFromDetail(false)
                                         val filteredSongs = allSongs.filter {
-                                            it.artist.trim().lowercase() == artist.trim().lowercase()
+                                            it.artist.trim().equals(artist.trim(), ignoreCase = true)
                                         }
                                         currentArtistSongsList = filteredSongs
                                         MainViewModel.setCurrentArtistSongsList(filteredSongs)
@@ -290,7 +290,7 @@ fun Main() {
                                         returningFromDetail = false // Reset when navigating to detail
                                         MainViewModel.setReturningFromDetail(false)
                                         val filteredSongs = allSongs.filter {
-                                            it.album != null && it.album.lowercase() == album.lowercase()
+                                            it.album != null && it.album.equals(album, ignoreCase = true)
                                         }
                                         currentAlbumSongsList = filteredSongs
                                         MainViewModel.setCurrentAlbumSongsList(filteredSongs)

@@ -33,8 +33,6 @@ fun NavGraphBuilder.AddNavigationGraph(
     currentArtistSongsList: List<Song>,
     currentAlbumSongsList: List<Song>,
 ) {
-    val scope = rememberCoroutineScope()
-
     navigation<ArtistsGraph>(
         startDestination = Artists,
         popExitTransition = {
@@ -43,7 +41,7 @@ fun NavGraphBuilder.AddNavigationGraph(
         }
     ) {
         composable<Artists> {
-            scope.launch {
+            LaunchedEffect(Unit) {
                 pagerState.scrollToPage(0)
             }
         }
@@ -59,7 +57,7 @@ fun NavGraphBuilder.AddNavigationGraph(
     }
 
     composable<SongsList> {
-        scope.launch {
+        LaunchedEffect(Unit) {
             pagerState.scrollToPage(1)
         }
     }
@@ -72,7 +70,7 @@ fun NavGraphBuilder.AddNavigationGraph(
         }
     ) {
         composable<Albums> {
-            scope.launch {
+            LaunchedEffect(Unit) {
                 pagerState.scrollToPage(2)
             }
         }
@@ -95,14 +93,14 @@ fun NavGraphBuilder.AddNavigationGraph(
         }
     ) {
         composable<Playlists> {
-            scope.launch {
+            LaunchedEffect(Unit) {
                 pagerState.scrollToPage(3)
             }
         }
         composable<PlaylistSongs> {
             var songs by remember { mutableStateOf(emptyList<Song>()) }
 
-            scope.launch {
+            LaunchedEffect(Unit) {
                 songs = PlaylistRepository.getPlaylistSongs(currentPlaylist.name)
             }
 

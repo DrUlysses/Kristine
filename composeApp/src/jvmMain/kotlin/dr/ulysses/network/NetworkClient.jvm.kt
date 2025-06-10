@@ -5,12 +5,7 @@ import dr.ulysses.Logger
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.utils.io.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable.isActive
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
@@ -30,11 +25,12 @@ actual fun startDiscovery(
     discoveryJob.value = scope.launch {
         val selectorManager = SelectorManager(Dispatchers.Default)
         val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", NetworkServer.DISCOVERY_PORT))
+        var isActive = true
 
         try {
             // Start a periodic job to clean up stale servers
             val cleanupJob = launch {
-                while (isActive) {
+                while (true) {
                     cleanupStaleServers()
                     onServersDiscovered(discoveredServers)
                     delay(5.seconds)
@@ -78,7 +74,9 @@ actual fun startDiscovery(
             cleanupJob.cancel()
         } catch (e: Exception) {
             Logger.e(e) { "Error in UDP discovery client" }
+            isActive = false
         } finally {
+            isActive = false
             socket.close()
             selectorManager.close()
         }

@@ -8,11 +8,12 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dr.ulysses.ui.elements.SettingsDropdownEntry
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kristine.composeapp.generated.resources.Res
 import kristine.composeapp.generated.resources.back
@@ -28,14 +29,13 @@ fun TabMenu(
     navigateUp: () -> Unit = {},
     menuEntries: List<SettingsDropdownEntry> = emptyList(),
 ) {
-    val scope = rememberCoroutineScope()
     val menuExpanded = mutableStateOf(false)
     Row {
         Column(
             modifier = Modifier
                 .weight(1f)
         ) {
-            if (!topText.isNullOrEmpty())
+            if (!topText.isNullOrEmpty()) {
                 TopAppBar(
                     title = {
                         Text(
@@ -45,8 +45,12 @@ fun TabMenu(
                             modifier = Modifier.padding(top = 8.dp)
                         )
                     },
-                    colors = TopAppBarDefaults.mediumTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        scrolledContainerColor = Color.Unspecified,
+                        navigationIconContentColor = Color.Unspecified,
+                        titleContentColor = Color.Unspecified,
+                        actionIconContentColor = Color.Unspecified
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -60,8 +64,8 @@ fun TabMenu(
                         }
                     }
                 )
-            else
-                TabRow(
+            } else {
+                PrimaryTabRow(
                     containerColor = Color.Transparent,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -71,7 +75,7 @@ fun TabMenu(
                     for (tab in tabs) {
                         Tab(
                             onClick = {
-                                scope.launch {
+                                CoroutineScope(Dispatchers.Main).launch {
                                     pagerState.scrollToPage(tab.key)
                                 }
                             },
@@ -86,7 +90,7 @@ fun TabMenu(
                         )
                     }
                 }
-
+            }
         }
         Column(
             modifier = Modifier

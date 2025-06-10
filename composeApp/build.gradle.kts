@@ -14,7 +14,7 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.sqlDelight)
-    alias(libs.plugins.compose.hot.reload)
+//    alias(libs.plugins.compose.hot.reload)
 }
 
 composeCompiler {
@@ -87,6 +87,8 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.multiplatformSettings)
             implementation(libs.napier)
+            implementation(libs.androidx.lifecycle.runtime.compose)
+            implementation(libs.androidx.lifecycle.viewmodel.compose)
             implementation(libs.navigation.compose)
             implementation(libs.sqldelight.coroutines.extension)
         }
@@ -115,6 +117,7 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.spotify.api.kotlin.core)
             implementation(libs.sqldelight.driver)
+            implementation(libs.logback.classic)
         }
         wasmJsMain.dependencies {
             implementation(libs.ktor.client.js)
