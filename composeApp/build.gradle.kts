@@ -14,7 +14,6 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.sqlDelight)
-//    alias(libs.plugins.compose.hot.reload)
 }
 
 composeCompiler {
@@ -66,6 +65,7 @@ kotlin {
         all {
             languageSettings {
                 optIn("org.jetbrains.compose.resources.ExperimentalResourceApi")
+                optIn("kotlin.time.ExperimentalTime")
             }
         }
         commonMain.dependencies {
@@ -75,6 +75,9 @@ kotlin {
             implementation(compose.materialIconsExtended)
             implementation(compose.runtime)
             implementation(compose.ui)
+            implementation(compose.uiUtil)
+            implementation(compose.material3AdaptiveNavigationSuite)
+            implementation(libs.androidx.navigation.compose)
             implementation(libs.bundles.ktor.client)
             implementation(libs.bundles.ktor.server)
             implementation(libs.coil.compose)
@@ -89,8 +92,8 @@ kotlin {
             implementation(libs.napier)
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.androidx.lifecycle.viewmodel.compose)
-            implementation(libs.navigation.compose)
             implementation(libs.sqldelight.coroutines.extension)
+            implementation(libs.androidx.material3.adaptive)
         }
         androidMain.dependencies {
             implementation(libs.accompanist.permissions)

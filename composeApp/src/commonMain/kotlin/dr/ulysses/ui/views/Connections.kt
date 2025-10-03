@@ -15,10 +15,6 @@ import dr.ulysses.ui.components.CustomServerConnectCard
 import dr.ulysses.ui.components.DiscoveredServersList
 import dr.ulysses.ui.components.LocalServerCard
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.serialization.Serializable
-
-@Serializable
-object Connections
 
 @Composable
 fun Connections() {
