@@ -31,13 +31,9 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import kristine.composeapp.generated.resources.Res
 import kristine.composeapp.generated.resources.icon
 import org.jetbrains.compose.resources.painterResource
-
-@Serializable
-object ManageSong
 
 // Data class to hold Spotify search state
 private data class SpotifySearchState(

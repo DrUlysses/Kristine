@@ -1,14 +1,17 @@
+@file:OptIn(ExperimentalTime::class)
+
 package dr.ulysses.entities
 
 import app.cash.sqldelight.async.coroutines.awaitAsList
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import dr.ulysses.database.SharedDatabase
 import dr.ulysses.entities.base.Searchable
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 @Serializable
 data class Playlist(

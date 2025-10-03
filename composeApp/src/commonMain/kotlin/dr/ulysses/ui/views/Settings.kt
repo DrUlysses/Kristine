@@ -13,10 +13,6 @@ import dr.ulysses.entities.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
-
-@Serializable
-object Settings
 
 /**
  * Settings screen that displays and allows editing of all application settings.

@@ -18,12 +18,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastDistinctBy
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
-import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.createGraph
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.ui.NavDisplay
 import dr.ulysses.Logger
 import dr.ulysses.entities.*
 import dr.ulysses.models.MainViewModel
@@ -63,7 +60,8 @@ fun Main() {
 
     // Track whether we're returning from a detail view
     var returningFromDetail by remember { mutableStateOf(false) }
-    val navBarController = rememberNavController()
+    val navStack = rememberNavBackStackFix(config, Songs)
+    var pendingRoute by remember { mutableStateOf<NavKey?>(null) }
     var allSongs by remember { mutableStateOf(emptyList<Song>()) }
     var isLoadingSongs by remember { mutableStateOf(true) }
     // Observe the current server connection status
@@ -107,27 +105,14 @@ fun Main() {
             isLoadingPlaylists = viewModelState.isLoadingPlaylists
         }
     }
-    val navGraph = navBarController.createGraph(
-        startDestination = SongsList
-    ) {
-        AddNavigationGraph(
-            navBarController = navBarController,
-            setTopBarText = { topBarText = it },
-            pagerState = pagerState,
-            onPlaySongCommand = { song ->
-                Player.onPlaySongCommand(song)
-            },
-            onPlaylistChanged = Player::onPlaylistChanged,
-            currentPlaylist = currentPlaylist,
-            onCurrentPlaylistChanged = { currentPlaylist = it },
-            searchText = searchText,
-            currentArtistSongsList = currentArtistSongsList,
-            currentAlbumSongsList = currentAlbumSongsList
-        )
-    }
 
-    navBarController.setViewModelStore(LocalViewModelStoreOwner.current?.viewModelStore!!)
-    navBarController.setGraph(navGraph, null)
+    // Perform queued navigation once NavHost is mounted (topBarText != null)
+    LaunchedEffect(topBarText, pendingRoute) {
+        if (topBarText != null && pendingRoute != null) {
+            navStack.add(pendingRoute!!)
+            pendingRoute = null
+        }
+    }
 
     // Reset returningFromDetail when the user changes tabs
     LaunchedEffect(pagerState.currentPage) {
@@ -140,7 +125,7 @@ fun Main() {
     Scaffold(
         topBar = {
             TabMenu(
-                pagerState = pagerState,
+                pagerState = pagerState, // TODO: pagerState vs dynamic tabs here
                 topText = topBarText,
                 tabs = mapOf(
                     0 to stringResource(Res.string.artists),
@@ -149,11 +134,9 @@ fun Main() {
                     3 to stringResource(Res.string.playlists),
                 ),
                 navigateUp = {
-                    navBarController.navigateUp()
+                    navStack.removeLastOrNull()
                     topBarText = null
                     MainViewModel.setTopBarText(null)
-                    // Set returning from detail to preserve scroll position
-                    returningFromDetail = true
                     MainViewModel.setReturningFromDetail(true)
                     // Restore the previous tab index when navigating back
                     scope.launch {
@@ -167,9 +150,9 @@ fun Main() {
                         onClick = {
                             previousTabIndex = pagerState.currentPage // Save current tab index
                             MainViewModel.setPreviousTabIndex(pagerState.currentPage)
-                            navBarController.navigate(ManagePlaylist)
                             topBarText = addPlaylistText
                             MainViewModel.setTopBarText(addPlaylistText)
+                            pendingRoute = ManagePlaylist
                         }
                     ),
                     SettingsDropdownEntry(
@@ -178,9 +161,9 @@ fun Main() {
                         onClick = {
                             previousTabIndex = pagerState.currentPage // Save current tab index
                             MainViewModel.setPreviousTabIndex(pagerState.currentPage)
-                            navBarController.navigate(ManageUnsortedList)
                             topBarText = manageUnsortedText
                             MainViewModel.setTopBarText(manageUnsortedText)
+                            pendingRoute = ManageUnsortedList
                         }
                     ),
                     SettingsDropdownEntry(
@@ -189,9 +172,9 @@ fun Main() {
                         onClick = {
                             previousTabIndex = pagerState.currentPage // Save current tab index
                             MainViewModel.setPreviousTabIndex(pagerState.currentPage)
-                            navBarController.navigate(Connections)
                             topBarText = connectionsText
                             MainViewModel.setTopBarText(connectionsText)
+                            pendingRoute = Connections
                         }
                     ),
                     SettingsDropdownEntry(
@@ -208,9 +191,9 @@ fun Main() {
                         onClick = {
                             previousTabIndex = pagerState.currentPage // Save current tab index
                             MainViewModel.setPreviousTabIndex(pagerState.currentPage)
-                            navBarController.navigate(Settings)
                             topBarText = settingsText
                             MainViewModel.setTopBarText(settingsText)
+                            pendingRoute = Settings
                         }
                     )
                 )
@@ -227,10 +210,135 @@ fun Main() {
                     state = pagerState
                 ) { page ->
                     if (topBarText != null) {
-                        NavHost(
+                        NavDisplay(
                             modifier = Modifier.fillMaxSize(),
-                            navController = navBarController,
-                            graph = navGraph
+                            backStack = navStack,
+                            onBack = { navStack.removeLastOrNull() },
+                            entryProvider = entryProvider {
+                                entry<Artists> {
+                                    LaunchedEffect(Unit) { pagerState.scrollToPage(0) }
+                                }
+                                entry<Songs> {
+                                    LaunchedEffect(Unit) { pagerState.scrollToPage(1) }
+                                }
+                                entry<Albums> {
+                                    LaunchedEffect(Unit) { pagerState.scrollToPage(2) }
+                                }
+                                entry<Playlists> {
+                                    LaunchedEffect(Unit) { pagerState.scrollToPage(3) }
+                                }
+                                entry<ArtistSongs> {
+                                    SongsList(
+                                        songs = currentArtistSongsList,
+                                        onClick = { song ->
+                                            Player.onSongsChanged(currentArtistSongsList)
+                                            Player.onPlaySongCommand(song)
+                                        }
+                                    )
+                                }
+                                entry<AlbumSongs> {
+                                    SongsList(
+                                        songs = currentAlbumSongsList,
+                                        onClick = { song ->
+                                            Player.onSongsChanged(currentAlbumSongsList)
+                                            Player.onPlaySongCommand(song)
+                                        }
+                                    )
+                                }
+                                entry<PlaylistSongs> {
+                                    var songs by remember { mutableStateOf(emptyList<Song>()) }
+                                    LaunchedEffect(currentPlaylist.name) {
+                                        songs = PlaylistRepository.getPlaylistSongs(currentPlaylist.name)
+                                    }
+                                    SongsList(
+                                        songs = songs,
+                                        onClick = { song ->
+                                            Player.onSongsChanged(songs)
+                                            Player.onPlaySongCommand(song)
+                                        }
+                                    )
+                                }
+                                entry<Search> {
+                                    Search(
+                                        onPlaylistClicked = { pl ->
+                                            val playlist = pl as Playlist
+                                            currentPlaylist = playlist
+                                            MainViewModel.setCurrentPlaylist(playlist)
+                                            topBarText = playlist.name
+                                            navStack.add(PlaylistSongs)
+                                        },
+                                        onQueryChanged = { query ->
+                                            val text = query.ifEmpty { searchText }
+                                            topBarText = text
+                                            MainViewModel.setTopBarText(text)
+                                        }
+                                    )
+                                }
+                                entry<ManagePlaylist> {
+                                    ManagePlaylist(
+                                        playlist = currentPlaylist,
+                                        onPlaylistChanged = { playlist ->
+                                            currentPlaylist = playlist
+                                            MainViewModel.setCurrentPlaylist(playlist)
+                                        }
+                                    )
+                                }
+                                entry<ManageUnsortedList> {
+                                    var unsortedSongs by remember { mutableStateOf(emptyList<Song>()) }
+                                    LaunchedEffect(Unit) {
+                                        unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
+                                    }
+                                    if (unsortedSongs.isNotEmpty()) {
+                                        ManageUnsortedList(
+                                            unsortedSongs = unsortedSongs,
+                                            onClick = { song ->
+                                                MainViewModel.setSelectedSong(song)
+                                                navStack.add(ManageSong)
+                                            }
+                                        )
+                                    } else {
+                                        LoadingIndicator()
+                                    }
+                                }
+                                entry<ManageSong> {
+                                    var unsortedSongs by rememberSaveable { mutableStateOf(emptyList<Song>()) }
+                                    LaunchedEffect(Unit) {
+                                        unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
+                                    }
+                                    val currentSong = MainViewModel.state.selectedSong
+                                    val currentSongIndex = unsortedSongs.indexOf(currentSong)
+                                    if (currentSong != null && unsortedSongs.isNotEmpty()) {
+                                        ManageUnsortedSong(
+                                            song = currentSong,
+                                            unsortedSongs = unsortedSongs,
+                                            onSongEdited = { edited ->
+                                                CoroutineScope(Dispatchers.Default).launch {
+                                                    SongRepository.upsert(edited)
+                                                    onSongSave(edited)
+                                                }
+                                                MainViewModel.setSelectedSong(edited)
+                                            },
+                                            onNextSong = {
+                                                MainViewModel.setSelectedSong(unsortedSongs.getOrNull(currentSongIndex + 1))
+                                            },
+                                            onPreviousSong = {
+                                                MainViewModel.setSelectedSong(unsortedSongs.getOrNull(currentSongIndex - 1))
+                                            }
+                                        )
+                                    } else {
+                                        LoadingIndicator()
+                                    }
+                                }
+                                entry<Connections> {
+                                    Connections()
+                                }
+                                entry<Settings> {
+                                    Settings(
+                                        onPendingSaveJobsChanged = MainViewModel::setPendingSaveJobs,
+                                        onSongsPathChanged = MainViewModel::setSongsPathChanged
+                                    )
+                                }
+                            }
                         )
                     } else {
                         when (page) {
@@ -252,11 +360,11 @@ fun Main() {
                                         returningFromDetail = false // Reset when navigating to detail
                                         MainViewModel.setReturningFromDetail(false)
                                         val filteredSongs = allSongs.filter {
-                                            it.artist.trim().lowercase() == artist.trim().lowercase()
+                                            it.artist.trim().equals(artist.trim(), ignoreCase = true)
                                         }
                                         currentArtistSongsList = filteredSongs
                                         MainViewModel.setCurrentArtistSongsList(filteredSongs)
-                                        navBarController.navigate(ArtistSongs)
+                                        pendingRoute = ArtistSongs
                                     }
                                 )
                             }
@@ -290,11 +398,11 @@ fun Main() {
                                         returningFromDetail = false // Reset when navigating to detail
                                         MainViewModel.setReturningFromDetail(false)
                                         val filteredSongs = allSongs.filter {
-                                            it.album != null && it.album.lowercase() == album.lowercase()
+                                            it.album != null && it.album.equals(album, ignoreCase = true)
                                         }
                                         currentAlbumSongsList = filteredSongs
                                         MainViewModel.setCurrentAlbumSongsList(filteredSongs)
-                                        navBarController.navigate(AlbumSongs)
+                                        pendingRoute = AlbumSongs
                                     }
                                 )
                             }
@@ -325,7 +433,7 @@ fun Main() {
                                             MainViewModel.setTopBarText(playlist.name)
                                             returningFromDetail = false // Reset when navigating to detail
                                             MainViewModel.setReturningFromDetail(false)
-                                            navBarController.navigate(PlaylistSongs)
+                                            pendingRoute = PlaylistSongs
                                         }
                                     )
                                 }
@@ -337,13 +445,12 @@ fun Main() {
         },
         bottomBar = { Player() },
         floatingActionButton = {
-            val currentRoute by navBarController.currentBackStackEntryAsState()
-            val destination = currentRoute?.destination
+            val route = navStack.lastOrNull()
             when {
-                destination?.hasRoute<SearchEntries>() == true ->
+                route == Search ->
                     FloatingActionButton(
                         onClick = {
-                            navBarController.navigateUp()
+                            navStack.removeLastOrNull()
                             topBarText = null
                             MainViewModel.setTopBarText(null)
                             // Set returning from detail to preserve scroll position
@@ -361,7 +468,7 @@ fun Main() {
                         )
                     }
 
-                destination?.hasRoute<ManagePlaylist>() == true ->
+                route == ManagePlaylist ->
                     FloatingActionButton(
                         onClick = {
                             scope.launch {
@@ -372,7 +479,7 @@ fun Main() {
                                 val newPlaylist = Playlist(songs = songs)
                                 currentPlaylist = newPlaylist
                                 MainViewModel.setCurrentPlaylist(newPlaylist)
-                                navBarController.navigateUp()
+                                navStack.removeLastOrNull()
                                 topBarText = null
                                 MainViewModel.setTopBarText(null)
                                 // Set returning from detail to preserve scroll position
@@ -391,7 +498,7 @@ fun Main() {
                         )
                     }
 
-                destination?.hasRoute<ManageSong>() == true -> {
+                route == ManageSong -> {
                     FloatingActionButton(
                         onClick = {
                             scope.launch {
@@ -412,7 +519,7 @@ fun Main() {
                                 val newPlaylist = Playlist(songs = allSongs)
                                 currentPlaylist = newPlaylist
                                 MainViewModel.setCurrentPlaylist(newPlaylist)
-                                navBarController.navigateUp()
+                                navStack.removeLastOrNull()
                                 topBarText = null
                                 MainViewModel.setTopBarText(null)
                                 // Set returning from detail to preserve scroll position
@@ -430,11 +537,11 @@ fun Main() {
                     }
                 }
 
-                destination?.hasRoute<ManageUnsortedList>() == true -> {
+                route == ManageUnsortedList -> {
                     UnsortedFabMenu()
                 }
 
-                destination?.hasRoute<Settings>() == true -> {
+                route == Settings -> {
                     // Get whether SongsPath was changed and pending jobs from MainViewModel
                     val songsPathChanged = MainViewModel.state.songsPathChanged
                     val pendingSaveJobs = MainViewModel.state.pendingSaveJobs
@@ -445,11 +552,11 @@ fun Main() {
                             scope.launch {
                                 // If there are pending save jobs, wait for them to complete
                                 if (pendingSaveJobs.isNotEmpty()) {
-                                    pendingSaveJobs.forEach { it.join() }
+                                    pendingSaveJobs.joinAll()
                                 }
 
                                 // Now that all settings are saved, navigate back
-                                navBarController.navigateUp()
+                                navStack.removeLastOrNull()
                                 topBarText = null
                                 MainViewModel.setTopBarText(null)
 
@@ -486,9 +593,9 @@ fun Main() {
                     FloatingActionButton(
                         onClick = {
                             // We're already in PlaylistSongs, so the previousTabIndex is already set to 3
-                            navBarController.navigate(ManagePlaylist)
                             topBarText = addPlaylistText
                             MainViewModel.setTopBarText(addPlaylistText)
+                            pendingRoute = ManagePlaylist
                         }
                     ) {
                         Icon(
@@ -502,9 +609,9 @@ fun Main() {
                         onClick = {
                             previousTabIndex = pagerState.currentPage // Save current tab index
                             MainViewModel.setPreviousTabIndex(pagerState.currentPage)
-                            navBarController.navigate(SearchGraph)
                             topBarText = searchText
                             MainViewModel.setTopBarText(searchText)
+                            pendingRoute = Search
                         }
                     ) {
                         Icon(

@@ -14,7 +14,6 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.sqlDelight)
-    alias(libs.plugins.compose.hot.reload)
 }
 
 composeCompiler {
@@ -66,6 +65,7 @@ kotlin {
         all {
             languageSettings {
                 optIn("org.jetbrains.compose.resources.ExperimentalResourceApi")
+                optIn("kotlin.time.ExperimentalTime")
             }
         }
         commonMain.dependencies {
@@ -75,6 +75,9 @@ kotlin {
             implementation(compose.materialIconsExtended)
             implementation(compose.runtime)
             implementation(compose.ui)
+            implementation(compose.uiUtil)
+            implementation(compose.material3AdaptiveNavigationSuite)
+            implementation(libs.androidx.navigation.compose)
             implementation(libs.bundles.ktor.client)
             implementation(libs.bundles.ktor.server)
             implementation(libs.coil.compose)
@@ -87,8 +90,10 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.multiplatformSettings)
             implementation(libs.napier)
-            implementation(libs.navigation.compose)
+            implementation(libs.androidx.lifecycle.runtime.compose)
+            implementation(libs.androidx.lifecycle.viewmodel.compose)
             implementation(libs.sqldelight.coroutines.extension)
+            implementation(libs.androidx.material3.adaptive)
         }
         androidMain.dependencies {
             implementation(libs.accompanist.permissions)
@@ -115,11 +120,13 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.spotify.api.kotlin.core)
             implementation(libs.sqldelight.driver)
+            implementation(libs.logback.classic)
         }
         wasmJsMain.dependencies {
             implementation(libs.ktor.client.js)
             implementation(libs.sqldelight.webworker.driver)
             implementation(npm("sql.js", libs.versions.sqlJs.get()))
+            implementation(npm("@cashapp/sqldelight-sqljs-worker", libs.versions.sqlDelight.get()))
             implementation(devNpm("copy-webpack-plugin", libs.versions.webPackPlugin.get()))
         }
     }
