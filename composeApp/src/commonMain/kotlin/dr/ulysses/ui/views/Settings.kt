@@ -150,7 +150,7 @@ private class SettingsState(
 }
 
 /**
- * Remember a SettingsState and load settings when created.
+ * Remember a SettingsState and load setting when created.
  */
 @Composable
 private fun rememberSettingsState(

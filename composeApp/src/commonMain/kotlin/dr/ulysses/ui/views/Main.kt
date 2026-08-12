@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastDistinctBy
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import dr.ulysses.Logger
 import dr.ulysses.entities.*
@@ -60,7 +61,7 @@ fun Main() {
 
     // Track whether we're returning from a detail view
     var returningFromDetail by remember { mutableStateOf(false) }
-    val navStack = rememberNavBackStackFix(config, Songs)
+    val navStack = rememberNavBackStack(config, Songs)
     var pendingRoute by remember { mutableStateOf<NavKey?>(null) }
     var allSongs by remember { mutableStateOf(emptyList<Song>()) }
     var isLoadingSongs by remember { mutableStateOf(true) }

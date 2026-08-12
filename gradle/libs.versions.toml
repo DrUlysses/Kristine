@@ -1,14 +1,14 @@
 [versions]
 # Main
-kristine = "1.1.0"
-kotlin = "2.2.10"
-ktor = "3.3.0"
-koin = "4.1.1"
-agp = "8.12.3"
+kristine = "1.2.0"
+kotlin = "2.4.10"
+ktor = "3.5.2"
+koin = "4.2.2"
+agp = "9.1.1"
 spotify-api = "4.1.3"
 
 # Logging
-logback = "1.5.19"
+logback = "1.6.2"
 
 # Platform
 android-compileSdk = "36"
@@ -19,40 +19,40 @@ android-jvmTarget = "11"
 jvmTarget = "17"
 
 # Database
-sqlDelight = "2.1.0"
+sqlDelight = "2.3.2"
 sqlJs = "1.13.0"
 webPackPlugin = "9.1.0"
 multiplatformSettings = "1.3.0"
 
 # Misc
-kotlinx-serialization = "1.9.0"
-kotlinx-coroutines = "1.10.2"
-kotlinx-datetime = "0.7.1"
+kotlinx-serialization = "1.11.0"
+kotlinx-coroutines = "1.11.0"
+kotlinx-datetime = "0.8.0"
 accompanist = "0.37.3"
 
 # Filesystem
-appdirs = "1.4.0"
+appdirs = "1.5.0"
 napier = "2.7.1"
-kermit = "2.0.8"
+kermit = "2.1.0"
 filekit = "0.8.8"
-coil = "3.3.0"
+coil = "3.5.0"
 
 # AndroidX
-androidx-activityCompose = "1.11.0"
+androidx-activityCompose = "1.13.0"
 androidx-appcompat = "1.7.1"
-androidx-core = "1.17.0"
-androidx-media3 = "1.8.0"
-androidx-lifecycle = "2.10.0+dev3015"
-androidx-adaptive = "1.2.0+dev3015"
-androidx-navigation-compose = "1.0.0+dev3015"
+androidx-core = "1.19.0"
+androidx-media3 = "1.11.0"
+androidx-lifecycle = "2.11.0"
+androidx-adaptive = "1.2.0"
+androidx-navigation-compose = "1.1.1"
 
 # Desktop
-caprica-vlcj = "4.11.0"
+caprica-vlcj = "4.12.1"
 jaudiotagger = "3.0.1"
 
 # Compose
 compose-compiler = "1.5.6"
-compose-plugin = "1.10.0+dev3015"
+compose-plugin = "1.11.1"
 
 [libraries]
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }

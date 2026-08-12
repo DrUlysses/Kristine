@@ -139,7 +139,6 @@ fun UnsortedFabMenu() {
         )
     }
 
-
     // Show progress dialog
     if (state.showProgressDialog) {
         AlertDialog(

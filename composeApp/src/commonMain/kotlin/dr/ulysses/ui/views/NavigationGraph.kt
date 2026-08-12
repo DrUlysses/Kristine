@@ -1,12 +1,7 @@
 package dr.ulysses.ui.views
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.saveable.rememberSerializable
-import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.serialization.NavBackStackSerializer
 import androidx.savedstate.serialization.SavedStateConfiguration
-import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
@@ -68,15 +63,4 @@ val config = SavedStateConfiguration {
             subclass(Settings::class, Settings.serializer())
         }
     }
-}
-
-@Composable
-inline fun <reified T : NavKey> rememberNavBackStackFix(
-    configuration: SavedStateConfiguration,
-    vararg elements: T,
-): NavBackStack<NavKey> = rememberSerializable(
-    configuration = configuration,
-    serializer = NavBackStackSerializer(PolymorphicSerializer(NavKey::class)),
-) {
-    NavBackStack(*elements)
 }
