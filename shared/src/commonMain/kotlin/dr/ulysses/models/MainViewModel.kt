@@ -2,6 +2,7 @@ package dr.ulysses.models
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.setValue
 import dr.ulysses.Logger
 import dr.ulysses.entities.*
@@ -14,7 +15,8 @@ import kotlinx.coroutines.*
 object MainViewModel {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    var state: MainState by mutableStateOf(MainState())
+    // Every new state counts as a change: Song.equals ignores artwork, so an artwork-only edit would be dropped
+    var state: MainState by mutableStateOf(MainState(), referentialEqualityPolicy())
         private set
 
     init {

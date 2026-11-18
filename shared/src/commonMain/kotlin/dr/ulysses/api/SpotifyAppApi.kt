@@ -14,14 +14,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
-data class SpotifySearchResult(
-    val title: String,
-    val album: String,
-    val artist: String,
-    val artworkUrl: String? = null,
-)
-
-/** Track search used to fill in metadata of unsorted songs. Credentials come from the settings. */
+/** One of the [MetadataSearch] providers. Credentials come from the settings; without them it fails. */
 object SpotifyAppApi {
     private val client = HttpClient()
     private val json = Json { ignoreUnknownKeys = true }
@@ -29,7 +22,7 @@ object SpotifyAppApi {
 
     private class CachedToken(val credentials: String, val value: String, val expiresAt: Instant)
 
-    suspend fun searchTrack(query: String): Result<List<SpotifySearchResult>> = runCatching {
+    suspend fun searchTrack(query: String): Result<List<MetadataCandidate>> = runCatching {
         val response = client.get("https://api.spotify.com/v1/search") {
             parameter("q", query)
             parameter("type", "track")
@@ -38,11 +31,13 @@ object SpotifyAppApi {
         }
         check(response.status.isSuccess()) { "Spotify search failed: ${response.status}" }
         json.decodeFromString<SearchResponse>(response.bodyAsText()).tracks.items.map { track ->
-            SpotifySearchResult(
+            MetadataCandidate(
                 title = track.name,
-                album = track.album.name,
                 artist = track.artists.firstOrNull()?.name ?: "Unknown Artist",
+                album = track.album.name,
                 artworkUrl = track.album.images.firstOrNull()?.url,
+                durationSeconds = (track.durationMs / 1000).toInt(),
+                source = "Spotify",
             )
         }
     }
@@ -78,7 +73,12 @@ object SpotifyAppApi {
     private class Tracks(val items: List<Track>)
 
     @Serializable
-    private class Track(val name: String, val album: Album, val artists: List<Artist>)
+    private class Track(
+        val name: String,
+        val album: Album,
+        val artists: List<Artist>,
+        @SerialName("duration_ms") val durationMs: Long = 0,
+    )
 
     @Serializable
     private class Album(val name: String, val images: List<Image> = emptyList())

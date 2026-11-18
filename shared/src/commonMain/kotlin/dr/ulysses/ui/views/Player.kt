@@ -253,8 +253,9 @@ private fun ToggleIcon(icon: ImageVector, active: Boolean, description: String, 
 @Composable
 fun SongArtwork(song: Song?, modifier: Modifier = Modifier) {
     val path = song?.path
-    // Keyed by path: a new song must never show the previous song's artwork while its own loads
-    var artwork by remember(path) { mutableStateOf(song?.artwork ?: path?.let { artworkCache[it] }) }
+    // Keyed by path: a new song must never show the previous song's artwork while its own loads;
+    // and by the bytes, so artwork edited on the same song (Manage Unsorted) shows up
+    var artwork by remember(path, song?.artwork) { mutableStateOf(song?.artwork ?: path?.let { artworkCache[it] }) }
     LaunchedEffect(path) {
         if (path == null || artwork != null || path in artworkCache) return@LaunchedEffect
         artwork = SongRepository.getArtwork(path)

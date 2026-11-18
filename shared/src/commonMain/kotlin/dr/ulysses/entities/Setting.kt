@@ -13,6 +13,7 @@ enum class SettingKey {
     DefaultServerAddress,
     SpotifyClientId,
     SpotifyClientSecret,
+    AcoustIdApiKey, // free application key from acoustid.org, for identifying songs by their sound
 }
 
 @Serializable

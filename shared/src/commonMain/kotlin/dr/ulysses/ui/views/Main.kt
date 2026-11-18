@@ -235,19 +235,22 @@ fun Main() {
                                 }
                             }
                             entry<ManageSong> {
-                                var unsortedSongs by rememberSaveable { mutableStateOf(emptyList<Song>()) }
+                                var unsortedSongs by remember { mutableStateOf(emptyList<Song>()) }
                                 LaunchedEffect(Unit) {
                                     unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
                                 }
                                 val currentSong = state.selectedSong
-                                val currentSongIndex = unsortedSongs.indexOf(currentSong)
+                                // By path: the selected song is a draft whose title/artist may differ from the list's copy
+                                val currentSongIndex = unsortedSongs.indexOfFirst { it.path == currentSong?.path }
                                 if (currentSong != null && unsortedSongs.isNotEmpty()) {
                                     ManageUnsortedSong(
                                         song = currentSong,
                                         unsortedSongs = unsortedSongs,
-                                        onSongEdited = { edited ->
-                                            scope.launch { MainViewModel.saveSong(edited) }
-                                            MainViewModel.setSelectedSong(edited)
+                                        onSongEdited = MainViewModel::setSelectedSong,
+                                        onSave = { saved ->
+                                            scope.launch { MainViewModel.saveSong(saved) }
+                                            unsortedSongs =
+                                                unsortedSongs.map { if (it.path == saved.path) saved else it }
                                         },
                                         onNextSong = {
                                             MainViewModel.setSelectedSong(unsortedSongs.getOrNull(currentSongIndex + 1))
