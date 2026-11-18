@@ -18,7 +18,7 @@ actual suspend fun refreshSongs(): List<Song> {
     val projection = arrayOf(_ID, TITLE, DURATION, DATA, ARTIST, ALBUM_ARTIST, COMPOSER, ALBUM)
     val selection = "${MediaStore.Audio.AudioColumns.IS_MUSIC}=1 AND $TITLE != '' AND $DURATION >= 10000"
 
-    context.contentResolver.query(
+    val scanned = context.contentResolver.query(
         MediaStore.Audio.Media.getContentUri("external"), projection, selection, null, "$_ID ASC"
     )?.use { cursor ->
         val colTitle = cursor.getColumnIndexOrThrow(TITLE)
@@ -28,10 +28,11 @@ actual suspend fun refreshSongs(): List<Song> {
         val colArtist = cursor.getColumnIndexOrThrow(ARTIST)
         val colAlbumArtist = cursor.getColumnIndexOrThrow(ALBUM_ARTIST)
         val colComposer = cursor.getColumnIndexOrThrow(COMPOSER)
-        while (cursor.moveToNext()) {
-            // Artwork is loaded on demand via SongRepository.getArtwork(), not during the scan
-            SongRepository.insertIfNew(
-                Song(
+        buildList<Song> {
+            while (cursor.moveToNext()) {
+                // Artwork is loaded on demand via SongRepository.getArtwork(), not during the scan
+                add(
+                    Song(
                     path = cursor.getStringOrNull(colLocation) ?: continue,
                     title = cursor.getStringOrNull(colTitle) ?: "Unknown",
                     album = cursor.getStringOrNull(colAlbum),
@@ -43,8 +44,10 @@ actual suspend fun refreshSongs(): List<Song> {
                 )
             )
         }
-    }
+        }
+    } ?: return SongRepository.getAllSongs().sortedBy { it.title } // No storage access: nothing to compare against
 
+    SongRepository.syncWithScan(scanned)
     return SongRepository.getAllSongs().sortedBy { it.title }
 }
 

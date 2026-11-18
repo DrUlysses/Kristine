@@ -12,7 +12,10 @@ selectAll:
 SELECT * FROM song;
 
 selectAllSongs:
-SELECT path, title, artist, album, duration FROM song;
+SELECT path, title, artist, album, duration, state FROM song;
+
+selectPathStates:
+SELECT path, state FROM song;
 
 selectAllArtists:
 SELECT DISTINCT artist FROM song;
@@ -40,6 +43,13 @@ INSERT OR IGNORE INTO song(title, album, artist, path, duration, state, artwork)
 
 update:
 UPDATE song SET title = ?, album = ?, artist = ?, duration = ?, state = ?, artwork = ? WHERE path = ?;
+
+-- playlist_song follows through ON UPDATE CASCADE
+updatePath:
+UPDATE song SET path = :newPath WHERE path = :oldPath;
+
+updateState:
+UPDATE song SET state = :state WHERE path = :path;
 
 deleteByPath:
 DELETE FROM song WHERE path = ?;

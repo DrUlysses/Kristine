@@ -9,6 +9,9 @@ CREATE TABLE IF NOT EXISTS playlist_song(
 insert:
 INSERT OR IGNORE INTO playlist_song(playlist_name, song_path) VALUES(?, ?);
 
+countBySong:
+SELECT COUNT(*) FROM playlist_song WHERE song_path = ?;
+
 selectSongsByPlaylist:
 SELECT path, title, artist, album, state FROM song JOIN playlist_song ON song.path = playlist_song.song_path WHERE playlist_song.playlist_name = ?;
 

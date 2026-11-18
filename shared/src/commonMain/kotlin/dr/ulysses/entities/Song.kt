@@ -1,6 +1,7 @@
 package dr.ulysses.entities
 
 import app.cash.sqldelight.async.coroutines.awaitAsList
+import app.cash.sqldelight.async.coroutines.awaitAsOne
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import dr.ulysses.database.Database
 import dr.ulysses.database.SharedDatabase
@@ -64,9 +65,58 @@ object SongRepository : KoinComponent {
     private val sharedDatabase: SharedDatabase by inject()
 
     /**
-     * Library scans use this: a known song keeps the user's edits, artwork and state.
+     * Brings the library in line with a scan without creating duplicates. A known song always keeps its
+     * edits, artwork, state and playlists:
+     * - its file is gone: it takes the path of the scanned file with the same name and the most matching
+     *   parent folders. If that file already has an entry, the entry only makes way when the scan itself
+     *   created it (Downloaded, in no playlist); otherwise both stay for the user to resolve.
+     * - no unique match: it becomes [Song.State.NotDownloaded]
+     * - its file is back: NotDownloaded becomes Downloaded
+     * New files are added.
      */
-    suspend fun insertIfNew(song: Song) = sharedDatabase { it.songQueries.insertOrIgnore(song) }
+    suspend fun syncWithScan(scanned: List<Song>) = sharedDatabase { db ->
+        val songs = db.songQueries
+        songs.transaction {
+            val stored = songs.selectPathStates().awaitAsList().associate { it.path to Song.State.fromString(it.state) }
+            val scannedPaths = scanned.mapTo(HashSet()) { it.path }
+            val scannedByName = scanned.groupBy({ fileName(it.path) }, { it.path })
+            val claimed = HashSet<String>()
+
+            suspend fun makesWay(path: String) = stored[path] == Song.State.Downloaded &&
+                    db.playlistSongQueries.countBySong(path).awaitAsOne() == 0L
+
+            for ((path, state) in stored) {
+                if (path in scannedPaths || fileExists(path)) {
+                    if (state == Song.State.NotDownloaded) songs.updateState(Song.State.Downloaded.name, path)
+                    continue
+                }
+                val target = closestPath(path, scannedByName[fileName(path)].orEmpty())
+                    ?.takeIf { it !in claimed && (it !in stored || makesWay(it)) }
+                if (target == null) {
+                    if (state != Song.State.NotDownloaded) songs.updateState(Song.State.NotDownloaded.name, path)
+                    continue
+                }
+                claimed += target
+                if (target in stored) songs.deleteByPath(target)
+                songs.updatePath(newPath = target, oldPath = path)
+                if (state == Song.State.NotDownloaded) songs.updateState(Song.State.Downloaded.name, target)
+            }
+            // Known and remapped paths are skipped by the OR IGNORE
+            scanned.forEach { songs.insertOrIgnore(it) }
+        }
+    }
+
+    private fun fileName(path: String) = path.substringAfterLast('/')
+
+    /** The candidate sharing the most trailing path segments with [path], or null on a tie. */
+    private fun closestPath(path: String, candidates: List<String>): String? {
+        val segments = path.split('/').asReversed()
+        val scored = candidates.map { candidate ->
+            candidate to candidate.split('/').asReversed().zip(segments).takeWhile { (a, b) -> a == b }.size
+        }
+        val best = scored.maxOfOrNull { it.second } ?: return null
+        return scored.singleOrNull { it.second == best }?.first
+    }
 
     suspend fun upsert(song: Song) = sharedDatabase { db ->
         db.songQueries.transaction {
@@ -117,7 +167,8 @@ object SongRepository : KoinComponent {
                 title = it.title,
                 artist = it.artist,
                 album = it.album,
-                duration = it.duration?.toInt()
+                duration = it.duration?.toInt(),
+                state = Song.State.fromString(it.state),
             )
         }
     }
@@ -139,7 +190,8 @@ object SongRepository : KoinComponent {
                 title = it.title,
                 artist = it.artist,
                 album = it.album,
-                duration = it.duration?.toInt()
+                duration = it.duration?.toInt(),
+                state = Song.State.fromString(it.state),
             )
         }
         val byPlaylist = db.playlistSongQueries.search(query).awaitAsList().flatMap {

@@ -54,6 +54,7 @@ object Player {
     }
 
     fun onPlaySongCommand(song: Song) {
+        if (!song.isPlayable()) return
         // A song outside the queue goes to its front, so the device plays what the UI shows
         if (song !in state.currentPlaylist.songs) onSongsChanged(listOf(song) + state.currentPlaylist.songs)
         val trackNum = state.currentPlaylist.songs.indexOf(song)
@@ -188,14 +189,19 @@ object Player {
     }
 
     fun onPlaylistChanged(playlist: Playlist) {
-        setState { copy(currentPlaylist = playlist, currentTrackNum = 0) }
-        if (!remote) setPlayListOnDevice(playlist.songs.map { it.path })
+        val songs = playlist.songs.filter { it.isPlayable() }
+        setState { copy(currentPlaylist = playlist.copy(songs = songs), currentTrackNum = 0) }
+        if (!remote) setPlayListOnDevice(songs.map { it.path })
     }
 
     fun onSongsChanged(songs: List<Song>) {
-        setState { copy(currentPlaylist = currentPlaylist.copy(songs = songs)) }
-        if (!remote) setPlayListOnDevice(songs.map { it.path })
+        val playable = songs.filter { it.isPlayable() }
+        setState { copy(currentPlaylist = currentPlaylist.copy(songs = playable)) }
+        if (!remote) setPlayListOnDevice(playable.map { it.path })
     }
+
+    // A missing file must never reach the device player: VLC errors on it and the skip chain can crash it
+    private fun Song.isPlayable() = state != Song.State.NotDownloaded
 
     private inline fun setState(update: PlayerState.() -> PlayerState) {
         val old = state
