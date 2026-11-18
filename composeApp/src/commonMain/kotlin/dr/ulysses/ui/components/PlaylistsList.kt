@@ -1,6 +1,5 @@
 package dr.ulysses.ui.components
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,7 +18,6 @@ import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.PlaylistRepository
 import dr.ulysses.ui.elements.PlaylistListEntry
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlaylistsList(
     modifier: Modifier = Modifier,

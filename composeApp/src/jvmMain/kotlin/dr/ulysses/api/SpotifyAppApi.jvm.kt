@@ -6,6 +6,7 @@ import dr.ulysses.entities.Setting
 import dr.ulysses.entities.SettingKey
 import dr.ulysses.entities.SettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import com.adamratzman.spotify.SpotifyAppApi as SpotifyApi
 
@@ -32,6 +33,7 @@ actual object SpotifyAppApi {
 
                 spotifyAppApi(clientId, clientSecret).build()
             }.onFailure { e ->
+                ensureActive()
                 Logger.e { "Failed to initialize Spotify API: ${e.message}" }
             }.getOrNull()
         }
@@ -62,15 +64,17 @@ actual object SpotifyAppApi {
     /**
      * Save Spotify credentials to settings
      */
-    actual suspend fun saveCredentials(clientId: String, clientSecret: String): Result<Unit> =
-        withContext(Dispatchers.Default) {
-            try {
-                SettingsRepository.upsert(Setting(SettingKey.SpotifyClientId, clientId))
-                SettingsRepository.upsert(Setting(SettingKey.SpotifyClientSecret, clientSecret))
-                Result.success(Unit)
-            } catch (e: Exception) {
-                Logger.e { "Failed to save Spotify credentials: ${e.message}" }
-                Result.failure(e)
-            }
+    actual suspend fun saveCredentials(
+        clientId: String,
+        clientSecret: String,
+    ): Result<Unit> = withContext(Dispatchers.Default) {
+        try {
+            SettingsRepository.upsert(Setting(SettingKey.SpotifyClientId, clientId))
+            SettingsRepository.upsert(Setting(SettingKey.SpotifyClientSecret, clientSecret))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Logger.e { "Failed to save Spotify credentials: ${e.message}" }
+            Result.failure(e)
         }
+    }
 }

@@ -6,12 +6,10 @@ import dr.ulysses.player.Player
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
 data class ServerInfo(
@@ -163,6 +161,7 @@ object NetworkManager {
             val responseBody = response.bodyAsText()
             Json.decodeFromString<List<Song>>(responseBody)
         } catch (e: Exception) {
+            currentCoroutineContext().ensureActive()
             // Log the error and return null
             Logger.e(e) { "Failed to fetch songs from server: $address:$port" }
             null

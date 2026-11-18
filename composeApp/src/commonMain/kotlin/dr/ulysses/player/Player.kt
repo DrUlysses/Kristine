@@ -8,7 +8,7 @@ import dr.ulysses.entities.Song
 import dr.ulysses.network.NetworkManager
 import dr.ulysses.network.NowPlayingUpdate
 import dr.ulysses.network.PlaybackStateUpdate
-import dr.ulysses.player.RepeatMode.*
+import dr.ulysses.player.RepeatMode.All
 
 /**
  * Represents the repeat mode for a media player.

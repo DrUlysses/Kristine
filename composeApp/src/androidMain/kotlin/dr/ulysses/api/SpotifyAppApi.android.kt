@@ -22,7 +22,11 @@ actual object SpotifyAppApi {
     actual suspend fun initialize(): Any? = withContext(Dispatchers.Default) {
         if (api == null) {
             api = runCatching {
+                // Lint misresolves SettingsRepository.get to kotlin.text.MatchGroupCollection.get (API 26); false positive
+                @Suppress("NewApi")
                 val clientId = SettingsRepository.get(SettingKey.SpotifyClientId)?.value
+
+                @Suppress("NewApi")
                 val clientSecret = SettingsRepository.get(SettingKey.SpotifyClientSecret)?.value
 
                 if (clientId.isNullOrBlank() || clientSecret.isNullOrBlank()) {

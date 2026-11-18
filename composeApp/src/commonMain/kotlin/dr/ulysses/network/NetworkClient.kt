@@ -11,16 +11,12 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.consumeEach
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.ExperimentalTime
 
 class NetworkClient {
     private var discoveryJob: MutableState<Job?> = mutableStateOf(null)
@@ -50,7 +46,6 @@ class NetworkClient {
      * Starts the discovery process to find servers on the local network.
      * @param onServersDiscovered Callback that will be called with the map of discovered servers (IP to port).
      */
-    @OptIn(ExperimentalTime::class)
     fun startDiscovery(onServersDiscovered: (Map<String, Int>) -> Unit) {
         startDiscovery(
             discoveryJob = discoveryJob,
@@ -65,7 +60,6 @@ class NetworkClient {
     /**
      * Remove servers that haven't been seen recently
      */
-    @OptIn(ExperimentalTime::class)
     fun cleanupStaleServers() {
         val currentTime = Clock.System.now().toEpochMilliseconds()
         val staleServers = serverLastSeen.filter { (_, lastSeen) ->
@@ -99,7 +93,6 @@ class NetworkClient {
      * @param port The port number of the server.
      * @param onServersDiscovered Callback that will be called with the updated map of discovered servers.
      */
-    @OptIn(ExperimentalTime::class)
     fun connectToCustomServer(address: String, port: Int, onServersDiscovered: (Map<String, Int>) -> Unit) {
         Logger.d { "Connecting to custom server at $address:$port" }
 
@@ -173,11 +166,13 @@ class NetworkClient {
                         Logger.d { "WebSocket connection closed normally" }
                         onConnectionStateChange(false)
                     } catch (e: Exception) {
+                        currentCoroutineContext().ensureActive()
                         Logger.e(e) { "Error in WebSocket connection" }
                         onConnectionStateChange(false)
                     }
                 }
             } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
                 Logger.e(e) { "Failed to connect to WebSocket server: ${e.message}" }
                 onConnectionStateChange(false)
             } finally {
@@ -205,6 +200,7 @@ class NetworkClient {
                 )
                 Logger.d { "WebSocket connection closed" }
             } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
                 Logger.e(e) { "Error closing WebSocket connection" }
             } finally {
                 webSocketSession = null
@@ -232,6 +228,7 @@ class NetworkClient {
                     Logger.d { "Play command sent successfully via WebSocket" }
                 }
             } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
                 Logger.e(e) { "Error sending play command via WebSocket" }
             }
         }
@@ -281,6 +278,7 @@ class NetworkClient {
                 session.sendSerialized<WebSocketCommand>(SetPlaylistCommand(songs, currentSongIndex))
                 Logger.d { "Playlist sent successfully via WebSocket" }
             } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
                 Logger.e(e) { "Error sending playlist via WebSocket" }
             }
         }
@@ -303,6 +301,7 @@ class NetworkClient {
                     Logger.d { "${commandType.value} command sent successfully via WebSocket" }
                 }
             } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
                 Logger.e(e) { "Error sending ${commandType.value} command via WebSocket" }
             }
         }
