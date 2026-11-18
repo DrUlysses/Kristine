@@ -6,16 +6,16 @@ import android.media.ThumbnailUtils
 import android.os.Build
 import android.util.Size
 import androidx.annotation.RequiresApi
+import dr.ulysses.Logger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.koin.java.KoinJavaComponent.inject
 import java.io.ByteArrayOutputStream
 import java.io.File
 
-/**
- * Android-specific function to load artwork from a file.
- * This function is used to load artwork on-demand when needed.
- */
+/** Artwork isn't stored during the scan on Android, so lists load it from the file when shown. */
 @RequiresApi(Build.VERSION_CODES.Q)
 suspend fun loadArtworkFromFile(path: String): ByteArray? = withContext(Dispatchers.IO) {
     val context: Context by inject(Context::class.java)
@@ -37,7 +37,8 @@ suspend fun loadArtworkFromFile(path: String): ByteArray? = withContext(Dispatch
             stream.toByteArray()
         }
     } catch (e: Exception) {
-        e.printStackTrace()
+        currentCoroutineContext().ensureActive()
+        Logger.e(e) { "Couldn't load the artwork of $path" }
         null
     }
 }

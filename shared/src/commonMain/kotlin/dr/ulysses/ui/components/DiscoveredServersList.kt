@@ -46,29 +46,14 @@ fun DiscoveredServersList(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Sort the servers so that the connected server appears first
-            val sortedServers = discoveredServers.entries.toList().sortedBy { (address, port) ->
-                // If this is the current server, sort it first
-                if (currentServer != null &&
-                    currentServer.first == address &&
-                    currentServer.second == port
-                ) {
-                    0
-                } else {
-                    1
-                }
-            }
+            // The connected server comes first
+            val sortedServers = discoveredServers.toList().sortedBy { it != currentServer }
 
             items(sortedServers) { (serverAddress, serverPort) ->
-                // Check if this is the current server
-                val isCurrentServer = currentServer != null &&
-                        currentServer.first == serverAddress &&
-                        currentServer.second == serverPort
-
                 ServerListEntry(
                     serverAddress = serverAddress,
                     serverPort = serverPort,
-                    isCurrentServer = isCurrentServer,
+                    isCurrentServer = (serverAddress to serverPort) == currentServer,
                     scope = scope
                 )
             }

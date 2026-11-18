@@ -22,7 +22,6 @@ fun ServerListEntry(
     isCurrentServer: Boolean,
     scope: CoroutineScope,
 ) {
-    // Set card colors based on connection status
     val cardColors = if (isCurrentServer) {
         CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -38,9 +37,9 @@ fun ServerListEntry(
             .clickable {
                 scope.launch {
                     if (!isCurrentServer) {
-                        NetworkManager.connectToDiscoveredServer(serverAddress, serverPort)
+                        NetworkManager.connect(serverAddress, serverPort)
                     } else {
-                        NetworkManager.disconnectFromServer()
+                        NetworkManager.disconnect()
                     }
                 }
             }

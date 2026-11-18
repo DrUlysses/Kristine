@@ -30,35 +30,28 @@ fun Player(
     onSwitchRepeatCommand: () -> Unit = Player::onSwitchRepeatCommand,
     onSeekCommand: (Int) -> Unit = Player::onSeekCommand,
 ) {
-    // State that needs to be remembered across recompositions
     var currentPosition: Int by remember { mutableStateOf(0) }
     var volume: Float by remember { mutableStateOf(100f) }
-
-    // Derived state that doesn't need remembers
     val duration = currentSong?.duration ?: 0
     val showVolumeControl = isDesktopOrWasm()
 
-    // Initialize volume once
     LaunchedEffect(Unit) {
         volume = getVolume()
     }
 
-    // Update position periodically
     LaunchedEffect(currentSong, isPlaying) {
         while (isPlaying && currentSong != null) {
             currentPosition = getCurrentPosition()
-            delay(500) // Update more frequently for smoother slider movement
+            delay(500)
         }
     }
 
     BottomAppBar {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Song icon and video player
             Box(
                 modifier = Modifier.size(50.dp)
             ) {
                 VideoPlayer(modifier = Modifier.fillMaxSize())
-                // Only show music note icon if there's no artwork
                 if (currentSong != null && currentSong.artwork == null) {
                     Icon(
                         imageVector = Icons.Default.MusicNote,
@@ -77,7 +70,6 @@ fun Player(
                     modifier = Modifier
                         .weight(1f)
                 ) {
-                    // Song title
                     Text(
                         currentSong?.title ?: "No song selected",
                         softWrap = true,
@@ -88,7 +80,7 @@ fun Player(
                             .fillMaxWidth(),
                     )
 
-                    // Volume control for Desktop and Wasm
+                    // Android has hardware volume keys
                     if (showVolumeControl) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.VolumeUp,
@@ -113,7 +105,6 @@ fun Player(
                     }
                 }
 
-                // Progress bar and time display
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -144,7 +135,6 @@ fun Player(
                     )
                 }
 
-                // Player controls
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -170,7 +160,7 @@ fun Player(
     }
 }
 
-// Helper function to format time in mm:ss format
+// m:ss
 private fun formatTime(seconds: Int?): String {
     if (seconds == null || seconds <= 0) return "0:00"
     return "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
@@ -179,7 +169,7 @@ private fun formatTime(seconds: Int?): String {
 @Composable
 expect fun VideoPlayer(modifier: Modifier)
 
-// Platform-specific functions for player control
+/** Playback position in seconds. */
 expect fun getCurrentPosition(): Int
 expect fun getVolume(): Float
 expect fun setVolume(volume: Float)

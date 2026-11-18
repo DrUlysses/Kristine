@@ -55,10 +55,7 @@ fun Search(
                 entries = entries,
                 onPlaylistClicked = onPlaylistClicked,
                 onSongClicked = { song ->
-                    // Get all songs from the search results that are of type Song
-                    val songsList = entries.filterIsInstance<Song>()
-                    // Update the playlist with all songs from search results
-                    Player.onSongsChanged(songsList)
+                    Player.onSongsChanged(entries.filterIsInstance<Song>())
                     Player.onPlaySongCommand(song)
                 }
             )

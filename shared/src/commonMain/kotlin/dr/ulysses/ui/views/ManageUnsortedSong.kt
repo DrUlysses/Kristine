@@ -30,12 +30,13 @@ import io.github.vinceglb.filekit.core.PickerType
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kristine.shared.generated.resources.Res
 import kristine.shared.generated.resources.icon
 import org.jetbrains.compose.resources.painterResource
 
-// Data class to hold Spotify search state
 private data class SpotifySearchState(
     val isSearching: Boolean = false,
     val results: List<SpotifySearchResult> = emptyList(),
@@ -51,51 +52,19 @@ fun ManageUnsortedSong(
     onPreviousSong: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-
-    // Reduced state variables
     var spotifySearchState by remember { mutableStateOf(SpotifySearchState()) }
     var songArtwork by remember(song) { mutableStateOf(song.artwork) }
 
-    // Derive directory from settings when needed
     val songsPathState = produceState(initialValue = song.path) {
         value = SettingsRepository.get(SettingKey.SongsPath)?.value ?: song.path
     }
 
-    // Perform Spotify search when song changes
-    // Using DisposableEffect to ensure proper cleanup when the composable leaves the composition
-    DisposableEffect(song) {
+    LaunchedEffect(song) {
         spotifySearchState = spotifySearchState.copy(isSearching = true)
-
-        // Create a search query from song info
-        val query = "${song.title} ${song.artist}"
-
-        // Launch in the scope that will be canceled when the effect leaves composition
-        val job = scope.launch {
-            try {
-                // Search Spotify
-                SpotifyAppApi.searchTrack(query).fold(
-                    onSuccess = { results ->
-                        spotifySearchState = SpotifySearchState(
-                            isSearching = false,
-                            results = results,
-                            selectedResult = results.firstOrNull()
-                        )
-                    },
-                    onFailure = { error ->
-                        Logger.e { "Failed to search Spotify: ${error.message}" }
-                        spotifySearchState = SpotifySearchState(isSearching = false)
-                    }
-                )
-            } catch (e: Exception) {
-                Logger.e { "Exception during Spotify search: ${e.message}" }
-                spotifySearchState = SpotifySearchState(isSearching = false)
-            }
-        }
-
-        // Provide a cleanup function that cancels the job when the effect leaves composition
-        onDispose {
-            job.cancel()
-        }
+        val results = SpotifyAppApi.searchTrack("${song.title} ${song.artist}")
+            .onFailure { Logger.e(it) { "Spotify search failed" } }
+            .getOrDefault(emptyList())
+        spotifySearchState = SpotifySearchState(results = results, selectedResult = results.firstOrNull())
     }
 
     val imagePicker = rememberFilePickerLauncher(
@@ -143,7 +112,6 @@ fun ManageUnsortedSong(
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
-                // Clickable path at the top with Material 3 styling
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -173,11 +141,10 @@ fun ManageUnsortedSong(
                     }
                 }
 
-                // Two columns layout
                 Row(
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Left column (Spotify data)
+                    // Left: what Spotify suggests; right: what the song has now
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -207,7 +174,7 @@ fun ManageUnsortedSong(
                         } else if (spotifySearchState.selectedResult != null) {
                             val selectedResult = spotifySearchState.selectedResult
 
-                            // Title - Using OutlinedTextField for consistent height with Song column
+                            // OutlinedTextFields keep the rows level with the song column
                             OutlinedTextField(
                                 value = selectedResult?.title.orEmpty(),
                                 onValueChange = { },
@@ -237,7 +204,6 @@ fun ManageUnsortedSong(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                             )
 
-                            // Album - Using OutlinedTextField for consistent height with Song column
                             OutlinedTextField(
                                 value = selectedResult?.album.orEmpty(),
                                 onValueChange = { },
@@ -267,7 +233,6 @@ fun ManageUnsortedSong(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                             )
 
-                            // Artist - Using OutlinedTextField for consistent height with Song column
                             OutlinedTextField(
                                 value = selectedResult?.artist.orEmpty(),
                                 onValueChange = { },
@@ -297,7 +262,6 @@ fun ManageUnsortedSong(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                             )
 
-                            // Artwork
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -333,18 +297,16 @@ fun ManageUnsortedSong(
                                     }
                                     IconButton(
                                         onClick = {
-                                            // Download the artwork from Spotify and update the song
                                             selectedResult?.artworkUrl?.let { artworkUrl ->
                                                 scope.launch {
                                                     try {
-                                                        // Use HttpClient to download the image
-                                                        val imageBytes = HttpClient().use { client ->
-                                                            client.get(artworkUrl)
-                                                        }.bodyAsBytes()
-                                                        // Update the UI
+                                                        // The body must be read before the client closes
+                                                        val imageBytes =
+                                                            HttpClient().use { it.get(artworkUrl).bodyAsBytes() }
                                                         onSongEdited(song.copy(artwork = imageBytes))
                                                         songArtwork = imageBytes
                                                     } catch (e: Exception) {
+                                                        currentCoroutineContext().ensureActive()
                                                         Logger.e(e) { "Failed to download artwork." }
                                                     }
                                                 }
@@ -368,7 +330,6 @@ fun ManageUnsortedSong(
                         }
                     }
 
-                    // Right column (Song data)
                     Column(
                         modifier = Modifier.weight(1f).padding(start = 8.dp)
                     ) {
@@ -387,7 +348,6 @@ fun ManageUnsortedSong(
                             )
                         }
 
-                        // Title
                         OutlinedTextField(
                             value = song.title,
                             onValueChange = { value ->
@@ -403,7 +363,6 @@ fun ManageUnsortedSong(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                         )
 
-                        // Album
                         OutlinedTextField(
                             value = song.album ?: "Unknown Album",
                             onValueChange = { value ->
@@ -419,7 +378,6 @@ fun ManageUnsortedSong(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                         )
 
-                        // Artist
                         OutlinedTextField(
                             value = song.artist,
                             onValueChange = { value ->
@@ -435,7 +393,6 @@ fun ManageUnsortedSong(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                         )
 
-                        // Artwork
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -476,7 +433,6 @@ fun ManageUnsortedSong(
                 }
             }
 
-            // Navigation buttons
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
@@ -500,10 +456,8 @@ fun ManageUnsortedSong(
                     Text("Previous")
                 }
 
-                // Play button
                 FilledTonalButton(
                     onClick = {
-                        // Play the current song
                         Player.onSongsChanged(listOf(song))
                         Player.onPlaySongCommand(song)
                     },

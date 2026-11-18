@@ -29,4 +29,4 @@ deleteByName:
 DELETE FROM playlist WHERE name = ?;
 
 search:
-SELECT name, artwork, duration, state, created_at, updated_at FROM playlist WHERE name LIKE ?;
+SELECT name, artwork, duration, state, created_at, updated_at FROM playlist WHERE name LIKE '%' || :query || '%';

@@ -29,17 +29,10 @@ fun CustomServerConnectCard(
     val portFieldFocusRequester = remember { FocusRequester() }
     val onServerChosen = {
         val address = customServerAddress.value.trim()
-        val portStr = customServerPort.value.trim()
-
-        if (address.isNotEmpty() && portStr.isNotEmpty()) {
-            val port = portStr.toIntOrNull()
-            if (port != null && port > 0) {
-                // Connect to the custom server
-                NetworkManager.connectToCustomServer(address, port)
-                showCustomServerError.value = false
-            } else {
-                showCustomServerError.value = true
-            }
+        val port = customServerPort.value.trim().toIntOrNull()?.takeIf { it in 1..65535 }
+        if (address.isNotEmpty() && port != null) {
+            NetworkManager.connectToCustomServer(address, port)
+            showCustomServerError.value = false
         } else {
             showCustomServerError.value = true
         }
@@ -92,7 +85,6 @@ fun CustomServerConnectCard(
                     value = customServerPort.value,
                     maxLines = 1,
                     onValueChange = {
-                        // Only allow numeric input
                         if (it.isEmpty() || it.all { char -> char.isDigit() }) {
                             customServerPort.value = it
                         }

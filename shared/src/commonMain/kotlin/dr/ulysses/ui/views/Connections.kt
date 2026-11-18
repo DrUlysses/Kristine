@@ -14,39 +14,16 @@ import dr.ulysses.network.NetworkManager
 import dr.ulysses.ui.components.CustomServerConnectCard
 import dr.ulysses.ui.components.DiscoveredServersList
 import dr.ulysses.ui.components.LocalServerCard
-import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun Connections() {
-    val discoveredServers = remember { mutableStateOf(emptyMap<String, Int>()) }
     val customServerAddress = remember { mutableStateOf("") }
     val customServerPort = remember { mutableStateOf("") }
     val showCustomServerError = remember { mutableStateOf(false) }
-    val currentServer = remember { mutableStateOf<Pair<String, Int>?>(null) }
     val localServer by NetworkManager.localServer.collectAsState()
+    val discoveredServers by NetworkManager.discoveredServers.collectAsState()
+    val currentServer by NetworkManager.currentServer.collectAsState()
     val scope = rememberCoroutineScope()
-
-    // Collect the discovered servers and local server port from the NetworkManager
-    LaunchedEffect(NetworkManager.discoveredServers) {
-        NetworkManager.discoveredServers.collectLatest { servers ->
-            // Filter out the local server from the discovered servers list
-            discoveredServers.value = servers.filterValues { port -> port != NetworkManager.localServer.value.port }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        NetworkManager.localServer.collectLatest { server ->
-            // Update the discovered servers list to exclude the local server
-            discoveredServers.value = discoveredServers.value.filterValues { it != server.port }
-        }
-    }
-
-    // Collect the current server from NetworkManager
-    LaunchedEffect(Unit) {
-        NetworkManager.currentServer.collectLatest { server ->
-            currentServer.value = server
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -59,22 +36,16 @@ fun Connections() {
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Display local server information
-            LocalServerCard(
-                localServer = localServer
-            )
-
-            // Custom server connection section
+            LocalServerCard(localServer = localServer)
             CustomServerConnectCard(
                 customServerAddress = customServerAddress,
                 customServerPort = customServerPort,
                 showCustomServerError = showCustomServerError
             )
-
-            // Discovered servers section
             DiscoveredServersList(
-                discoveredServers = discoveredServers.value,
-                currentServer = currentServer.value,
+                // This device hears its own announcements too
+                discoveredServers = discoveredServers.filterValues { it != localServer.port },
+                currentServer = currentServer,
                 scope = scope
             )
         }

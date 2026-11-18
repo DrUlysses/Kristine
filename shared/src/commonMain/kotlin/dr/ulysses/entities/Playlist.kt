@@ -72,9 +72,9 @@ object PlaylistRepository : KoinComponent {
     suspend fun rename(oldName: String, newName: String) = sharedDatabase { appDatabase ->
         appDatabase.playlistQueries.transactionWithResult {
             appDatabase.playlistQueries.rename(
-                name = oldName,
+                name = newName,
                 updated_at = Clock.System.now().toString(),
-                name_ = newName
+                name_ = oldName,
             )
         }
     }

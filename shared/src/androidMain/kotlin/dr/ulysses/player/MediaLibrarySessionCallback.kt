@@ -30,7 +30,6 @@ open class MediaLibrarySessionCallback(context: Context) :
     val mediaNotificationSessionCommands =
         MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
             .also { builder ->
-                // Put all custom session commands in the list that may be used by the notification.
                 customLayoutCommandButtons.forEach { commandButton ->
                     commandButton.sessionCommand?.let { builder.add(it) }
                 }
@@ -40,9 +39,6 @@ open class MediaLibrarySessionCallback(context: Context) :
     @UnstableApi
     val mediaPlayerCommands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon().build()
 
-
-    // ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
-    // ConnectionResult.AcceptedResultBuilder
     @UnstableApi
     override fun onConnect(
         session: MediaSession,
@@ -53,7 +49,7 @@ open class MediaLibrarySessionCallback(context: Context) :
             session.isAutomotiveController(controller) ||
             session.isAutoCompanionController(controller)
         ) {
-            // Select the button to display.
+            // The button shows the action that toggles the current mode
             val customLayout = customLayoutCommandButtons[if (session.player.shuffleModeEnabled) 1 else 0]
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
                 .setAvailableSessionCommands(mediaNotificationSessionCommands)
@@ -62,7 +58,6 @@ open class MediaLibrarySessionCallback(context: Context) :
                 .build()
         }
         session.player.shuffleModeEnabled = Player.state.shuffle
-        // Default commands without custom layout for common controllers.
         return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller).build()
     }
 
@@ -74,10 +69,8 @@ open class MediaLibrarySessionCallback(context: Context) :
         args: Bundle,
     ): ListenableFuture<SessionResult> {
         if (CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON == customCommand.customAction) {
-            // Enable shuffling.
             Player.setShuffle(true)
             session.player.shuffleModeEnabled = Player.state.shuffle
-            // Change the custom layout to contain the `Disable shuffling` command.
             session.setCustomLayout(
                 session.mediaNotificationControllerInfo!!,
                 ImmutableList.of(customLayoutCommandButtons[1])
@@ -86,7 +79,6 @@ open class MediaLibrarySessionCallback(context: Context) :
         } else if (CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF == customCommand.customAction) {
             Player.setShuffle(false)
             session.player.shuffleModeEnabled = Player.state.shuffle
-            // Change the custom layout to contain the `Enable shuffling` command.
             session.setCustomLayout(
                 session.mediaNotificationControllerInfo!!,
                 ImmutableList.of(customLayoutCommandButtons[0])
@@ -103,9 +95,7 @@ open class MediaLibrarySessionCallback(context: Context) :
     ): ListenableFuture<LibraryResult<MediaItem>> {
         return Futures.immediateFuture(
             LibraryResult.ofItem(
-                MediaItem.fromUri(
-                    Player.state.currentSong?.path ?: ""
-                ), params
+                mediaItem(Player.state.currentSong?.path ?: ""), params
             )
         )
     }
@@ -117,7 +107,7 @@ open class MediaLibrarySessionCallback(context: Context) :
         mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> =
         Player.state.currentPlaylist.songs.find { it.path == mediaId }?.let {
-            return Futures.immediateFuture(LibraryResult.ofItem(MediaItem.fromUri(it.path), /* params= */ null))
+            return Futures.immediateFuture(LibraryResult.ofItem(mediaItem(it.path), /* params= */ null))
         } ?: Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
 
     @UnstableApi
@@ -129,10 +119,6 @@ open class MediaLibrarySessionCallback(context: Context) :
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-//        val children = MediaItemTree.getChildren(parentId)
-//        if (children.isNotEmpty()) {
-//            return Futures.immediateFuture(LibraryResult.ofItemList(children, params))
-//        }
         return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
     }
 
@@ -157,9 +143,11 @@ open class MediaLibrarySessionCallback(context: Context) :
         )
     }
 
-    // TODO: bug here
+    // Our items and outside controllers' items (Android Auto, Bluetooth, lock screen) carry the path as media id
     private fun resolveMediaItems(mediaItems: List<MediaItem>): List<MediaItem> =
-        Player.state.currentPlaylist.songs.map { MediaItem.fromUri(it.path) }
+        mediaItems.map { mediaItem(it.mediaId) }
+
+    private fun mediaItem(path: String) = MediaItem.Builder().setMediaId(path).setUri(path).build()
 
     override fun onSearch(
         session: MediaLibraryService.MediaLibrarySession,
@@ -181,7 +169,7 @@ open class MediaLibrarySessionCallback(context: Context) :
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         return Futures.immediateFuture(
             LibraryResult.ofItemList(
-                Player.onFindSongCommand(query).map { MediaItem.fromUri(it.path) }, params
+                Player.onFindSongCommand(query).map { mediaItem(it.path) }, params
             )
         )
     }
@@ -192,14 +180,9 @@ open class MediaLibrarySessionCallback(context: Context) :
         controller: MediaSession.ControllerInfo,
         isForPlayback: Boolean,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
-        // Get the current playlist and track
-        val currentTrackNum = Player.state.currentTrackNum
-        val mediaItems = Player.state.currentPlaylist.songs.map { MediaItem.fromUri(it.path) }
-
-        // Return the current media items with the current position
-        // Let the framework handle the actual playback resumption
+        val mediaItems = Player.state.currentPlaylist.songs.map { mediaItem(it.path) }
         return Futures.immediateFuture(
-            MediaSession.MediaItemsWithStartPosition(mediaItems, currentTrackNum, 0)
+            MediaSession.MediaItemsWithStartPosition(mediaItems, Player.state.currentTrackNum, 0)
         )
     }
 

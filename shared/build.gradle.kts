@@ -3,6 +3,7 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 
 plugins {
     alias(libs.plugins.multiplatform)
@@ -36,6 +37,12 @@ kotlin {
     }
     applyDefaultHierarchyTemplate {
         common {
+            // Android and desktop share the JVM-only code: Ktor server, UDP discovery, jaudiotagger, Spotify
+            group("jvmCommon") {
+                withCompilations {
+                    it.platformType == KotlinPlatformType.jvm || it.platformType == KotlinPlatformType.androidJvm
+                }
+            }
             withWasmJs()
         }
     }
@@ -77,6 +84,12 @@ kotlin {
             implementation(libs.sqldelight.coroutines.extension)
             implementation(libs.androidx.material3.adaptive)
         }
+        getByName("jvmCommonMain").dependencies {
+            implementation(libs.jthink.jaudiotagger)
+            implementation(libs.kotlinx.io.core)
+            implementation(libs.ktor.client.okhttp)
+            implementation(libs.spotify.api.kotlin.core)
+        }
         androidMain.dependencies {
             implementation(libs.accompanist.permissions)
             implementation(libs.androidx.activity.compose)
@@ -85,20 +98,16 @@ kotlin {
             implementation(libs.androidx.media3.exoplayer.dash)
             implementation(libs.androidx.media3.session)
             implementation(libs.androidx.media3.ui)
-            implementation(libs.jthink.jaudiotagger)
             implementation(libs.koin.android)
-            implementation(libs.koin.core)
-            implementation(libs.ktor.client.okhttp)
-            implementation(libs.spotify.api.kotlin.core)
             implementation(libs.sqldelight.android.driver)
         }
         jvmMain.dependencies {
             implementation(libs.appdirs)
             implementation(libs.caprica.vlcj)
-            implementation(libs.jthink.jaudiotagger)
-            implementation(libs.ktor.client.okhttp)
-            implementation(libs.spotify.api.kotlin.core)
             implementation(libs.sqldelight.driver)
+        }
+        jvmTest.dependencies {
+            implementation(kotlin("test"))
         }
         wasmJsMain {
             languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")

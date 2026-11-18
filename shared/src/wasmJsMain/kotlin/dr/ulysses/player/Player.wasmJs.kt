@@ -3,26 +3,16 @@ package dr.ulysses.player
 import kotlinx.browser.document
 import org.w3c.dom.HTMLAudioElement
 
-// Audio element for playing media
 private var audioElement: HTMLAudioElement? = null
-
-// Current playlist
 private var playlist: List<String> = emptyList()
-
-// Current track index
 private var currentTrackIndex: Int = 0
-
-// Callbacks
 private var isPlayingCallback: ((Boolean) -> Unit)? = null
 private var currentPlayingCallback: ((String?) -> Unit)? = null
 
-// Initialize the audio element
 private fun initAudioElement() {
     if (audioElement == null) {
         audioElement = (document.createElement("audio") as HTMLAudioElement).apply {
             id = "audio-player"
-
-            // Add event listeners
             addEventListener("play", {
                 isPlayingCallback?.invoke(true)
             })
@@ -32,13 +22,10 @@ private fun initAudioElement() {
             })
 
             addEventListener("ended", {
-                // Auto play next track when current one ends
                 if (currentTrackIndex < playlist.size - 1) {
                     playNextOnDevice()
                 }
             })
-
-            // Append to document body but hide it
             style.display = "none"
             document.body?.appendChild(this)
         }
@@ -70,7 +57,7 @@ actual fun stopCurrentSongOnDevice() {
 }
 
 actual fun seekToOnDevice(position: Int) {
-    audioElement?.currentTime = position / 1000.0 // Convert milliseconds to seconds
+    audioElement?.currentTime = position.toDouble() // seconds
 }
 
 actual fun isPlayingOnDevice(): Boolean {

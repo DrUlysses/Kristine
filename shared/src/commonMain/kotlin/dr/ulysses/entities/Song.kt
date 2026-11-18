@@ -2,32 +2,24 @@ package dr.ulysses.entities
 
 import app.cash.sqldelight.async.coroutines.awaitAsList
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
-import dr.ulysses.database.PlaylistSongQueries
+import dr.ulysses.database.Database
 import dr.ulysses.database.SharedDatabase
 import dr.ulysses.database.SongQueries
 import dr.ulysses.entities.base.Searchable
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import dr.ulysses.database.Song as SongRow
 
 /**
  * Song entity, used for internal representation of songs.
  *
  * @param path URL if remote, path if local. Primary key
- * @param title Title of the song
- * @param album Album of the song
- * @param artist Artist of the song
  * @param duration Duration of the song in seconds
- * @param state State of the song
  */
 @Serializable
 data class Song(
@@ -46,28 +38,18 @@ data class Song(
         Unsorted,
         NotDownloaded;
 
-        override fun toString() = name
-
         companion object {
-            fun fromString(value: String?) = value?.let { value ->
-                entries.find { it.name == value }
-            } ?: Downloaded
+            fun fromString(value: String?) = entries.find { it.name == value } ?: Downloaded
         }
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other == null || this::class != other::class) return false
-
-        other as Song
-
-        if (path != other.path) return false
-        if (title != other.title) return false
-        if (album != other.album) return false
-        if (artist != other.artist) return false
-
-        return true
-    }
+    // Identity is the metadata, not the artwork bytes or the state
+    override fun equals(other: Any?): Boolean =
+        other is Song &&
+                path == other.path &&
+                title == other.title &&
+                album == other.album &&
+                artist == other.artist
 
     override fun hashCode(): Int {
         var result = path.hashCode()
@@ -81,214 +63,55 @@ data class Song(
 object SongRepository : KoinComponent {
     private val sharedDatabase: SharedDatabase by inject()
 
-    suspend fun upsert(song: Song) = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.transactionWithResult {
-            try {
-                appDatabase.songQueries.insert(
-                    path = song.path,
-                    title = song.title,
-                    album = song.album,
-                    artist = song.artist,
-                    artwork = song.artwork,
-                    duration = song.duration?.toLong() ?: 0,
-                    state = song.state.toString(),
-                )
-            } catch (_: Exception) {
-                appDatabase.songQueries.update(
-                    path = song.path,
-                    title = song.title,
-                    album = song.album,
-                    artist = song.artist,
-                    artwork = song.artwork,
-                    duration = song.duration?.toLong() ?: 0,
-                    state = song.state.toString(),
-                )
-            }
+    /**
+     * Library scans use this: a known song keeps the user's edits, artwork and state.
+     */
+    suspend fun insertIfNew(song: Song) = sharedDatabase { it.songQueries.insertOrIgnore(song) }
+
+    suspend fun upsert(song: Song) = sharedDatabase { db ->
+        db.songQueries.transaction {
+            db.songQueries.insertOrIgnore(song)
+            db.songQueries.update(song)
         }
     }
 
-    /**
-     * Represents the progress of the non-existing songs removal operation.
-     * @param processed Number of songs processed so far
-     * @param total Total number of songs to process
-     * @param removed Number of songs removed so far
-     * @param isComplete Whether the operation is complete
-     */
-    data class RemoveNonExistingProgress(
+    data class Progress(
         val processed: Int = 0,
         val total: Int = 0,
-        val removed: Int = 0,
+        val changed: Int = 0,
         val isComplete: Boolean = false,
     )
 
-    /**
-     * Represents the progress of the song duration update operation.
-     * @param processed Number of songs processed so far
-     * @param total Total number of songs to process
-     * @param updated Number of songs updated so far
-     * @param isComplete Whether the operation is complete
-     */
-    data class UpdateDurationProgress(
-        val processed: Int = 0,
-        val total: Int = 0,
-        val updated: Int = 0,
-        val isComplete: Boolean = false,
-    )
-
-    /**
-     * Removes songs from the database where the path starts with "file" and the file doesn't exist on the device.
-     * @return A Flow that emits progress updates during the operation
-     */
-    fun removeNonExistingSongs(): Flow<RemoveNonExistingProgress> = channelFlow {
-        sharedDatabase { appDatabase ->
-            val allSongs = appDatabase.songQueries.selectAll().awaitAsList()
-            val totalSongs = allSongs.size
-
-            // Send initial progress
-            send(
-                RemoveNonExistingProgress(
-                    processed = 0,
-                    total = totalSongs,
-                    removed = 0,
-                    isComplete = false
-                )
-            )
-
-            var removedCount = 0
-            var processedCount = 0
-            val mutex = Mutex() // For thread safety of shared counters
-
-            coroutineScope {
-                val deferredResults = allSongs.map { song ->
-                    async {
-                        val path = song.path
-                        val removed = if (path.startsWith("file") && !fileExists(path)) {
-                            appDatabase.songQueries.deleteByPath(path)
-                            1
-                        } else {
-                            0
-                        }
-
-                        // Update counters and send progress under mutex protection
-                        mutex.withLock {
-                            removedCount += removed
-                            processedCount++
-
-                            // Send progress update
-                            send(
-                                RemoveNonExistingProgress(
-                                    processed = processedCount,
-                                    total = totalSongs,
-                                    removed = removedCount,
-                                    isComplete = false
-                                )
-                            )
-                        }
-                    }
-                }
-
-                // Wait for all parallel operations to complete
-                deferredResults.awaitAll()
-            }
-
-            // Send final progress with isComplete = true
-            send(
-                RemoveNonExistingProgress(
-                    processed = totalSongs,
-                    total = totalSongs,
-                    removed = removedCount,
-                    isComplete = true
-                )
-            )
+    fun removeNonExistingSongs(): Flow<Progress> = forEachSong { db, song ->
+        val missing = isLocalFile(song.path) && !fileExists(song.path)
+        if (missing) {
+            db.songQueries.deleteByPath(song.path)
         }
-    }.flowOn(Dispatchers.Default) // Run on background thread
+        missing
+    }
 
-    /**
-     * Updates song durations from metadata for all songs in the database.
-     * @return A Flow that emits progress updates during the operation
-     */
-    fun updateSongDurations(): Flow<UpdateDurationProgress> = channelFlow {
-        sharedDatabase { appDatabase ->
-            val allSongs = appDatabase.songQueries.selectAll().awaitAsList()
-            val totalSongs = allSongs.size
+    fun updateSongDurations(): Flow<Progress> = forEachSong { db, song ->
+        if ((song.duration ?: 0L) != 0L || !isLocalFile(song.path) || !fileExists(song.path)) return@forEachSong false
+        val duration = getDurationFromMetadata(song.path) ?: return@forEachSong false
+        db.songQueries.update(song.toSong().copy(duration = duration))
+        true
+    }
 
-            // Send initial progress
-            send(
-                UpdateDurationProgress(
-                    processed = 0,
-                    total = totalSongs,
-                    updated = 0,
-                    isComplete = false
-                )
-            )
-
-            var updatedCount = 0
-            var processedCount = 0
-            val mutex = Mutex() // For thread safety of shared counters
-
-            coroutineScope {
-                val deferredResults = allSongs.map { song ->
-                    async {
-                        val path = song.path
-                        val updated = if (path.startsWith("file") && fileExists(path)) {
-                            // Get duration from metadata
-                            val updatedDuration = getDurationFromMetadata(path)
-
-                            if (updatedDuration != null && (song.duration == null || song.duration == 0L)) {
-                                // Update song in a database with new duration
-                                appDatabase.songQueries.update(
-                                    path = song.path,
-                                    title = song.title,
-                                    album = song.album,
-                                    artist = song.artist,
-                                    artwork = song.artwork,
-                                    duration = updatedDuration.toLong(),
-                                    state = song.state
-                                )
-                                1
-                            } else {
-                                0
-                            }
-                        } else {
-                            0
-                        }
-
-                        // Update counters and send progress under mutex protection
-                        mutex.withLock {
-                            updatedCount += updated
-                            processedCount++
-
-                            // Send progress update
-                            send(
-                                UpdateDurationProgress(
-                                    processed = processedCount,
-                                    total = totalSongs,
-                                    updated = updatedCount,
-                                    isComplete = false
-                                )
-                            )
-                        }
-                    }
-                }
-
-                // Wait for all parallel operations to complete
-                deferredResults.awaitAll()
+    private fun forEachSong(action: suspend (Database, SongRow) -> Boolean): Flow<Progress> = flow {
+        sharedDatabase { db ->
+            val songs = db.songQueries.selectAll().awaitAsList()
+            var changed = 0
+            emit(Progress(total = songs.size))
+            songs.forEachIndexed { index, song ->
+                if (action(db, song)) changed++
+                emit(Progress(index + 1, songs.size, changed))
             }
-
-            // Send final progress with isComplete = true
-            send(
-                UpdateDurationProgress(
-                    processed = totalSongs,
-                    total = totalSongs,
-                    updated = updatedCount,
-                    isComplete = true
-                )
-            )
+            emit(Progress(songs.size, songs.size, changed, isComplete = true))
         }
-    }.flowOn(Dispatchers.Default) // Run on background thread
+    }.flowOn(Dispatchers.Default)
 
-    suspend fun getAllSongs(): List<Song> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectAllSongs().awaitAsList().map {
+    suspend fun getAllSongs(): List<Song> = sharedDatabase { db ->
+        db.songQueries.selectAllSongs().awaitAsList().map {
             Song(
                 path = it.path,
                 title = it.title,
@@ -299,20 +122,18 @@ object SongRepository : KoinComponent {
         }
     }
 
-    suspend fun getAllArtists(): List<String> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectAllArtists().awaitAsList()
+    suspend fun getAllArtists(): List<String> = sharedDatabase { it.songQueries.selectAllArtists().awaitAsList() }
+
+    suspend fun getAllAlbums(): List<String> = sharedDatabase { db ->
+        db.songQueries.selectAllAlbums().awaitAsList().mapNotNull { it.album }
     }
 
-    suspend fun getAllAlbums(): List<String> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectAllAlbums().awaitAsList().mapNotNull { it.album }
+    suspend fun getArtwork(path: String): ByteArray? = sharedDatabase { db ->
+        db.songQueries.selectArtworkByPath(path).awaitAsOneOrNull()?.artwork
     }
 
-    suspend fun getArtwork(path: String): ByteArray? = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectArtworkByPath(path).awaitAsOneOrNull()?.artwork
-    }
-
-    suspend fun search(input: String): List<Song> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.search(input).awaitAsList().map {
+    suspend fun search(query: String): List<Song> = sharedDatabase { db ->
+        val bySong = db.songQueries.search(query).awaitAsList().map {
             Song(
                 path = it.path,
                 title = it.title,
@@ -320,58 +141,57 @@ object SongRepository : KoinComponent {
                 album = it.album,
                 duration = it.duration?.toInt()
             )
-        } + appDatabase.playlistSongQueries.search(input).awaitAsList().flatMap { playlistSong ->
-            appDatabase.songQueries.selectByPath(playlistSong.song_path).awaitAsList().map {
-                Song(
-                    path = it.path,
-                    title = it.title,
-                    artist = it.artist,
-                    album = it.album,
-                    duration = it.duration?.toInt()
-                )
-            }
         }
-    }.distinct()
-
-    suspend fun getByNotState(notState: Song.State): List<Song> = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.selectByNotState(notState.toString()).awaitAsList().map {
-            Song(
-                path = it.path,
-                title = it.title,
-                artist = it.artist,
-                album = it.album,
-                duration = it.duration?.toInt(),
-                artwork = it.artwork,
-                state = Song.State.fromString(it.state)
-            )
+        val byPlaylist = db.playlistSongQueries.search(query).awaitAsList().flatMap {
+            db.songQueries.selectByPath(it.song_path).awaitAsList().map { row -> row.toSong().copy(artwork = null) }
         }
+        (bySong + byPlaylist).distinct()
     }
 
-    suspend fun getByPathOrNull(path: String): Song? = sharedDatabase { appDatabase ->
-        appDatabase.songQueries.getOrNull(path).awaitAsOneOrNull()?.let {
-            Song(
-                path = it.path,
-                title = it.title,
-                artist = it.artist,
-                album = it.album,
-                duration = it.duration?.toInt(),
-                artwork = it.artwork,
-                state = Song.State.fromString(it.state)
-            )
-        }
+    suspend fun getByNotState(notState: Song.State): List<Song> = sharedDatabase { db ->
+        db.songQueries.selectByNotState(notState.name).awaitAsList().map { it.toSong() }
     }
+
+    suspend fun getByPathOrNull(path: String): Song? = sharedDatabase { db ->
+        db.songQueries.getOrNull(path).awaitAsOneOrNull()?.toSong()
+    }
+
+    private fun SongRow.toSong() = Song(
+        path = path,
+        title = title,
+        artist = artist,
+        album = album,
+        duration = duration?.toInt(),
+        artwork = artwork,
+        state = Song.State.fromString(state),
+    )
+
+    private suspend fun SongQueries.insertOrIgnore(song: Song) = insertOrIgnore(
+        path = song.path,
+        title = song.title,
+        album = song.album,
+        artist = song.artist,
+        artwork = song.artwork,
+        duration = song.duration?.toLong() ?: 0,
+        state = song.state.name,
+    )
+
+    private suspend fun SongQueries.update(song: Song) = update(
+        path = song.path,
+        title = song.title,
+        album = song.album,
+        artist = song.artist,
+        artwork = song.artwork,
+        duration = song.duration?.toLong() ?: 0,
+        state = song.state.name,
+    )
+
+    // Android stores plain paths, desktop stores file:/// URIs; anything else is remote
+    private fun isLocalFile(path: String) = path.startsWith("file:") || path.startsWith("/")
 }
 
 expect suspend fun refreshSongs(): List<Song>
 expect fun fileExists(path: String): Boolean
 
-/**
- * Gets the duration in seconds from the metadata of a file.
- * @param path The path to the file
- * @return The duration in seconds, or null if it couldn't be determined
- */
+/** Duration in seconds read from the file's metadata, or null if it can't be read. */
 expect fun getDurationFromMetadata(path: String): Int?
-
-// There should be some SQL query to replace this hack, but I'm too lazy to write it
-fun SongQueries.search(input: String) = search(input, input, input)
-fun PlaylistSongQueries.search(input: String) = search(input, input)

@@ -1,318 +1,125 @@
 package dr.ulysses.network
 
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
 import dr.ulysses.Logger
 import dr.ulysses.entities.Song
 import io.ktor.client.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.websocket.*
-import io.ktor.http.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.serialization.kotlinx.*
-import io.ktor.serialization.kotlinx.json.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.ClosedReceiveChannelException
-import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.flow.catch
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
 class NetworkClient {
-    private var discoveryJob: MutableState<Job?> = mutableStateOf(null)
-    private var updatePollingJob: Job? = null
-    private var webSocketSession: DefaultClientWebSocketSession? = null
     private val httpClient = HttpClient {
-        install(ContentNegotiation) {
-            json()
-        }
         install(WebSockets) {
             contentConverter = KotlinxWebsocketSerializationConverter(Json)
         }
     }
-    private val scope = CoroutineScope(Dispatchers.Default)
-    private val discoveredServers = mutableMapOf<String, Int>() // Map of IP address to port
-    private val serverTimeout = 15.seconds.inWholeMilliseconds
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    // Server connection info
-    private var currentServerAddress: String? = null
-    private var currentServerPort: Int? = null
-    private var lastUpdateId: Long = 0
+    // Every read and write of `servers` runs here, so the map needs no locking
+    private val discoveryContext = Dispatchers.Default.limitedParallelism(1)
+    private val servers = mutableMapOf<String, Seen>()
+    private var discoveryJob: Job? = null
 
-    // Map to track when servers were last seen
-    private val serverLastSeen = mutableMapOf<String, Long>()
+    private var connectionJob: Job? = null
+    private var session: DefaultClientWebSocketSession? = null
 
-    /**
-     * Starts the discovery process to find servers on the local network.
-     * @param onServersDiscovered Callback that will be called with the map of discovered servers (IP to port).
-     */
-    fun startDiscovery(onServersDiscovered: (Map<String, Int>) -> Unit) {
-        startDiscovery(
-            discoveryJob = discoveryJob,
-            scope = scope,
-            discoveredServers = discoveredServers,
-            serverLastSeen = serverLastSeen,
-            cleanupStaleServers = { cleanupStaleServers() },
-            onServersDiscovered = onServersDiscovered
-        )
-    }
+    private class Seen(val port: Int, val at: Long)
 
-    /**
-     * Remove servers that haven't been seen recently
-     */
-    fun cleanupStaleServers() {
-        val currentTime = Clock.System.now().toEpochMilliseconds()
-        val staleServers = serverLastSeen.filter { (_, lastSeen) ->
-            (currentTime - lastSeen) > serverTimeout
-        }.keys
-
-        if (staleServers.isNotEmpty()) {
-            Logger.d { "Removing stale servers: $staleServers" }
-            // Remove each stale server from the discoveredServers map
-            staleServers.forEach {
-                discoveredServers.remove(it)
-                serverLastSeen.remove(it)
+    fun startDiscovery(onServersChanged: (Map<String, Int>) -> Unit) {
+        if (discoveryJob != null) return
+        discoveryJob = scope.launch(discoveryContext) {
+            launch {
+                while (isActive) {
+                    val now = Clock.System.now().toEpochMilliseconds()
+                    servers.values.removeAll { now - it.at > SERVER_TIMEOUT.inWholeMilliseconds }
+                    onServersChanged(snapshot())
+                    delay(BROADCAST_INTERVAL)
+                }
             }
+            serverAnnouncements()
+                .catch { Logger.e(it) { "UDP discovery stopped" } }
+                .collect { (address, port) ->
+                    servers[address] = Seen(port, Clock.System.now().toEpochMilliseconds())
+                    onServersChanged(snapshot())
+                }
         }
     }
 
-    /**
-     * Stops the discovery process.
-     */
     fun stopDiscovery() {
-        discoveryJob.value?.cancel()
-        discoveryJob.value = null
-        discoveredServers.clear()
-        serverLastSeen.clear()
-        Logger.d { "Stopped UDP server discovery process" }
+        discoveryJob?.cancel()
+        discoveryJob = null
+        scope.launch(discoveryContext) { servers.clear() }
     }
 
-    /**
-     * Connects to a custom server with the given address and port.
-     * @param address The IP address of the server.
-     * @param port The port number of the server.
-     * @param onServersDiscovered Callback that will be called with the updated map of discovered servers.
-     */
-    fun connectToCustomServer(address: String, port: Int, onServersDiscovered: (Map<String, Int>) -> Unit) {
-        Logger.d { "Connecting to custom server at $address:$port" }
-
-        // Add the custom server to the discoveredServers map
-        discoveredServers[address] = port
-
-        // Update the last-seen timestamp
-        serverLastSeen[address] = Clock.System.now().toEpochMilliseconds()
-
-        // Notify about the updated server list
-        onServersDiscovered(discoveredServers)
+    /** A server typed in by hand never announces itself, so it never goes stale. */
+    fun addCustomServer(address: String, port: Int, onServersChanged: (Map<String, Int>) -> Unit) {
+        scope.launch(discoveryContext) {
+            servers[address] = Seen(port, Long.MAX_VALUE)
+            onServersChanged(snapshot())
+        }
     }
 
-    /**
-     * Connects to the WebSocket server at the given address and port.
-     * @param address The IP address of the server.
-     * @param port The port number of the server.
-     * @param onPlayerUpdate Callback that will be called when the player state is updated.
-     * @param onConnectionStateChange Callback that will be called when the connection state changes.
-     */
-    fun connectToWebSocket(
+    // A copy, because StateFlow ignores a value equal to the previous one
+    private fun snapshot() = servers.mapValues { it.value.port }
+
+    fun connect(
         address: String,
         port: Int,
         onPlayerUpdate: (PlayerUpdate) -> Unit,
-        onConnectionStateChange: (Boolean) -> Unit,
+        onConnectionChanged: (Boolean) -> Unit,
     ) {
-        // Check if already connected
-        if (webSocketSession != null) {
-            Logger.d { "WebSocket connection already active" }
-            return
-        }
-
-        Logger.d { "Connecting to WebSocket server at ws://$address:$port/player" }
-
-        // Store server connection info
-        currentServerAddress = address
-        currentServerPort = port
-
-        // Connect to the WebSocket server
-        updatePollingJob = scope.launch {
+        if (connectionJob?.isActive == true) return
+        connectionJob = scope.launch {
             try {
-                httpClient.webSocket(
-                    method = HttpMethod.Get,
-                    host = address,
-                    port = port,
-                    path = "/player"
-                ) {
-                    // Store the session
-                    webSocketSession = this
-
-                    // Notify that a connection is established
-                    onConnectionStateChange(true)
-                    Logger.d { "WebSocket connection established" }
-
-                    try {
-                        // Listen for incoming messages
-                        incoming.consumeEach { frame ->
-                            if (frame is Frame.Text) {
-                                // Deserialize the text to a PlayerUpdate object
-                                Json.decodeFromString<PlayerUpdate>(frame.readText()).let { message ->
-                                    try {
-                                        onPlayerUpdate(message)
-                                    } catch (e: Exception) {
-                                        Logger.e(e) { "Error deserializing player update: $message" }
-                                    }
-                                }
-                            }
-                        }
-                    } catch (_: ClosedReceiveChannelException) {
-                        // Normal close
-                        Logger.d { "WebSocket connection closed normally" }
-                        onConnectionStateChange(false)
-                    } catch (e: Exception) {
-                        currentCoroutineContext().ensureActive()
-                        Logger.e(e) { "Error in WebSocket connection" }
-                        onConnectionStateChange(false)
+                httpClient.webSocket(host = address, port = port, path = "/player") {
+                    session = this
+                    onConnectionChanged(true)
+                    for (frame in incoming) {
+                        if (frame !is Frame.Text) continue
+                        runCatching { Json.decodeFromString<PlayerUpdate>(frame.readText()) }
+                            .onSuccess(onPlayerUpdate)
+                            .onFailure { Logger.e(it) { "Ignoring malformed player update" } }
                     }
                 }
             } catch (e: Exception) {
                 currentCoroutineContext().ensureActive()
-                Logger.e(e) { "Failed to connect to WebSocket server: ${e.message}" }
-                onConnectionStateChange(false)
+                Logger.e(e) { "WebSocket connection to $address:$port failed" }
             } finally {
-                webSocketSession = null
+                // Also runs when the server closes the socket, so the app falls back to local playback
+                session = null
+                onConnectionChanged(false)
             }
         }
     }
 
-    /**
-     * Disconnects from the WebSocket server.
-     */
-    fun disconnectFromWebSocket() {
-        // Cancel the polling job
-        updatePollingJob?.cancel()
-        updatePollingJob = null
+    fun disconnect() {
+        connectionJob?.cancel()
+        connectionJob = null
+    }
 
-        // Close the WebSocket session
+    fun send(command: WebSocketCommand) {
+        val session = session ?: return
         scope.launch {
             try {
-                webSocketSession?.close(
-                    reason = CloseReason(
-                        code = CloseReason.Codes.NORMAL,
-                        message = "Client disconnected"
-                    )
-                )
-                Logger.d { "WebSocket connection closed" }
+                session.sendSerialized<WebSocketCommand>(command)
             } catch (e: Exception) {
                 currentCoroutineContext().ensureActive()
-                Logger.e(e) { "Error closing WebSocket connection" }
-            } finally {
-                webSocketSession = null
-                currentServerAddress = null
-                currentServerPort = null
-                lastUpdateId = 0
+                Logger.e(e) { "Sending ${command::class.simpleName} failed" }
             }
         }
     }
 
-    /**
-     * Sends a command to play a song on the server.
-     * @param song The song to play.
-     */
-    fun sendPlaySongCommand(song: Song) {
-        val session = webSocketSession ?: run {
-            Logger.e { "Cannot send play command: Not connected to a WebSocket server" }
-            return
-        }
+    suspend fun fetchSongs(address: String, port: Int): List<Song> =
+        Json.decodeFromString(httpClient.get("http://$address:$port/songs").bodyAsText())
 
-        scope.launch {
-            try {
-                session.run {
-                    sendSerialized<WebSocketCommand>(PlaySongCommand(song))
-                    Logger.d { "Play command sent successfully via WebSocket" }
-                }
-            } catch (e: Exception) {
-                currentCoroutineContext().ensureActive()
-                Logger.e(e) { "Error sending play command via WebSocket" }
-            }
-        }
-    }
-
-    /**
-     * Sends a command to pause playback on the server.
-     */
-    fun sendPauseCommand() {
-        sendSimpleCommand(WebSocketCommandType.PAUSE)
-    }
-
-    /**
-     * Sends a command to resume playback on the server.
-     */
-    fun sendResumeCommand() {
-        sendSimpleCommand(WebSocketCommandType.RESUME)
-    }
-
-    /**
-     * Sends a command to play the next song on the server.
-     */
-    fun sendNextCommand() {
-        sendSimpleCommand(WebSocketCommandType.NEXT)
-    }
-
-    /**
-     * Sends a command to play the previous song on the server.
-     */
-    fun sendPreviousCommand() {
-        sendSimpleCommand(WebSocketCommandType.PREVIOUS)
-    }
-
-    /**
-     * Sends a command to set the playlist on the server.
-     * @param songs The list of songs in the playlist.
-     * @param currentSongIndex The index of the current song in the playlist.
-     */
-    fun sendSetPlaylistCommand(songs: List<Song>, currentSongIndex: Int) {
-        val session = webSocketSession ?: run {
-            Logger.e { "Cannot send playlist: Not connected to a WebSocket server" }
-            return
-        }
-
-        scope.launch {
-            try {
-                session.sendSerialized<WebSocketCommand>(SetPlaylistCommand(songs, currentSongIndex))
-                Logger.d { "Playlist sent successfully via WebSocket" }
-            } catch (e: Exception) {
-                currentCoroutineContext().ensureActive()
-                Logger.e(e) { "Error sending playlist via WebSocket" }
-            }
-        }
-    }
-
-    /**
-     * Sends a simple command to the server.
-     * @param commandType The updateType of command to send.
-     */
-    fun sendSimpleCommand(commandType: WebSocketCommandType) {
-        val session = webSocketSession ?: run {
-            Logger.e { "Cannot send ${commandType.value} command: Not connected to a WebSocket server" }
-            return
-        }
-
-        scope.launch {
-            try {
-                session.run {
-                    sendSerialized<WebSocketCommand>(SimpleCommand(commandType))
-                    Logger.d { "${commandType.value} command sent successfully via WebSocket" }
-                }
-            } catch (e: Exception) {
-                currentCoroutineContext().ensureActive()
-                Logger.e(e) { "Error sending ${commandType.value} command via WebSocket" }
-            }
-        }
+    private companion object {
+        val SERVER_TIMEOUT = 15.seconds
     }
 }
-
-expect fun startDiscovery(
-    discoveryJob: MutableState<Job?> = mutableStateOf(null),
-    scope: CoroutineScope,
-    discoveredServers: MutableMap<String, Int> = mutableMapOf(),
-    serverLastSeen: MutableMap<String, Long> = mutableMapOf(),
-    cleanupStaleServers: () -> Unit = {},
-    onServersDiscovered: (Map<String, Int>) -> Unit,
-)

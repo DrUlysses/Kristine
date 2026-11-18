@@ -5,21 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
-import dr.ulysses.network.NetworkManager
-import dr.ulysses.network.NowPlayingUpdate
-import dr.ulysses.network.PlaybackStateUpdate
-import dr.ulysses.player.RepeatMode.All
+import dr.ulysses.network.*
 
-/**
- * Represents the repeat mode for a media player.
- *
- * The repeat mode controls how the player behaves when it reaches the end of a playlist.
- * It includes the following modes:
- *
- * - [None]: Playback stops at the end of the playlist.
- * - [All]: The playlist starts over from the beginning after finishing.
- * - [One]: The currently playing song is repeated indefinitely.
- */
 enum class RepeatMode {
     None,
     All,
@@ -27,13 +14,7 @@ enum class RepeatMode {
 }
 
 /**
- * State of the player.
- *
- * @param currentSong Current song playing
- * @param isPlaying Is the player playing on device/remote
- * @param currentPlaylist Current playlist, with track number as key and path as value
- * @param currentTrackNum Current track number
- * @param isRemotePlaying Is the player playing remotely
+ * @param isRemotePlaying Commands go to the connected server instead of this device
  */
 data class PlayerState(
     val currentSong: Song? = null,
@@ -41,95 +22,195 @@ data class PlayerState(
     val currentTrackNum: Int = 0,
     val currentPlaylist: Playlist = Playlist(),
     val isRemotePlaying: Boolean = false,
-    val onPlayingChangedOnDevice: (Boolean) -> Unit = {},
     val shuffle: Boolean = false,
-    val repeatMode: RepeatMode = All,
+    val repeatMode: RepeatMode = RepeatMode.All,
 )
 
-/**
- * Interface representing any player service.
- * This can be implemented by different player types (local or network).
- */
-interface PlayerService {
-    var state: PlayerState
-
-    fun onPlaySongCommand(song: Song)
-    fun onUpdateSongCommand(song: Song)
-    fun onFindSongCommand(query: String): List<Song>
-    fun onIsPlayingChanged(isPlaying: Boolean)
-    fun onPlayCommand()
-    fun onPauseCommand()
-    fun onResumeCommand()
-    fun onPlayOrPauseCommand()
-    fun onUpdatePlaybackStateCommand(isPlaying: Boolean)
-    fun onToggleShuffleCommand()
-    fun setShuffle(shuffle: Boolean)
-    fun onSwitchRepeatCommand()
-    fun onStopCommand()
-    fun onSeekCommand(position: Int)
-    fun onNextCommand()
-    fun onPreviousCommand()
-    fun onPlaylistChanged(playlist: Playlist)
-    fun onSongsChanged(songs: List<Song>)
-}
-
-/**
- * Static player object that holds the current player implementation.
- * This allows switching between local and network player implementations.
- */
 object Player {
-    private var currentPlayer: PlayerService by mutableStateOf(LocalPlayer())
+    var state: PlayerState by mutableStateOf(PlayerState())
+        private set
 
-    val state: PlayerState
-        get() = currentPlayer.state
+    // The local queue survives a session as a remote control
+    private var localState: PlayerState? = null
 
-    fun setLocalPlayer() {
-        currentPlayer = LocalPlayer()
-    }
+    private val remote get() = state.isRemotePlaying
 
-    fun setNetworkPlayer() {
-        currentPlayer = NetworkPlayer()
-    }
-
-    fun onPlaySongCommand(song: Song) = currentPlayer.onPlaySongCommand(song)
-    fun onUpdateSongCommand(song: Song) = currentPlayer.onUpdateSongCommand(song)
-    fun onFindSongCommand(query: String): List<Song> = currentPlayer.onFindSongCommand(query)
-    fun onIsPlayingChanged(isPlaying: Boolean) = currentPlayer.onIsPlayingChanged(isPlaying)
-    fun onPlayCommand() = currentPlayer.onPlayCommand()
-    fun onPauseCommand() = currentPlayer.onPauseCommand()
-    fun onResumeCommand() = currentPlayer.onResumeCommand()
-    fun onPlayOrPauseCommand() = currentPlayer.onPlayOrPauseCommand()
-    fun onUpdatePlaybackStateCommand(isPlaying: Boolean) = currentPlayer.onUpdatePlaybackStateCommand(isPlaying)
-    fun onToggleShuffleCommand() = currentPlayer.onToggleShuffleCommand()
-    fun setShuffle(shuffle: Boolean) = currentPlayer.setShuffle(shuffle)
-    fun onSwitchRepeatCommand() = currentPlayer.onSwitchRepeatCommand()
-    fun onStopCommand() = currentPlayer.onStopCommand()
-    fun onSeekCommand(position: Int) = currentPlayer.onSeekCommand(position)
-    fun onNextCommand() = currentPlayer.onNextCommand()
-    fun onPreviousCommand() = currentPlayer.onPreviousCommand()
-    fun onPlaylistChanged(playlist: Playlist) = currentPlayer.onPlaylistChanged(playlist)
-    fun onSongsChanged(songs: List<Song>) = currentPlayer.onSongsChanged(songs)
-
-    /**
-     * Sends a "nowPlaying" update to connected clients.
-     * @param song The currently playing song.
-     */
-    internal fun sendNowPlayingUpdate(song: Song?) {
-        if (song != null) {
-            NetworkManager.sendPlayerUpdate(NowPlayingUpdate(song))
+    init {
+        isPlayingChangedOnDevice { isPlaying -> if (!remote) setState { copy(isPlaying = isPlaying) } }
+        currentPlayingChangedOnDevice { path ->
+            if (!remote) setState { copy(currentSong = currentPlaylist.songs.find { it.path == path }) }
         }
     }
 
-    /**
-     * Sends a "playbackState" update to connected clients.
-     * @param isPlaying Whether playback is active.
-     */
-    internal fun sendPlaybackStateUpdate(isPlaying: Boolean) {
-        NetworkManager.sendPlayerUpdate(PlaybackStateUpdate(isPlaying))
+    fun setRemote(remote: Boolean) {
+        if (remote == this.remote) return
+        if (remote) {
+            localState = state
+            state = PlayerState(isRemotePlaying = true, shuffle = state.shuffle, repeatMode = state.repeatMode)
+        } else {
+            state = localState ?: PlayerState()
+            localState = null
+        }
+    }
+
+    fun onPlaySongCommand(song: Song) {
+        // A song outside the queue goes to its front, so the device plays what the UI shows
+        if (song !in state.currentPlaylist.songs) onSongsChanged(listOf(song) + state.currentPlaylist.songs)
+        val trackNum = state.currentPlaylist.songs.indexOf(song)
+        setState { copy(currentTrackNum = trackNum, currentSong = song) }
+        if (remote) {
+            NetworkManager.send(SetPlaylistCommand(state.currentPlaylist.songs, trackNum))
+        } else {
+            setCurrentTrackNumOnDevice(trackNum)
+            resumeCurrentSongOnDevice()
+        }
+    }
+
+    fun onUpdateSongCommand(song: Song) {
+        setState { copy(currentSong = song, currentTrackNum = currentPlaylist.songs.indexOf(song)) }
+    }
+
+    fun onFindSongCommand(query: String): List<Song> = state.currentPlaylist.songs.filter {
+        it.title.contains(query, ignoreCase = true) ||
+                it.artist.contains(query, ignoreCase = true) ||
+                it.album?.contains(query, ignoreCase = true) == true ||
+                it.path.contains(query, ignoreCase = true)
+    }
+
+    fun onIsPlayingChanged(isPlaying: Boolean) {
+        setState { copy(isPlaying = isPlaying) }
+        if (isPlaying) onResumeCommand() else onPauseCommand()
+    }
+
+    fun onPlayCommand() {
+        if (remote) {
+            state.currentSong?.let { NetworkManager.send(PlaySongCommand(it)) }
+            return
+        }
+        state.currentPlaylist.songs.getOrNull(state.currentTrackNum)?.let {
+            setState { copy(currentSong = it) }
+            resumeCurrentSongOnDevice()
+        }
+    }
+
+    fun onPauseCommand() = if (remote) NetworkManager.send(PauseCommand) else pauseCurrentSongOnDevice()
+
+    fun onResumeCommand() = if (remote) NetworkManager.send(ResumeCommand) else resumeCurrentSongOnDevice()
+
+    fun onPlayOrPauseCommand() {
+        val playing = if (remote) state.isPlaying else isPlayingOnDevice()
+        if (playing) onPauseCommand() else onResumeCommand()
+    }
+
+    fun onUpdatePlaybackStateCommand(isPlaying: Boolean) {
+        setState { copy(isPlaying = isPlaying) }
+    }
+
+    fun onToggleShuffleCommand() {
+        setState { copy(shuffle = !shuffle) }
+    }
+
+    fun setShuffle(shuffle: Boolean) {
+        setState { copy(shuffle = shuffle) }
+    }
+
+    fun onSwitchRepeatCommand() {
+        setState {
+            copy(
+                repeatMode = when (repeatMode) {
+                    RepeatMode.None -> RepeatMode.All
+                    RepeatMode.All -> RepeatMode.One
+                    RepeatMode.One -> RepeatMode.None
+                }
+            )
+        }
+    }
+
+    fun onStopCommand() {
+        setState { copy(currentSong = null) }
+        if (!remote) stopCurrentSongOnDevice()
+    }
+
+    fun onSeekCommand(position: Int) {
+        if (!remote) seekToOnDevice(position)
+    }
+
+    fun onNextCommand() {
+        if (remote) return NetworkManager.send(NextCommand)
+        val songs = state.currentPlaylist.songs
+        when {
+            state.repeatMode == RepeatMode.One -> replayCurrent()
+            state.currentTrackNum < songs.size - 1 -> {
+                setState { copy(currentSong = songs[currentTrackNum + 1], currentTrackNum = currentTrackNum + 1) }
+                playNextOnDevice()
+            }
+
+            state.repeatMode == RepeatMode.All && songs.isNotEmpty() -> {
+                // A finished shuffled queue is reshuffled for the next round
+                val queue = if (state.shuffle) songs.shuffled() else songs
+                setState {
+                    copy(
+                        currentPlaylist = currentPlaylist.copy(songs = queue),
+                        currentSong = queue.first(),
+                        currentTrackNum = 0
+                    )
+                }
+                if (state.shuffle) setPlayListOnDevice(queue.map { it.path })
+                setCurrentTrackNumOnDevice(0)
+                resumeCurrentSongOnDevice()
+            }
+        }
+    }
+
+    fun onPreviousCommand() {
+        if (remote) return NetworkManager.send(PreviousCommand)
+        val songs = state.currentPlaylist.songs
+        when {
+            state.repeatMode == RepeatMode.One -> replayCurrent()
+            state.currentTrackNum > 0 -> {
+                setState { copy(currentSong = songs[currentTrackNum - 1], currentTrackNum = currentTrackNum - 1) }
+                playPreviousOnDevice()
+            }
+
+            state.repeatMode == RepeatMode.All && songs.isNotEmpty() -> {
+                setState { copy(currentSong = songs.last(), currentTrackNum = songs.lastIndex) }
+                setCurrentTrackNumOnDevice(songs.lastIndex)
+                resumeCurrentSongOnDevice()
+            }
+        }
+    }
+
+    private fun replayCurrent() {
+        val song = state.currentPlaylist.songs.getOrNull(state.currentTrackNum) ?: return
+        setState { copy(currentSong = song) }
+        setCurrentTrackNumOnDevice(state.currentTrackNum)
+        resumeCurrentSongOnDevice()
+    }
+
+    fun onPlaylistChanged(playlist: Playlist) {
+        setState { copy(currentPlaylist = playlist, currentTrackNum = 0) }
+        if (!remote) setPlayListOnDevice(playlist.songs.map { it.path })
+    }
+
+    fun onSongsChanged(songs: List<Song>) {
+        setState { copy(currentPlaylist = currentPlaylist.copy(songs = songs)) }
+        if (!remote) setPlayListOnDevice(songs.map { it.path })
+    }
+
+    private inline fun setState(update: PlayerState.() -> PlayerState) {
+        val old = state
+        state = state.update()
+        // Only the device that really plays reports to its clients
+        if (remote) return
+        if (old.currentSong != state.currentSong) state.currentSong?.let {
+            NetworkManager.sendPlayerUpdate(
+                NowPlayingUpdate(it)
+            )
+        }
+        if (old.isPlaying != state.isPlaying) NetworkManager.sendPlayerUpdate(PlaybackStateUpdate(state.isPlaying))
     }
 }
 
-// Platform-specific function declarations
 expect fun setPlayListOnDevice(paths: List<String>)
 expect fun setCurrentTrackNumOnDevice(trackNum: Int)
 expect fun pauseCurrentSongOnDevice()

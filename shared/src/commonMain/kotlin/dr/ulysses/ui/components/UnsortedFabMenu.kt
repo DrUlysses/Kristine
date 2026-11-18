@@ -16,21 +16,16 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.SongRepository
-import dr.ulysses.entities.refreshSongs
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
-/**
- * Data class to hold all the state for the UnsortedFabMenu
- */
 private data class UnsortedFabMenuState(
     val expanded: Boolean = false,
     val showRemoveDialog: Boolean = false,
     val showUpdateDurationDialog: Boolean = false,
     val showResultDialog: Boolean = false,
     val showProgressDialog: Boolean = false,
-    val removedCount: Int = 0,
-    val updatedCount: Int = 0,
+    val changedCount: Int = 0,
     val processedCount: Int = 0,
     val totalCount: Int = 0,
     val progress: Float = 0f,
@@ -44,20 +39,37 @@ private enum class OperationType {
 }
 
 /**
- * A FAB menu for the ManageUnsortedList screen.
- * When clicked, it expands to show options like "remove non-existing".
- * This implementation mimics the behavior of FloatingActionButtonMenu from material3:1.4.0-alpha14
+ * FAB menu of the ManageUnsortedList screen, modeled on material3's FloatingActionButtonMenu.
  */
 @Composable
 fun UnsortedFabMenu() {
     var state by remember { mutableStateOf(UnsortedFabMenuState()) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Animation values
     val rotation by animateFloatAsState(targetValue = if (state.expanded) 90f else 0f, label = "rotation")
     val fabScale by animateFloatAsState(targetValue = if (state.expanded) 1.1f else 1.0f, label = "fabScale")
 
-    // Show confirmation dialog for removing non-existing songs
+    fun run(operation: OperationType, progress: Flow<SongRepository.Progress>) {
+        state = state.copy(
+            showRemoveDialog = false,
+            showUpdateDurationDialog = false,
+            showProgressDialog = true,
+            operationType = operation
+        )
+        coroutineScope.launch {
+            progress.collect { p ->
+                state = state.copy(
+                    processedCount = p.processed,
+                    totalCount = p.total,
+                    changedCount = p.changed,
+                    progress = if (p.total > 0) p.processed.toFloat() / p.total else 0f,
+                    showProgressDialog = !p.isComplete,
+                    showResultDialog = p.isComplete,
+                )
+            }
+        }
+    }
+
     if (state.showRemoveDialog) {
         AlertDialog(
             onDismissRequest = { state = state.copy(showRemoveDialog = false) },
@@ -65,30 +77,10 @@ fun UnsortedFabMenu() {
             text = { Text("This will remove all songs from the database where the file no longer exists on the device.") },
             confirmButton = {
                 TextButton(onClick = {
-                    state = state.copy(
-                        showRemoveDialog = false,
-                        showProgressDialog = true,
-                        operationType = OperationType.REMOVE_NON_EXISTING
+                    run(
+                        OperationType.REMOVE_NON_EXISTING,
+                        SongRepository.removeNonExistingSongs()
                     )
-
-                    // Launch a coroutine to remove non-existing songs
-                    coroutineScope.launch {
-                        SongRepository.removeNonExistingSongs().collectLatest { progressState ->
-                            state = state.copy(
-                                processedCount = progressState.processed,
-                                totalCount = progressState.total,
-                                removedCount = progressState.removed,
-                                progress = if (progressState.total > 0) progressState.processed.toFloat() / progressState.total else 0f
-                            )
-
-                            if (progressState.isComplete) {
-                                state = state.copy(
-                                    showProgressDialog = false,
-                                    showResultDialog = true
-                                )
-                            }
-                        }
-                    }
                 }) {
                     Text("Yes")
                 }
@@ -101,33 +93,13 @@ fun UnsortedFabMenu() {
         )
     }
 
-    // Show confirmation dialog for updating song durations
     if (state.showUpdateDurationDialog) {
         AlertDialog(
             onDismissRequest = { state = state.copy(showUpdateDurationDialog = false) },
             title = { Text("Update song durations?") },
             text = { Text("This will update the duration for all songs in the database from their metadata. This can fix issues with the player slider.") },
             confirmButton = {
-                TextButton(onClick = {
-                    state = state.copy(
-                        showUpdateDurationDialog = false,
-                        showProgressDialog = true,
-                        operationType = OperationType.UPDATE_DURATIONS
-                    )
-
-                    // Launch a coroutine to update song durations
-                    coroutineScope.launch {
-                        // Refresh songs to update metadata
-                        val songs = refreshSongs()
-
-                        // Show result dialog
-                        state = state.copy(
-                            showProgressDialog = false,
-                            showResultDialog = true,
-                            updatedCount = songs.size
-                        )
-                    }
-                }) {
+                TextButton(onClick = { run(OperationType.UPDATE_DURATIONS, SongRepository.updateSongDurations()) }) {
                     Text("Yes")
                 }
             },
@@ -139,10 +111,9 @@ fun UnsortedFabMenu() {
         )
     }
 
-    // Show progress dialog
     if (state.showProgressDialog) {
         AlertDialog(
-            onDismissRequest = { /* Prevent dismissal while the operation is in progress */ },
+            onDismissRequest = { /* Not dismissable while the operation runs */ },
             title = {
                 when (state.operationType) {
                     OperationType.REMOVE_NON_EXISTING -> Text("Removing non-existing songs")
@@ -170,14 +141,14 @@ fun UnsortedFabMenu() {
                     when (state.operationType) {
                         OperationType.REMOVE_NON_EXISTING ->
                             Text(
-                                "Removed ${state.removedCount} songs so far",
+                                "Removed ${state.changedCount} songs so far",
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(top = 8.dp)
                             )
 
                         OperationType.UPDATE_DURATIONS ->
                             Text(
-                                "Updated ${state.updatedCount} songs so far",
+                                "Updated ${state.changedCount} songs so far",
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(top = 8.dp)
                             )
@@ -191,11 +162,10 @@ fun UnsortedFabMenu() {
                     }
                 }
             },
-            confirmButton = { /* No confirmation button during operation */ }
+            confirmButton = {}
         )
     }
 
-    // Show result dialog
     if (state.showResultDialog) {
         AlertDialog(
             onDismissRequest = { state = state.copy(showResultDialog = false) },
@@ -203,10 +173,10 @@ fun UnsortedFabMenu() {
             text = {
                 when (state.operationType) {
                     OperationType.REMOVE_NON_EXISTING ->
-                        Text("Removed ${state.removedCount} non-existing song${if (state.removedCount != 1) "s" else ""} from the database.")
+                        Text("Removed ${state.changedCount} non-existing song${if (state.changedCount != 1) "s" else ""} from the database.")
 
                     OperationType.UPDATE_DURATIONS ->
-                        Text("Updated metadata for ${state.updatedCount} song${if (state.updatedCount != 1) "s" else ""}. The player slider should now work correctly.")
+                        Text("Updated the duration of ${state.changedCount} song${if (state.changedCount != 1) "s" else ""}. The player slider should now work correctly.")
 
                     else ->
                         Text("Operation completed successfully.")
@@ -226,9 +196,7 @@ fun UnsortedFabMenu() {
     ) {
         Spacer(modifier = Modifier.weight(1f))
 
-        // Mini FABs (only visible when expanded)
         if (state.expanded) {
-            // Option 1: Remove non-existing
             SmallFloatingActionButton(
                 onClick = {
                     state = state.copy(
@@ -245,7 +213,6 @@ fun UnsortedFabMenu() {
                 )
             }
 
-            // Option 2: Update song durations
             SmallFloatingActionButton(
                 onClick = {
                     state = state.copy(
@@ -261,11 +228,8 @@ fun UnsortedFabMenu() {
                     contentDescription = "Update song durations"
                 )
             }
-
-            // Add more mini FABs here as needed
         }
 
-        // Main FAB
         FloatingActionButton(
             onClick = { state = state.copy(expanded = !state.expanded) },
             modifier = Modifier.scale(fabScale)

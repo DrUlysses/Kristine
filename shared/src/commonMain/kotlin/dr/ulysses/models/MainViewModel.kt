@@ -3,70 +3,63 @@ package dr.ulysses.models
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import dr.ulysses.entities.Playlist
-import dr.ulysses.entities.PlaylistRepository
-import dr.ulysses.entities.Song
-import dr.ulysses.entities.SongRepository
-import dr.ulysses.network.NetworkManager.currentServer
-import dr.ulysses.network.NetworkManager.fetchSongsFromCurrentServer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
+import dr.ulysses.Logger
+import dr.ulysses.entities.*
+import dr.ulysses.network.NetworkManager
+import dr.ulysses.ui.views.onSongSave
+import kotlinx.coroutines.*
 
-/**
- * ViewModel for the Main screen that manages UI state
- */
+/** The single source of the Main screen's state; it outlives navigation. */
 object MainViewModel {
-    private val scope = CoroutineScope(Dispatchers.Main)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     var state: MainState by mutableStateOf(MainState())
         private set
 
     init {
-        // Initialize by loading songs
         loadSongs()
     }
 
+    /** The connected server's library, or the local one. */
     fun loadSongs() {
         scope.launch {
             state = state.copy(isLoadingSongs = true)
+            val songs = NetworkManager.fetchSongsFromCurrentServer() ?: SongRepository.getAllSongs()
+            state = state.copy(allSongs = songs, isLoadingSongs = false)
+        }
+    }
 
-            // Check if connected to a server
-            val serverConnection = currentServer.value
-            val songs = if (serverConnection != null) {
-                // The Client is connected to server, get songs from server
-                val serverSongs = fetchSongsFromCurrentServer()
-                serverSongs ?: SongRepository.getAllSongs()
-            } else {
-                // Not connected to server, get songs from local repository
-                SongRepository.getAllSongs()
-            }
-
-            state = state.copy(
-                allSongs = songs,
-                isLoadingSongs = false
-            )
+    /** Scans the music folder for new files, then reloads. */
+    fun scanLibrary() {
+        scope.launch {
+            withContext(Dispatchers.Default) { refreshSongs() }
+            loadSongs()
         }
     }
 
     fun loadPlaylists() {
         scope.launch {
             state = state.copy(isLoadingPlaylists = true)
-            val playlists = PlaylistRepository.getAllPlaylists()
-            state = state.copy(
-                currentPlaylists = playlists,
-                isLoadingPlaylists = false
-            )
+            state = state.copy(currentPlaylists = PlaylistRepository.getAllPlaylists(), isLoadingPlaylists = false)
         }
+    }
+
+    /** The DB keeps the edit even when the file can't be written, e.g. without storage permission. */
+    suspend fun saveSong(song: Song) = withContext(Dispatchers.Default) {
+        SongRepository.upsert(song.copy(state = Song.State.Sorted))
+        onSongSave(song).onFailure { Logger.e(it) { "Couldn't write the tags of ${song.path}" } }
+    }
+
+    fun openDetail(title: String, fromTab: Int) {
+        state = state.copy(topBarText = title, previousTabIndex = fromTab, returningFromDetail = false)
+    }
+
+    fun closeDetail() {
+        state = state.copy(topBarText = null, returningFromDetail = true)
     }
 
     fun setTopBarText(text: String?) {
         state = state.copy(topBarText = text)
-    }
-
-    fun setPreviousTabIndex(index: Int) {
-        state = state.copy(previousTabIndex = index)
     }
 
     fun setReturningFromDetail(returning: Boolean) {
@@ -103,11 +96,11 @@ object MainViewModel {
         val isLoadingSongs: Boolean = true,
         val currentArtistSongsList: List<Song> = emptyList(),
         val currentAlbumSongsList: List<Song> = emptyList(),
-        val currentPlaylist: Playlist = Playlist(songs = emptyList()),
+        val currentPlaylist: Playlist = Playlist(),
         val currentPlaylists: List<Playlist> = emptyList(),
         val isLoadingPlaylists: Boolean = true,
         val topBarText: String? = null,
-        val previousTabIndex: Int = 1, // Default to Songs tab
+        val previousTabIndex: Int = 1, // Songs tab
         val returningFromDetail: Boolean = false,
         val pendingSaveJobs: List<Job> = emptyList(),
         val songsPathChanged: Boolean = false,
