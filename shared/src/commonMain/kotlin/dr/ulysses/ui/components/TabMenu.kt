@@ -9,12 +9,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dr.ulysses.ui.elements.SettingsDropdownEntry
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kristine.shared.generated.resources.Res
 import kristine.shared.generated.resources.back
@@ -26,11 +25,12 @@ import org.jetbrains.compose.resources.stringResource
 fun TabMenu(
     pagerState: PagerState,
     topText: String? = null,
-    tabs: Map<Int, String> = emptyMap(),
+    tabs: List<String> = emptyList(),
     navigateUp: () -> Unit = {},
     menuEntries: List<SettingsDropdownEntry> = emptyList(),
 ) {
     val menuExpanded = remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     Row {
         Column(
             modifier = Modifier
@@ -73,18 +73,13 @@ fun TabMenu(
                         .height(40.dp),
                     selectedTabIndex = pagerState.currentPage,
                 ) {
-                    for (tab in tabs) {
+                    tabs.forEachIndexed { index, title ->
                         Tab(
-                            onClick = {
-                                CoroutineScope(Dispatchers.Main).launch {
-                                    pagerState.scrollToPage(tab.key)
-                                }
-                            },
-                            selected = pagerState.currentPage == tab.key,
-                            enabled = true,
+                            onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                            selected = pagerState.currentPage == index,
                             text = {
                                 Text(
-                                    text = tab.value,
+                                    text = title,
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }

@@ -41,8 +41,6 @@ actual fun VideoPlayer(
 
 @Composable
 private fun DefaultVideoPlayer(modifier: Modifier, currentSong: dr.ulysses.entities.Song?) {
-    // Native VLC resources: created once, released on dispose
-    val mediaPlayerComponent = remember { initializeMediaPlayerComponent() }
     val mediaPlayer = remember { mediaPlayerComponent.mediaPlayer() }
     val factory = remember { { mediaPlayerComponent.apply { background = java.awt.Color(0, 0, 0, 0) } } }
 
@@ -52,15 +50,15 @@ private fun DefaultVideoPlayer(modifier: Modifier, currentSong: dr.ulysses.entit
         }
     }
 
-    DisposableEffect(Unit) { onDispose(mediaPlayer::release) }
-
     SwingPanel(
         factory = factory,
         modifier = modifier
     )
 }
 
-private fun initializeMediaPlayerComponent(): EmbeddedMediaPlayerComponent {
+// One native player for the app's lifetime: the panel leaves the composition whenever a song has artwork,
+// and recreating the player each time it comes back blocked the UI thread and stacked event listeners
+private val mediaPlayerComponent by lazy {
     NativeDiscovery().discover()
     val component = EmbeddedMediaPlayerComponent()
     PlayerObject.player.mediaPlayer().setMediaPlayer(
@@ -68,7 +66,7 @@ private fun initializeMediaPlayerComponent(): EmbeddedMediaPlayerComponent {
             .apply { events().addMediaEventListener(PlayerObject.stateListener) }
             .apply { events().addMediaPlayerEventListener(PlayerObject.stateListener) })
     PlayerObject.player.events().addMediaListPlayerEventListener(PlayerObject.listListener)
-    return component
+    component
 }
 
 // Seconds, like the song duration the slider compares it with

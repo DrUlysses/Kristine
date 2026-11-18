@@ -37,7 +37,7 @@ kotlin {
     }
     applyDefaultHierarchyTemplate {
         common {
-            // Android and desktop share the JVM-only code: Ktor server, UDP discovery, jaudiotagger, Spotify
+            // Android and desktop share the JVM-only code: Ktor server, UDP discovery, jaudiotagger
             group("jvmCommon") {
                 withCompilations {
                     it.platformType == KotlinPlatformType.jvm || it.platformType == KotlinPlatformType.androidJvm
@@ -88,7 +88,6 @@ kotlin {
             implementation(libs.jthink.jaudiotagger)
             implementation(libs.kotlinx.io.core)
             implementation(libs.ktor.client.okhttp)
-            implementation(libs.spotify.api.kotlin.core)
         }
         androidMain.dependencies {
             implementation(libs.accompanist.permissions)
@@ -105,9 +104,6 @@ kotlin {
             implementation(libs.appdirs)
             implementation(libs.caprica.vlcj)
             implementation(libs.sqldelight.driver)
-        }
-        jvmTest.dependencies {
-            implementation(kotlin("test"))
         }
         wasmJsMain {
             languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")

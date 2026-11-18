@@ -60,12 +60,12 @@ actual fun SongsList(
                     var image: ByteArray? by remember { mutableStateOf(song.artwork) }
                     if (image == null) {
                         LaunchedEffect(song.path) {
-                            // First try to get artwork from a database
                             image = SongRepository.getArtwork(song.path)
-                            // If not found in database and API level is 29 or higher, load from file
-                            if (image == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            // Not stored yet: read it from the file once and keep it (NotDownloaded has no file)
+                            if (image == null && song.state != Song.State.NotDownloaded &&
+                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                            ) {
                                 image = loadArtworkFromFile(song.path)
-                                // If artwork was loaded from a file, update the database
                                 if (image != null) {
                                     SongRepository.upsert(song.copy(artwork = image))
                                 }
@@ -76,6 +76,7 @@ actual fun SongsList(
                         image = image,
                         title = song.title,
                         artist = song.artist,
+                        isAvailable = song.state != Song.State.NotDownloaded,
                         onClick = { onClick(song) },
                         modifier = if (!rearrangeable) Modifier
                         else Modifier

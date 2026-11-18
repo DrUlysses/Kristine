@@ -15,7 +15,6 @@ import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.base.Searchable
 import dr.ulysses.player.Player
 import dr.ulysses.ui.components.SearchList
-import kotlinx.coroutines.launch
 
 @Composable
 fun Search(
@@ -26,7 +25,13 @@ fun Search(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var entries by remember { mutableStateOf(emptyList<Searchable>()) }
-    val scope = rememberCoroutineScope()
+
+    // Restarted per keystroke, so a slow earlier search can't overwrite newer results
+    LaunchedEffect(searchQuery) {
+        // An empty query would match everything ('%' || '' || '%')
+        entries = if (searchQuery.isBlank()) emptyList() else SongRepository.search(searchQuery) +
+                if (playlistsIncluded) PlaylistRepository.search(searchQuery) else emptyList()
+    }
 
     Column(
         modifier = modifier
@@ -39,11 +44,6 @@ fun Search(
                 onValueChange = { value ->
                     searchQuery = value
                     onQueryChanged(searchQuery)
-                    scope.launch {
-                        entries = SongRepository.search(searchQuery) +
-                                if (playlistsIncluded) PlaylistRepository.search(searchQuery)
-                                else emptyList()
-                    }
                 },
                 label = { Text("Search") },
                 maxLines = 1,

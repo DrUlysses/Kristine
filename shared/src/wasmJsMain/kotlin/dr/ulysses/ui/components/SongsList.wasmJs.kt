@@ -63,6 +63,7 @@ actual fun SongsList(
                         image = image,
                         title = song.title,
                         artist = song.artist,
+                        isAvailable = song.state != Song.State.NotDownloaded,
                         onClick = { onClick(song) },
                         modifier = if (!rearrangeable) {
                             Modifier

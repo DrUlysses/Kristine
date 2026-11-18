@@ -60,7 +60,8 @@ actual fun SongsList(
                         LaunchedEffect(song.path) {
                             image = SongRepository.getArtwork(song.path)
 
-                            if (image == null) {
+                            // A NotDownloaded song has no file to read
+                            if (image == null && song.state != Song.State.NotDownloaded) {
                                 runCatching {
                                     image = AudioFileIO
                                         .read(Path(song.path.substringAfter("file:///")).toFile())
@@ -78,6 +79,7 @@ actual fun SongsList(
                         image = image,
                         title = song.title,
                         artist = song.artist,
+                        isAvailable = song.state != Song.State.NotDownloaded,
                         onClick = { onClick(song) },
                         modifier = if (!rearrangeable) Modifier
                         else Modifier

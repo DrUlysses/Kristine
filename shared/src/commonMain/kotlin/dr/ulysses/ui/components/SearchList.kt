@@ -48,6 +48,7 @@ fun SearchList(
                                 image = image,
                                 title = entry.title,
                                 artist = entry.artist,
+                                isAvailable = entry.state != Song.State.NotDownloaded,
                                 onClick = { onSongClicked(entry) }
                             )
                         }

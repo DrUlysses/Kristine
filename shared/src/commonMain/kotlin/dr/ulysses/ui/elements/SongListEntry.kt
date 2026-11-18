@@ -7,6 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -17,18 +18,21 @@ import kristine.shared.generated.resources.compose_multiplatform
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.jetbrains.compose.resources.painterResource
 
+/** @param isAvailable False for a song whose file is missing: dimmed and not clickable */
 @Composable
 fun SongListEntry(
     modifier: Modifier = Modifier,
     image: ByteArray? = null,
     title: String = "Title",
     artist: String = "Unknown Artist",
+    isAvailable: Boolean = true,
     onClick: () -> Unit = {},
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .alpha(if (isAvailable) 1f else 0.4f)
+            .clickable(enabled = isAvailable, onClick = onClick)
     ) {
         Image(
             painter = image?.let {

@@ -44,6 +44,9 @@ fun ManagePlaylist(
     val context = LocalPlatformContext.current
     var searchQuery by remember { mutableStateOf("") }
     var entries by remember { mutableStateOf(emptyList<Song>()) }
+    LaunchedEffect(searchQuery) {
+        entries = if (searchQuery.isBlank()) emptyList() else SongRepository.search(searchQuery)
+    }
 
     Column(
         modifier = modifier.fillMaxSize()
@@ -119,9 +122,6 @@ fun ManagePlaylist(
                 value = searchQuery,
                 onValueChange = { value ->
                     searchQuery = value
-                    scope.launch {
-                        entries = SongRepository.search(searchQuery)
-                    }
                 },
                 label = { Text("Search") },
                 maxLines = 1,

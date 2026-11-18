@@ -41,10 +41,13 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun Main() {
-    val pagerState = rememberPagerState(
-        initialPage = 1,
-        pageCount = { 4 },
+    val tabs = listOf(
+        stringResource(Res.string.artists),
+        stringResource(Res.string.songs),
+        stringResource(Res.string.albums),
+        stringResource(Res.string.playlists),
     )
+    val pagerState = rememberPagerState(initialPage = 1) { tabs.size }
     val searchText = stringResource(Res.string.search)
     val addPlaylistText = stringResource(Res.string.add_playlist)
     val manageUnsortedText = stringResource(Res.string.manage_unsorted)
@@ -107,14 +110,9 @@ fun Main() {
     Scaffold(
         topBar = {
             TabMenu(
-                pagerState = pagerState, // TODO: pagerState vs dynamic tabs here
+                pagerState = pagerState,
                 topText = state.topBarText,
-                tabs = mapOf(
-                    0 to stringResource(Res.string.artists),
-                    1 to stringResource(Res.string.songs),
-                    2 to stringResource(Res.string.albums),
-                    3 to stringResource(Res.string.playlists),
-                ),
+                tabs = tabs,
                 navigateUp = ::close,
                 menuEntries = listOf(
                     SettingsDropdownEntry(
@@ -150,200 +148,199 @@ fun Main() {
                 modifier = Modifier.padding(innerPadding),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                HorizontalPager(
-                    modifier = Modifier.fillMaxSize(),
-                    state = pagerState
-                ) { page ->
-                    if (state.topBarText != null) {
-                        NavDisplay(
-                            modifier = Modifier.fillMaxSize(),
-                            backStack = navStack,
-                            onBack = { navStack.removeLastOrNull() },
-                            entryProvider = entryProvider {
-                                entry<Artists> {
-                                    LaunchedEffect(Unit) { pagerState.scrollToPage(0) }
-                                }
-                                entry<Songs> {
-                                    LaunchedEffect(Unit) { pagerState.scrollToPage(1) }
-                                }
-                                entry<Albums> {
-                                    LaunchedEffect(Unit) { pagerState.scrollToPage(2) }
-                                }
-                                entry<Playlists> {
-                                    LaunchedEffect(Unit) { pagerState.scrollToPage(3) }
-                                }
-                                entry<ArtistSongs> {
-                                    SongsList(
-                                        songs = state.currentArtistSongsList,
-                                        onClick = { song ->
-                                            Player.onSongsChanged(state.currentArtistSongsList)
-                                            Player.onPlaySongCommand(song)
-                                        }
-                                    )
-                                }
-                                entry<AlbumSongs> {
-                                    SongsList(
-                                        songs = state.currentAlbumSongsList,
-                                        onClick = { song ->
-                                            Player.onSongsChanged(state.currentAlbumSongsList)
-                                            Player.onPlaySongCommand(song)
-                                        }
-                                    )
-                                }
-                                entry<PlaylistSongs> {
-                                    var songs by remember { mutableStateOf(emptyList<Song>()) }
-                                    LaunchedEffect(state.currentPlaylist.name) {
-                                        songs = PlaylistRepository.getPlaylistSongs(state.currentPlaylist.name)
-                                    }
-                                    SongsList(
-                                        songs = songs,
-                                        onClick = { song ->
-                                            Player.onSongsChanged(songs)
-                                            Player.onPlaySongCommand(song)
-                                        }
-                                    )
-                                }
-                                entry<Search> {
-                                    Search(
-                                        onPlaylistClicked = { playlist ->
-                                            playlist as Playlist
-                                            MainViewModel.setCurrentPlaylist(playlist)
-                                            MainViewModel.setTopBarText(playlist.name)
-                                            navStack.add(PlaylistSongs)
-                                        },
-                                        onQueryChanged = { query ->
-                                            MainViewModel.setTopBarText(query.ifEmpty { searchText })
-                                        }
-                                    )
-                                }
-                                entry<ManagePlaylist> {
-                                    ManagePlaylist(
-                                        playlist = state.currentPlaylist,
-                                        onPlaylistChanged = MainViewModel::setCurrentPlaylist
-                                    )
-                                }
-                                entry<ManageUnsortedList> {
-                                    var unsortedSongs by remember { mutableStateOf(emptyList<Song>()) }
-                                    LaunchedEffect(Unit) {
-                                        unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
-                                    }
-                                    if (unsortedSongs.isNotEmpty()) {
-                                        ManageUnsortedList(
-                                            unsortedSongs = unsortedSongs,
-                                            onClick = { song ->
-                                                MainViewModel.setSelectedSong(song)
-                                                navStack.add(ManageSong)
-                                            }
-                                        )
-                                    } else {
-                                        LoadingIndicator()
-                                    }
-                                }
-                                entry<ManageSong> {
-                                    var unsortedSongs by rememberSaveable { mutableStateOf(emptyList<Song>()) }
-                                    LaunchedEffect(Unit) {
-                                        unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
-                                    }
-                                    val currentSong = state.selectedSong
-                                    val currentSongIndex = unsortedSongs.indexOf(currentSong)
-                                    if (currentSong != null && unsortedSongs.isNotEmpty()) {
-                                        ManageUnsortedSong(
-                                            song = currentSong,
-                                            unsortedSongs = unsortedSongs,
-                                            onSongEdited = { edited ->
-                                                scope.launch { MainViewModel.saveSong(edited) }
-                                                MainViewModel.setSelectedSong(edited)
-                                            },
-                                            onNextSong = {
-                                                MainViewModel.setSelectedSong(unsortedSongs.getOrNull(currentSongIndex + 1))
-                                            },
-                                            onPreviousSong = {
-                                                MainViewModel.setSelectedSong(unsortedSongs.getOrNull(currentSongIndex - 1))
-                                            }
-                                        )
-                                    } else {
-                                        LoadingIndicator()
-                                    }
-                                }
-                                entry<Connections> {
-                                    Connections()
-                                }
-                                entry<Settings> {
-                                    Settings(
-                                        onPendingSaveJobsChanged = MainViewModel::setPendingSaveJobs,
-                                        onSongsPathChanged = MainViewModel::setSongsPathChanged
-                                    )
-                                }
+                // A detail view replaces the pager: one NavDisplay, and no swiping tabs underneath it
+                if (state.topBarText != null) {
+                    NavDisplay(
+                        modifier = Modifier.fillMaxSize(),
+                        backStack = navStack,
+                        onBack = { navStack.removeLastOrNull() },
+                        entryProvider = entryProvider {
+                            entry<Artists> {
+                                LaunchedEffect(Unit) { pagerState.scrollToPage(0) }
                             }
-                        )
-                    } else {
-                        when (page) {
-                            0 -> if (state.isLoadingSongs) {
-                                LoadingIndicator()
-                            } else {
-                                ArtistsList(
-                                    artists = state.allSongs
-                                        .map { it.artist.trim() }
-                                        .fastDistinctBy(String::lowercase),
-                                    onArtistsChanged = {},
-                                    listState = artistsListState,
-                                    initialLoad = !state.returningFromDetail,
-                                    onArtistClicked = { artist ->
-                                        MainViewModel.setCurrentArtistSongsList(state.allSongs.filter {
-                                            it.artist.trim().equals(artist.trim(), ignoreCase = true)
-                                        })
-                                        open(artist, ArtistSongs)
-                                    }
-                                )
+                            entry<Songs> {
+                                LaunchedEffect(Unit) { pagerState.scrollToPage(1) }
                             }
-
-                            1 -> if (state.isLoadingSongs) {
-                                LoadingIndicator()
-                            } else {
+                            entry<Albums> {
+                                LaunchedEffect(Unit) { pagerState.scrollToPage(2) }
+                            }
+                            entry<Playlists> {
+                                LaunchedEffect(Unit) { pagerState.scrollToPage(3) }
+                            }
+                            entry<ArtistSongs> {
                                 SongsList(
-                                    songs = state.allSongs,
+                                    songs = state.currentArtistSongsList,
                                     onClick = { song ->
-                                        Player.onSongsChanged(state.allSongs)
+                                        Player.onSongsChanged(state.currentArtistSongsList)
                                         Player.onPlaySongCommand(song)
                                     }
                                 )
                             }
-
-                            2 -> if (state.isLoadingSongs) {
-                                LoadingIndicator()
-                            } else {
-                                AlbumsList(
-                                    albums = state.allSongs
-                                        .mapNotNull { it.album?.trim() }
-                                        .fastDistinctBy(String::lowercase),
-                                    listState = albumsListState,
-                                    initialLoad = !state.returningFromDetail,
-                                    onAlbumClicked = { album ->
-                                        MainViewModel.setCurrentAlbumSongsList(state.allSongs.filter {
-                                            it.album.equals(album, ignoreCase = true)
-                                        })
-                                        open(album, AlbumSongs)
+                            entry<AlbumSongs> {
+                                SongsList(
+                                    songs = state.currentAlbumSongsList,
+                                    onClick = { song ->
+                                        Player.onSongsChanged(state.currentAlbumSongsList)
+                                        Player.onPlaySongCommand(song)
                                     }
                                 )
                             }
-
-                            3 -> {
-                                LaunchedEffect(Unit) { MainViewModel.loadPlaylists() }
-
-                                if (state.isLoadingPlaylists) {
-                                    LoadingIndicator()
-                                } else {
-                                    PlaylistsList(
-                                        playlists = state.currentPlaylists,
-                                        listState = playlistsListState,
-                                        initialLoad = !state.returningFromDetail,
-                                        onPlaylistsChanged = { MainViewModel.loadPlaylists() },
-                                        onPlaylistClicked = { playlist ->
-                                            MainViewModel.setCurrentPlaylist(playlist)
-                                            open(playlist.name, PlaylistSongs)
+                            entry<PlaylistSongs> {
+                                var songs by remember { mutableStateOf(emptyList<Song>()) }
+                                LaunchedEffect(state.currentPlaylist.name) {
+                                    songs = PlaylistRepository.getPlaylistSongs(state.currentPlaylist.name)
+                                }
+                                SongsList(
+                                    songs = songs,
+                                    onClick = { song ->
+                                        Player.onSongsChanged(songs)
+                                        Player.onPlaySongCommand(song)
+                                    }
+                                )
+                            }
+                            entry<Search> {
+                                Search(
+                                    onPlaylistClicked = { playlist ->
+                                        playlist as Playlist
+                                        MainViewModel.setCurrentPlaylist(playlist)
+                                        MainViewModel.setTopBarText(playlist.name)
+                                        navStack.add(PlaylistSongs)
+                                    },
+                                    onQueryChanged = { query ->
+                                        MainViewModel.setTopBarText(query.ifEmpty { searchText })
+                                    }
+                                )
+                            }
+                            entry<ManagePlaylist> {
+                                ManagePlaylist(
+                                    playlist = state.currentPlaylist,
+                                    onPlaylistChanged = MainViewModel::setCurrentPlaylist
+                                )
+                            }
+                            entry<ManageUnsortedList> {
+                                var unsortedSongs by remember { mutableStateOf(emptyList<Song>()) }
+                                LaunchedEffect(Unit) {
+                                    unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
+                                }
+                                if (unsortedSongs.isNotEmpty()) {
+                                    ManageUnsortedList(
+                                        unsortedSongs = unsortedSongs,
+                                        onClick = { song ->
+                                            MainViewModel.setSelectedSong(song)
+                                            navStack.add(ManageSong)
                                         }
                                     )
+                                } else {
+                                    LoadingIndicator()
                                 }
+                            }
+                            entry<ManageSong> {
+                                var unsortedSongs by rememberSaveable { mutableStateOf(emptyList<Song>()) }
+                                LaunchedEffect(Unit) {
+                                    unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
+                                }
+                                val currentSong = state.selectedSong
+                                val currentSongIndex = unsortedSongs.indexOf(currentSong)
+                                if (currentSong != null && unsortedSongs.isNotEmpty()) {
+                                    ManageUnsortedSong(
+                                        song = currentSong,
+                                        unsortedSongs = unsortedSongs,
+                                        onSongEdited = { edited ->
+                                            scope.launch { MainViewModel.saveSong(edited) }
+                                            MainViewModel.setSelectedSong(edited)
+                                        },
+                                        onNextSong = {
+                                            MainViewModel.setSelectedSong(unsortedSongs.getOrNull(currentSongIndex + 1))
+                                        },
+                                        onPreviousSong = {
+                                            MainViewModel.setSelectedSong(unsortedSongs.getOrNull(currentSongIndex - 1))
+                                        }
+                                    )
+                                } else {
+                                    LoadingIndicator()
+                                }
+                            }
+                            entry<Connections> {
+                                Connections()
+                            }
+                            entry<Settings> {
+                                Settings(
+                                    onPendingSaveJobsChanged = MainViewModel::setPendingSaveJobs,
+                                    onSongsPathChanged = MainViewModel::setSongsPathChanged
+                                )
+                            }
+                        }
+                    )
+                } else HorizontalPager(
+                    modifier = Modifier.fillMaxSize(),
+                    state = pagerState
+                ) { page ->
+                    when (page) {
+                        0 -> if (state.isLoadingSongs) {
+                            LoadingIndicator()
+                        } else {
+                            ArtistsList(
+                                artists = state.allSongs
+                                    .map { it.artist.trim() }
+                                    .fastDistinctBy(String::lowercase),
+                                onArtistsChanged = {},
+                                listState = artistsListState,
+                                initialLoad = !state.returningFromDetail,
+                                onArtistClicked = { artist ->
+                                    MainViewModel.setCurrentArtistSongsList(state.allSongs.filter {
+                                        it.artist.trim().equals(artist.trim(), ignoreCase = true)
+                                    })
+                                    open(artist, ArtistSongs)
+                                }
+                            )
+                        }
+
+                        1 -> if (state.isLoadingSongs) {
+                            LoadingIndicator()
+                        } else {
+                            SongsList(
+                                songs = state.allSongs,
+                                onClick = { song ->
+                                    Player.onSongsChanged(state.allSongs)
+                                    Player.onPlaySongCommand(song)
+                                }
+                            )
+                        }
+
+                        2 -> if (state.isLoadingSongs) {
+                            LoadingIndicator()
+                        } else {
+                            AlbumsList(
+                                albums = state.allSongs
+                                    .mapNotNull { it.album?.trim() }
+                                    .fastDistinctBy(String::lowercase),
+                                listState = albumsListState,
+                                initialLoad = !state.returningFromDetail,
+                                onAlbumClicked = { album ->
+                                    MainViewModel.setCurrentAlbumSongsList(state.allSongs.filter {
+                                        it.album.equals(album, ignoreCase = true)
+                                    })
+                                    open(album, AlbumSongs)
+                                }
+                            )
+                        }
+
+                        3 -> {
+                            LaunchedEffect(Unit) { MainViewModel.loadPlaylists() }
+
+                            if (state.isLoadingPlaylists) {
+                                LoadingIndicator()
+                            } else {
+                                PlaylistsList(
+                                    playlists = state.currentPlaylists,
+                                    listState = playlistsListState,
+                                    initialLoad = !state.returningFromDetail,
+                                    onPlaylistsChanged = { MainViewModel.loadPlaylists() },
+                                    onPlaylistClicked = { playlist ->
+                                        MainViewModel.setCurrentPlaylist(playlist)
+                                        open(playlist.name, PlaylistSongs)
+                                    }
+                                )
                             }
                         }
                     }

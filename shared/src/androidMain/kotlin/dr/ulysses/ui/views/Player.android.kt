@@ -1,17 +1,25 @@
 package dr.ulysses.ui.views
 
+import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.media3.common.util.UnstableApi
+import dr.ulysses.player.PlayerObject
 
 @Composable
 actual fun VideoPlayer(modifier: Modifier) {
 }
 
-// shortcut: Android shows no position or volume slider yet; wire these to PlayerObject.player when it does
-actual fun getCurrentPosition(): Int = 0
+// Called from composition, i.e. the main thread, which MediaController requires
+@OptIn(UnstableApi::class)
+actual fun getCurrentPosition(): Int = ((PlayerObject.player?.currentPosition ?: 0L) / 1000).toInt()
 
-actual fun getVolume(): Float = 1.0f
+@OptIn(UnstableApi::class)
+actual fun getVolume(): Float = PlayerObject.player?.volume ?: 1f
 
-actual fun setVolume(volume: Float) {}
+@OptIn(UnstableApi::class)
+actual fun setVolume(volume: Float) {
+    PlayerObject.player?.volume = volume
+}
 
 actual fun isDesktopOrWasm(): Boolean = false

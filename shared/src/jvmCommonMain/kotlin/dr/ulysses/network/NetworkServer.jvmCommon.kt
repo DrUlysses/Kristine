@@ -16,11 +16,7 @@ import io.ktor.server.websocket.*
 import io.ktor.utils.io.core.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.Json
 import java.net.NetworkInterface
 
@@ -163,6 +159,7 @@ actual class NetworkServer {
 private fun ByteArray.toIpv4() = joinToString(".") { (it.toInt() and 0xff).toString() }
 
 internal actual fun serverAnnouncements(): Flow<Pair<String, Int>> = flow {
+    val releaseLock = acquireMulticastLock()
     val selectorManager = SelectorManager(Dispatchers.IO)
     val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", DISCOVERY_PORT))
     try {
@@ -178,5 +175,9 @@ internal actual fun serverAnnouncements(): Flow<Pair<String, Int>> = flow {
     } finally {
         socket.close()
         selectorManager.close()
+        releaseLock()
     }
 }.flowOn(Dispatchers.IO)
+
+/** Android's Wi-Fi drops broadcast packets unless the app holds a multicast lock. Returns the release. */
+internal expect fun acquireMulticastLock(): () -> Unit
