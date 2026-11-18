@@ -32,15 +32,17 @@ actual object SpotifyAppApi {
     /**
      * Save Spotify credentials to settings
      */
-    actual suspend fun saveCredentials(clientId: String, clientSecret: String): Result<Unit> =
-        withContext(Dispatchers.Default) {
-            try {
-                SettingsRepository.upsert(Setting(SettingKey.SpotifyClientId, clientId))
-                SettingsRepository.upsert(Setting(SettingKey.SpotifyClientSecret, clientSecret))
-                Result.success(Unit)
-            } catch (e: Exception) {
-                Logger.e { "Failed to save Spotify credentials: ${e.message}" }
-                Result.failure(e)
-            }
+    actual suspend fun saveCredentials(
+        clientId: String,
+        clientSecret: String,
+    ): Result<Unit> = withContext(Dispatchers.Default) {
+        try {
+            SettingsRepository.upsert(Setting(SettingKey.SpotifyClientId, clientId))
+            SettingsRepository.upsert(Setting(SettingKey.SpotifyClientSecret, clientSecret))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Logger.e { "Failed to save Spotify credentials: ${e.message}" }
+            Result.failure(e)
         }
+    }
 }
