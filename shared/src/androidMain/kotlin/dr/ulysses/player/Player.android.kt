@@ -68,16 +68,15 @@ actual fun seekToOnDevice(position: Int) = onMain { seekTo(position * 1000L) }
 actual fun isPlayingOnDevice(): Boolean = PlayerObject.player?.isPlaying == true
 
 @UnstableApi
-actual fun setCurrentTrackNumOnDevice(trackNum: Int) = onMain { seekTo(trackNum, 0) }
-
-@UnstableApi
-actual fun playNextOnDevice() = onMain {
-    seekToNextMediaItem()
-    resumeCurrentSongOnDevice()
+actual fun playTrackOnDevice(trackNum: Int) = onMain {
+    seekTo(trackNum, 0)
+    prepare()
+    play()
 }
 
 @UnstableApi
-actual fun playPreviousOnDevice() = onMain {
-    seekToPreviousMediaItem()
+// The device skipping on its own (unplayable file); the app reacts to the resulting transition event
+internal fun playNextOnDevice() = onMain {
+    seekToNextMediaItem()
     resumeCurrentSongOnDevice()
 }

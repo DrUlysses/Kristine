@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 import dr.ulysses.network.*
+import kotlin.concurrent.Volatile
 
 enum class RepeatMode {
     None,
@@ -35,11 +36,28 @@ object Player {
 
     private val remote get() = state.isRemotePlaying
 
+    // The track the app last asked the device for. Device reports lag behind fast clicking, so until the device
+    // confirms this track, reports about other tracks are stale and must not move the UI back
+    @Volatile
+    private var requestedTrack: Int? = null
+
     init {
         isPlayingChangedOnDevice { isPlaying -> if (!remote) setState { copy(isPlaying = isPlaying) } }
         currentPlayingChangedOnDevice { path ->
-            if (!remote) setState { copy(currentSong = currentPlaylist.songs.find { it.path == path }) }
+            // The device moved on by itself (end of song, skip): follow it; an unknown path changes nothing
+            val index = state.currentPlaylist.songs.indexOfFirst { it.path == path }
+            if (remote || index == -1) return@currentPlayingChangedOnDevice
+            requestedTrack?.let { requested ->
+                if (requested != index) return@currentPlayingChangedOnDevice
+                requestedTrack = null
+            }
+            setState { copy(currentSong = currentPlaylist.songs[index], currentTrackNum = index) }
         }
+    }
+
+    private fun playTrack(trackNum: Int) {
+        requestedTrack = trackNum
+        playTrackOnDevice(trackNum)
     }
 
     fun setRemote(remote: Boolean) {
@@ -62,8 +80,7 @@ object Player {
         if (remote) {
             NetworkManager.send(SetPlaylistCommand(state.currentPlaylist.songs, trackNum))
         } else {
-            setCurrentTrackNumOnDevice(trackNum)
-            resumeCurrentSongOnDevice()
+            playTrack(trackNum)
         }
     }
 
@@ -143,7 +160,7 @@ object Player {
             state.repeatMode == RepeatMode.One -> replayCurrent()
             state.currentTrackNum < songs.size - 1 -> {
                 setState { copy(currentSong = songs[currentTrackNum + 1], currentTrackNum = currentTrackNum + 1) }
-                playNextOnDevice()
+                playTrack(state.currentTrackNum)
             }
 
             state.repeatMode == RepeatMode.All && songs.isNotEmpty() -> {
@@ -157,8 +174,7 @@ object Player {
                     )
                 }
                 if (state.shuffle) setPlayListOnDevice(queue.map { it.path })
-                setCurrentTrackNumOnDevice(0)
-                resumeCurrentSongOnDevice()
+                playTrack(0)
             }
         }
     }
@@ -170,13 +186,12 @@ object Player {
             state.repeatMode == RepeatMode.One -> replayCurrent()
             state.currentTrackNum > 0 -> {
                 setState { copy(currentSong = songs[currentTrackNum - 1], currentTrackNum = currentTrackNum - 1) }
-                playPreviousOnDevice()
+                playTrack(state.currentTrackNum)
             }
 
             state.repeatMode == RepeatMode.All && songs.isNotEmpty() -> {
                 setState { copy(currentSong = songs.last(), currentTrackNum = songs.lastIndex) }
-                setCurrentTrackNumOnDevice(songs.lastIndex)
-                resumeCurrentSongOnDevice()
+                playTrack(songs.lastIndex)
             }
         }
     }
@@ -184,8 +199,7 @@ object Player {
     private fun replayCurrent() {
         val song = state.currentPlaylist.songs.getOrNull(state.currentTrackNum) ?: return
         setState { copy(currentSong = song) }
-        setCurrentTrackNumOnDevice(state.currentTrackNum)
-        resumeCurrentSongOnDevice()
+        playTrack(state.currentTrackNum)
     }
 
     fun onPlaylistChanged(playlist: Playlist) {
@@ -218,10 +232,10 @@ object Player {
 }
 
 expect fun setPlayListOnDevice(paths: List<String>)
-expect fun setCurrentTrackNumOnDevice(trackNum: Int)
+
+/** Starts playing the queue at [trackNum] in one step; a separate resume could race the switch and play another track. */
+expect fun playTrackOnDevice(trackNum: Int)
 expect fun pauseCurrentSongOnDevice()
-expect fun playNextOnDevice()
-expect fun playPreviousOnDevice()
 expect fun isPlayingOnDevice(): Boolean
 expect fun resumeCurrentSongOnDevice()
 expect fun stopCurrentSongOnDevice()

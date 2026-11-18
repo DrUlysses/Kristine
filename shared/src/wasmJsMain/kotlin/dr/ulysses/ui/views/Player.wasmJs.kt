@@ -1,12 +1,5 @@
 package dr.ulysses.ui.views
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material3.Icon
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import kotlinx.browser.document
 import org.w3c.dom.HTMLAudioElement
 
@@ -23,17 +16,6 @@ private fun getAudioElement(): HTMLAudioElement {
             }
     }
     return audioElement!!
-}
-
-@Composable
-actual fun VideoPlayer(modifier: Modifier) {
-    Box(modifier = modifier) {
-        Icon(
-            imageVector = Icons.Default.MusicNote,
-            contentDescription = "Music",
-            modifier = Modifier.align(Alignment.Center)
-        )
-    }
 }
 
 // Seconds, like the song duration the slider compares it with

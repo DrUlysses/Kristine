@@ -1,90 +1,81 @@
 package dr.ulysses.player
 
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
-import uk.co.caprica.vlcj.media.Media
 import uk.co.caprica.vlcj.media.MediaRef
-import uk.co.caprica.vlcj.media.Meta
 import uk.co.caprica.vlcj.player.base.MediaPlayer
-import uk.co.caprica.vlcj.player.base.State
+import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 import uk.co.caprica.vlcj.player.component.AudioListPlayerComponent
-import uk.co.caprica.vlcj.player.component.AudioPlayerComponent
 import uk.co.caprica.vlcj.player.list.ListApi
 import uk.co.caprica.vlcj.player.list.MediaListPlayer
 import uk.co.caprica.vlcj.player.list.MediaListPlayerEventAdapter
 
 object PlayerObject {
-    val playerComponent: AudioListPlayerComponent
-    val playerList: ListApi
-    val player: MediaListPlayer
-
     lateinit var onMediaStateChanged: (Boolean) -> Unit
     lateinit var onMediaChanged: (String?) -> Unit
 
-    init {
+    private val playerComponent = run {
         NativeDiscovery().discover()
-        playerComponent = AudioListPlayerComponent()
-        player = playerComponent.mediaListPlayer()
-        playerList = player.list()
+        AudioListPlayerComponent()
     }
+    val player: MediaListPlayer = playerComponent.mediaListPlayer()
+    val playerList: ListApi = player.list()
+
+    // The native player behind the list player; player.mediaPlayer().mediaPlayer() stays null in this setup
+    val mediaPlayer: MediaPlayer = playerComponent.mediaPlayer()
+
+    // The queue as the app gave it; VLC reports URL-encoded MRLs, which differ from these paths
+    var paths: List<String> = emptyList()
 
     // vlcj forbids calling libvlc on its event thread (it deadlocks, freezing the UI on the next call),
     // so every handler hands its work to submit()
     private fun onVlcThread(action: () -> Unit) = player.submit(action)
 
-    val stateListener = object : AudioPlayerComponent() {
-        override fun mediaStateChanged(media: Media?, newState: State?) {
-            super.mediaStateChanged(media, newState)
-            onVlcThread {
-                if (newState == State.PLAYING) onMediaStateChanged(true)
-                onMediaChanged(playerList.media().mrl(Player.state.currentTrackNum))
-            }
+    private val playerListener = object : MediaPlayerEventAdapter() {
+        override fun playing(mediaPlayer: MediaPlayer) {
+            onVlcThread { onMediaStateChanged(true) }
         }
 
-        override fun mediaMetaChanged(media: Media, metaType: Meta) {
-            super.mediaMetaChanged(media, metaType)
-            onVlcThread { onMediaChanged(playerList.media().mrl(Player.state.currentTrackNum)) }
-        }
-
-        override fun paused(mediaPlayer: MediaPlayer?) {
-            super.paused(mediaPlayer)
+        override fun paused(mediaPlayer: MediaPlayer) {
             onVlcThread { onMediaStateChanged(false) }
         }
 
-        override fun stopped(mediaPlayer: MediaPlayer?) {
-            super.stopped(mediaPlayer)
+        override fun stopped(mediaPlayer: MediaPlayer) {
             onVlcThread { onMediaStateChanged(false) }
         }
 
-        // An unplayable file, e.g. one deleted since the last scan, is skipped
-        override fun error(mediaPlayer: MediaPlayer?) {
-            super.error(mediaPlayer)
-            onVlcThread { if (mediaPlayer?.status()?.isPlayable == false) playNextOnDevice() }
+        // An unplayable file is skipped
+        override fun error(mediaPlayer: MediaPlayer) {
+            onVlcThread { if (!mediaPlayer.status().isPlayable) playNextOnDevice() }
         }
     }
 
-    val listListener = object : MediaListPlayerEventAdapter() {
+    private val listListener = object : MediaListPlayerEventAdapter() {
+        // The only event that says which track VLC really plays; it is mapped back by position in the queue
         override fun nextItem(mediaListPlayer: MediaListPlayer, item: MediaRef) {
-            super.nextItem(mediaListPlayer, item)
             val media = item.duplicateMedia()
             onVlcThread {
-                onMediaChanged(media.info().mrl())
+                val mrl = media.info().mrl()
                 media.release()
+                val index = (0 until playerList.media().count()).firstOrNull { playerList.media().mrl(it) == mrl }
+                onMediaChanged(index?.let(paths::getOrNull))
             }
         }
 
         override fun stopped(mediaListPlayer: MediaListPlayer) {
-            super.stopped(mediaListPlayer)
             onVlcThread { onMediaStateChanged(false) }
         }
+    }
+
+    init {
+        mediaPlayer.events().addMediaPlayerEventListener(playerListener)
+        player.events().addMediaListPlayerEventListener(listListener)
     }
 }
 
 actual fun setPlayListOnDevice(paths: List<String>) {
+    PlayerObject.paths = paths
     PlayerObject.playerList.media().clear()
-    paths.map { PlayerObject.playerList.media().add(it) }
-    PlayerObject.onMediaChanged(
-        PlayerObject.playerComponent.mediaListPlayer().list().media().mrl(Player.state.currentTrackNum)
-    )
+    paths.forEach { PlayerObject.playerList.media().add(it) }
 }
 
 actual fun pauseCurrentSongOnDevice() {
@@ -103,12 +94,10 @@ actual fun stopCurrentSongOnDevice() {
 }
 
 actual fun seekToOnDevice(position: Int) {
-    PlayerObject.player.mediaPlayer().mediaPlayer().controls().setTime(position * 1000L)
+    PlayerObject.mediaPlayer.controls().setTime(position * 1000L)
 }
 
-actual fun isPlayingOnDevice(): Boolean {
-    return PlayerObject.player.status().isPlaying
-}
+actual fun isPlayingOnDevice(): Boolean = PlayerObject.player.status().isPlaying
 
 actual fun isPlayingChangedOnDevice(onChange: (Boolean) -> Unit) {
     PlayerObject.onMediaStateChanged = onChange
@@ -118,17 +107,11 @@ actual fun currentPlayingChangedOnDevice(onChange: (String?) -> Unit) {
     PlayerObject.onMediaChanged = onChange
 }
 
-actual fun setCurrentTrackNumOnDevice(trackNum: Int) {
+actual fun playTrackOnDevice(trackNum: Int) {
     PlayerObject.player.controls().play(trackNum)
-    PlayerObject.onMediaChanged(
-        PlayerObject.playerComponent.mediaListPlayer().list().media().mrl(Player.state.currentTrackNum)
-    )
 }
 
-actual fun playNextOnDevice() {
+// The device skipping on its own (unplayable file); the app reacts to the resulting nextItem event
+internal fun playNextOnDevice() {
     PlayerObject.player.controls().playNext()
-}
-
-actual fun playPreviousOnDevice() {
-    PlayerObject.player.controls().playPrevious()
 }

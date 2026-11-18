@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import dr.ulysses.Logger
 import dr.ulysses.entities.*
 import dr.ulysses.network.NetworkManager
+import dr.ulysses.ui.views.forgetArtwork
 import dr.ulysses.ui.views.onSongSave
 import kotlinx.coroutines.*
 
@@ -47,6 +48,7 @@ object MainViewModel {
     /** The DB keeps the edit even when the file can't be written, e.g. without storage permission. */
     suspend fun saveSong(song: Song) = withContext(Dispatchers.Default) {
         SongRepository.upsert(song.copy(state = Song.State.Sorted))
+        withContext(Dispatchers.Main) { forgetArtwork(song.path) } // the cache is only touched on the UI thread
         onSongSave(song).onFailure { Logger.e(it) { "Couldn't write the tags of ${song.path}" } }
     }
 

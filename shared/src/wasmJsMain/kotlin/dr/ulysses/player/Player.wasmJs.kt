@@ -72,7 +72,7 @@ actual fun currentPlayingChangedOnDevice(onChange: (String?) -> Unit) {
     currentPlayingCallback = onChange
 }
 
-actual fun setCurrentTrackNumOnDevice(trackNum: Int) {
+actual fun playTrackOnDevice(trackNum: Int) {
     if (playlist.isNotEmpty() && trackNum in playlist.indices) {
         currentTrackIndex = trackNum
         audioElement?.src = playlist[trackNum]
@@ -81,14 +81,9 @@ actual fun setCurrentTrackNumOnDevice(trackNum: Int) {
     }
 }
 
-actual fun playNextOnDevice() {
+// Continues after a song ends
+private fun playNextOnDevice() {
     if (playlist.isNotEmpty() && currentTrackIndex < playlist.size - 1) {
-        setCurrentTrackNumOnDevice(currentTrackIndex + 1)
-    }
-}
-
-actual fun playPreviousOnDevice() {
-    if (playlist.isNotEmpty() && currentTrackIndex > 0) {
-        setCurrentTrackNumOnDevice(currentTrackIndex - 1)
+        playTrackOnDevice(currentTrackIndex + 1)
     }
 }
