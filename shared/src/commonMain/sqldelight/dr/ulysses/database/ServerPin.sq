@@ -1,0 +1,14 @@
+-- The certificate fingerprint each server had on the first connection; a different one is refused
+CREATE TABLE IF NOT EXISTS server_pin(
+    address TEXT PRIMARY KEY NOT NULL,
+    fingerprint TEXT NOT NULL
+);
+
+selectFingerprint:
+SELECT fingerprint FROM server_pin WHERE address = ?;
+
+upsert:
+INSERT OR REPLACE INTO server_pin(address, fingerprint) VALUES(?, ?);
+
+deleteByAddress:
+DELETE FROM server_pin WHERE address = ?;

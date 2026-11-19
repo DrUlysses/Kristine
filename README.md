@@ -6,4 +6,4 @@ Server-Client based player and music library manager
 
 [[Web-version]](https://drulysses.github.io/Kristine/)
 
-You can open the web application by running the `:composeApp:wasmJsBrowserDevelopmentRun` Gradle task.
+You can open the web application by running the `:webApp:wasmJsBrowserDevelopmentRun` Gradle task.

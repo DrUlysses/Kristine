@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS server_pin(
+    address TEXT PRIMARY KEY NOT NULL,
+    fingerprint TEXT NOT NULL
+);

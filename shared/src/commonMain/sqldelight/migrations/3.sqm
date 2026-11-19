@@ -1,0 +1,3 @@
+-- Android used to store MediaStore durations in milliseconds; the column holds seconds.
+-- No song in a music library is longer than 10 hours (36000 s), so anything above that is milliseconds.
+UPDATE song SET duration = duration / 1000 WHERE duration > 36000;

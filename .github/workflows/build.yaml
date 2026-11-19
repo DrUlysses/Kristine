@@ -39,7 +39,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Apk distribution
-          path: ./composeApp/build/outputs/apk/debug/*
+          path: ./androidApp/build/outputs/apk/debug/*
   build-linux-app:
     name: Build Linux app
     runs-on: ubuntu-latest
@@ -65,7 +65,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Deb distribution
-          path: ./composeApp/build/compose/binaries/main/deb/*
+          path: ./desktopApp/build/compose/binaries/main/deb/*
   build-windows-app:
     name: Build Windows app
     runs-on: windows-latest
@@ -91,4 +91,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Exe distribution
-          path: ./composeApp/build/compose/binaries/main/exe/*
+          path: ./desktopApp/build/compose/binaries/main/exe/*

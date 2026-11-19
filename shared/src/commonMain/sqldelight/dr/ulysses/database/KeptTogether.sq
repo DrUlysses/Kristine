@@ -1,0 +1,14 @@
+-- Songs the user kept although they looked like duplicates of each other, stored once per pair (path_a < path_b)
+CREATE TABLE IF NOT EXISTS kept_together(
+    path_a TEXT NOT NULL,
+    path_b TEXT NOT NULL,
+    PRIMARY KEY(path_a, path_b),
+    FOREIGN KEY(path_a) REFERENCES song(path) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY(path_b) REFERENCES song(path) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+selectAll:
+SELECT path_a, path_b FROM kept_together;
+
+insert:
+INSERT OR IGNORE INTO kept_together(path_a, path_b) VALUES(?, ?);

@@ -1,0 +1,26 @@
+CREATE TABLE IF NOT EXISTS playlist_song(
+    playlist_name TEXT NOT NULL,
+    song_path TEXT NOT NULL,
+    PRIMARY KEY(playlist_name, song_path),
+    FOREIGN KEY(playlist_name) REFERENCES playlist(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY(song_path) REFERENCES song(path) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+insert:
+INSERT OR IGNORE INTO playlist_song(playlist_name, song_path) VALUES(?, ?);
+
+-- OR IGNORE: a playlist that holds both songs keeps its row of newPath; the old row goes with the song
+moveSong:
+UPDATE OR IGNORE playlist_song SET song_path = :newPath WHERE song_path = :oldPath;
+
+countBySong:
+SELECT COUNT(*) FROM playlist_song WHERE song_path = ?;
+
+selectSongsByPlaylist:
+SELECT path, title, artist, album, state FROM song JOIN playlist_song ON song.path = playlist_song.song_path WHERE playlist_song.playlist_name = ?;
+
+selectPlaylistsBySong:
+SELECT name, artwork, duration, state, created_at, updated_at FROM playlist JOIN playlist_song ON playlist.name = playlist_song.playlist_name WHERE playlist_song.song_path = ?;
+
+search:
+SELECT playlist_name, song_path FROM playlist_song WHERE playlist_name LIKE '%' || :query || '%' OR song_path LIKE '%' || :query || '%';

@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS setting(
+    key TEXT PRIMARY KEY NOT NULL,
+    value TEXT
+);
+
+selectAll:
+SELECT * FROM setting;
+
+selectFirstByKey:
+SELECT * FROM setting WHERE key = ? LIMIT 1;
+
+-- No table references setting, so REPLACE (delete + insert) is safe here
+upsert:
+INSERT OR REPLACE INTO setting(key, value) VALUES(?, ?);
