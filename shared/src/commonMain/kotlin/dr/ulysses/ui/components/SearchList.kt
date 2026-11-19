@@ -27,7 +27,9 @@ fun SearchList(
     onPlaylistClicked: (Playlist) -> Unit,
     onSongClicked: (Song) -> Unit,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier.fillMaxSize()
+    ) {
         val listState = rememberLazyListState()
 
         LazyColumn(
@@ -37,7 +39,9 @@ fun SearchList(
                 .fillMaxSize()
                 .overscroll(rememberOverscrollEffect()),
             content = {
-                items(items = entries) { entry ->
+                items(
+                    items = entries
+                ) { entry ->
                     when (entry) {
                         is Song -> {
                             val image: ByteArray? = remember { entry.artwork }

@@ -25,7 +25,9 @@ fun DiscoveredServersList(
     Text(
         text = "Discovered Servers",
         style = MaterialTheme.typography.headlineMedium,
-        modifier = Modifier.padding(bottom = 16.dp)
+        modifier = Modifier.padding(
+            bottom = 16.dp
+        )
     )
 
     if (discoveredServers.isEmpty()) {

@@ -36,7 +36,9 @@ fun Connections() {
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            LocalServerCard(localServer = localServer)
+            LocalServerCard(
+                localServer = localServer
+            )
             CustomServerConnectCard(
                 customServerAddress = customServerAddress,
                 customServerPort = customServerPort,

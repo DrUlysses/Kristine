@@ -32,8 +32,13 @@ actual fun SongsList(
     onClick: (Song) -> Unit,
     rearrangeable: Boolean,
 ) {
-    val listState = rememberSaveable(saver = LazyListState.Saver) {
-        LazyListState(0, 0)
+    val listState = rememberSaveable(
+        saver = LazyListState.Saver
+    ) {
+        LazyListState(
+            firstVisibleItemIndex = 0,
+            firstVisibleItemScrollOffset = 0
+        )
     }
 
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
@@ -41,7 +46,9 @@ actual fun SongsList(
     var rememberedSongs by remember { mutableStateOf(emptyList<Song>()) }
     rememberedSongs = songs
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier.fillMaxSize()
+    ) {
         LaunchedEffect(listState) {
             listState.scrollToItem(listState.firstVisibleItemIndex)
         }
@@ -53,7 +60,9 @@ actual fun SongsList(
                 .fillMaxSize()
                 .overscroll(rememberOverscrollEffect()),
             content = {
-                itemsIndexed(items = rememberedSongs) { index, song ->
+                itemsIndexed(
+                    items = rememberedSongs
+                ) { index, song ->
                     val isDragging = draggedIndex == index
                     var image: ByteArray? by remember { mutableStateOf(song.artwork) }
                     if (image == null) {
@@ -69,7 +78,11 @@ actual fun SongsList(
                                         .firstArtwork
                                         .binaryData
                                     if (image != null) {
-                                        SongRepository.upsert(song.copy(artwork = image))
+                                        SongRepository.upsert(
+                                            song.copy(
+                                                artwork = image
+                                            )
+                                        )
                                     }
                                 }
                             }
@@ -81,44 +94,69 @@ actual fun SongsList(
                         artist = song.artist,
                         isAvailable = song.state != Song.State.NotDownloaded,
                         onClick = { onClick(song) },
-                        modifier = if (!rearrangeable) Modifier
-                        else Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .background(
-                                color = if (isDragging) Color.Gray else Color.DarkGray,
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .padding(8.dp)
-                            .offset {
-                                if (isDragging) IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt())
-                                else IntOffset(0, 0)
-                            }
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragStart = { draggedIndex = index },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        dragOffset += Offset(dragAmount.x, dragAmount.y)
+                        modifier = if (!rearrangeable) {
+                            Modifier
+                        } else {
+                            Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                                .background(
+                                    color = if (isDragging) {
+                                        Color.Gray
+                                    } else {
+                                        Color.DarkGray
                                     },
-                                    onDragEnd = {
-                                        draggedIndex?.let { currentIndex ->
-                                            val newIndex =
-                                                ((dragOffset.y / 60.dp.toPx()).roundToInt() + currentIndex)
-                                                    .coerceIn(0, rememberedSongs.lastIndex)
-                                            onSongsChanged(rememberedSongs.toMutableList().apply {
-                                                add(newIndex, removeAt(currentIndex))
-                                            })
-                                        }
-                                        draggedIndex = null
-                                        dragOffset = Offset.Zero
-                                    },
-                                    onDragCancel = {
-                                        draggedIndex = null
-                                        dragOffset = Offset.Zero
-                                    }
+                                    shape = RoundedCornerShape(8.dp)
                                 )
-                            }
+                                .padding(8.dp)
+                                .offset {
+                                    if (isDragging) {
+                                        IntOffset(
+                                            x = dragOffset.x.roundToInt(),
+                                            y = dragOffset.y.roundToInt()
+                                        )
+                                    } else {
+                                        IntOffset(
+                                            x = 0,
+                                            y = 0
+                                        )
+                                    }
+                                }
+                                .pointerInput(Unit) {
+                                    detectDragGestures(
+                                        onDragStart = { draggedIndex = index },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            dragOffset += Offset(
+                                                x = dragAmount.x,
+                                                y = dragAmount.y
+                                            )
+                                        },
+                                        onDragEnd = {
+                                            draggedIndex?.let { currentIndex ->
+                                                val newIndex =
+                                                    ((dragOffset.y / 60.dp.toPx()).roundToInt() + currentIndex)
+                                                        .coerceIn(
+                                                            minimumValue = 0,
+                                                            maximumValue = rememberedSongs.lastIndex
+                                                        )
+                                                onSongsChanged(rememberedSongs.toMutableList().apply {
+                                                    add(
+                                                        index = newIndex,
+                                                        element = removeAt(currentIndex)
+                                                    )
+                                                })
+                                            }
+                                            draggedIndex = null
+                                            dragOffset = Offset.Zero
+                                        },
+                                        onDragCancel = {
+                                            draggedIndex = null
+                                            dragOffset = Offset.Zero
+                                        }
+                                    )
+                                }
+                        }
                     )
                 }
             }

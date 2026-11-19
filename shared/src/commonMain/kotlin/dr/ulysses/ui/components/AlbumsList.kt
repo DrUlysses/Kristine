@@ -24,7 +24,9 @@ fun AlbumsList(
     listState: LazyListState = rememberLazyListState(),
     initialLoad: Boolean = true,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier.fillMaxSize()
+    ) {
         LaunchedEffect(Unit) {
             onAlbumsChanged(
                 SongRepository.getAllAlbums().ifEmpty {
@@ -41,7 +43,9 @@ fun AlbumsList(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             content = {
-                items(items = albums.sortedBy { it }) { album ->
+                items(
+                    items = albums.sortedBy { it }
+                ) { album ->
                     AlbumListEntry(
                         album = album,
                         onClick = {

@@ -18,7 +18,9 @@ fun LocalServerCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 16.dp)
+            .padding(
+                bottom = 16.dp
+            )
     ) {
         Column(
             modifier = Modifier
@@ -29,7 +31,9 @@ fun LocalServerCard(
             Text(
                 text = "Your Server",
                 style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 4.dp)
+                modifier = Modifier.padding(
+                    bottom = 4.dp
+                )
             )
             Row {
                 Column(
@@ -44,7 +48,9 @@ fun LocalServerCard(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(
+                    modifier = Modifier.width(16.dp)
+                )
                 Column(
                     modifier = Modifier.weight(1f),
                 ) {

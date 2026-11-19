@@ -2,12 +2,11 @@ package dr.ulysses.player
 
 import android.content.ComponentName
 import android.content.Context
-import androidx.core.net.toUri
-import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
+import dr.ulysses.entities.Song
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.koin.java.KoinJavaComponent
@@ -41,9 +40,8 @@ actual fun currentPlayingChangedOnDevice(onChange: (String?) -> Unit) {
 }
 
 @UnstableApi
-actual fun setPlayListOnDevice(paths: List<String>) {
-    // The controller strips the URI before the session sees the item; the media id carries it over
-    val mediaItems = paths.map { MediaItem.Builder().setMediaId(it).setUri(it.toUri()).build() }
+actual fun setPlayListOnDevice(songs: List<Song>) {
+    val mediaItems = songs.map { it.toMediaItem() }
     onMain { setMediaItems(mediaItems) }
 }
 

@@ -24,7 +24,9 @@ fun ArtistsList(
     listState: LazyListState = rememberLazyListState(),
     initialLoad: Boolean = true,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier.fillMaxSize()
+    ) {
         LaunchedEffect(Unit) {
             onArtistsChanged(
                 SongRepository.getAllArtists().ifEmpty {
@@ -41,7 +43,9 @@ fun ArtistsList(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             content = {
-                items(items = artists.sortedBy { it }) { artist ->
+                items(
+                    items = artists.sortedBy { it }
+                ) { artist ->
                     ArtistListEntry(
                         artist = artist,
                         onClick = {

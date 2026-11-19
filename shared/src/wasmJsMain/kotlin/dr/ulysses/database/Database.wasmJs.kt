@@ -8,7 +8,11 @@ import org.w3c.dom.Worker
 actual class DriverFactory {
     // sql.js keeps the DB in memory, so the schema is created on every page load
     actual suspend fun createDriver(name: String): SqlDriver = WebWorkerDriver(jsWorker()).also { driver ->
-        driver.execute(null, "PRAGMA foreign_keys = ON", 0).await()
+        driver.execute(
+            identifier = null,
+            sql = "PRAGMA foreign_keys = ON",
+            parameters = 0
+        ).await()
         Database.Schema.awaitCreate(driver)
     }
 }

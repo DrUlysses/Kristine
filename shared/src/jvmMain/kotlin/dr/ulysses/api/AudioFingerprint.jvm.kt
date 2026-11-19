@@ -15,6 +15,13 @@ actual suspend fun audioFingerprint(path: String): AudioFingerprint? = withConte
     val process = runCatching { ProcessBuilder("fpcalc", "-json", path.removePrefix("file:///")).start() }
         .getOrElse { return@withContext null } // fpcalc not installed
     val output = process.inputStream.bufferedReader().readText()
-    if (process.waitFor() != 0) return@withContext null
-    json.decodeFromString<FpcalcOutput>(output).let { AudioFingerprint(it.duration.toInt(), it.fingerprint) }
+    if (process.waitFor() != 0) {
+        return@withContext null
+    }
+    json.decodeFromString<FpcalcOutput>(output).let {
+        AudioFingerprint(
+            durationSeconds = it.duration.toInt(),
+            fingerprint = it.fingerprint
+        )
+    }
 }

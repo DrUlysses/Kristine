@@ -15,7 +15,10 @@ fun main() = application {
         title = "Kristine",
         icon = painterResource(Res.drawable.icon),
         onCloseRequest = ::exitApplication,
-        state = rememberWindowState(width = 800.dp, height = 800.dp),
+        state = rememberWindowState(
+            width = 800.dp,
+            height = 800.dp
+        ),
     ) {
         window.minimumSize = Dimension(300, 300)
         App()

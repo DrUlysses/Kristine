@@ -33,7 +33,9 @@ class NetworkClient {
     private class Seen(val port: Int, val at: Long)
 
     fun startDiscovery(onServersChanged: (Map<String, Int>) -> Unit) {
-        if (discoveryJob != null) return
+        if (discoveryJob != null) {
+            return
+        }
         discoveryJob = scope.launch(discoveryContext) {
             launch {
                 while (isActive) {
@@ -46,7 +48,10 @@ class NetworkClient {
             serverAnnouncements()
                 .catch { Logger.e(it) { "UDP discovery stopped" } }
                 .collect { (address, port) ->
-                    servers[address] = Seen(port, Clock.System.now().toEpochMilliseconds())
+                    servers[address] = Seen(
+                        port = port,
+                        at = Clock.System.now().toEpochMilliseconds()
+                    )
                     onServersChanged(snapshot())
                 }
         }
@@ -61,7 +66,10 @@ class NetworkClient {
     /** A server typed in by hand never announces itself, so it never goes stale. */
     fun addCustomServer(address: String, port: Int, onServersChanged: (Map<String, Int>) -> Unit) {
         scope.launch(discoveryContext) {
-            servers[address] = Seen(port, Long.MAX_VALUE)
+            servers[address] = Seen(
+                port = port,
+                at = Long.MAX_VALUE
+            )
             onServersChanged(snapshot())
         }
     }
@@ -75,14 +83,22 @@ class NetworkClient {
         onPlayerUpdate: (PlayerUpdate) -> Unit,
         onConnectionChanged: (Boolean) -> Unit,
     ) {
-        if (connectionJob?.isActive == true) return
+        if (connectionJob?.isActive == true) {
+            return
+        }
         connectionJob = scope.launch {
             try {
-                httpClient.webSocket(host = address, port = port, path = "/player") {
+                httpClient.webSocket(
+                    host = address,
+                    port = port,
+                    path = "/player"
+                ) {
                     session = this
                     onConnectionChanged(true)
                     for (frame in incoming) {
-                        if (frame !is Frame.Text) continue
+                        if (frame !is Frame.Text) {
+                            continue
+                        }
                         runCatching { Json.decodeFromString<PlayerUpdate>(frame.readText()) }
                             .onSuccess(onPlayerUpdate)
                             .onFailure { Logger.e(it) { "Ignoring malformed player update" } }

@@ -48,19 +48,58 @@ data object Settings : NavKey
 val config = SavedStateConfiguration {
     serializersModule = SerializersModule {
         polymorphic(NavKey::class) {
-            subclass(Artists::class, Artists.serializer())
-            subclass(Songs::class, Songs.serializer())
-            subclass(Albums::class, Albums.serializer())
-            subclass(Playlists::class, Playlists.serializer())
-            subclass(ArtistSongs::class, ArtistSongs.serializer())
-            subclass(AlbumSongs::class, AlbumSongs.serializer())
-            subclass(PlaylistSongs::class, PlaylistSongs.serializer())
-            subclass(Search::class, Search.serializer())
-            subclass(ManagePlaylist::class, ManagePlaylist.serializer())
-            subclass(ManageUnsortedList::class, ManageUnsortedList.serializer())
-            subclass(ManageSong::class, ManageSong.serializer())
-            subclass(Connections::class, Connections.serializer())
-            subclass(Settings::class, Settings.serializer())
+            subclass(
+                subclass = Artists::class,
+                serializer = Artists.serializer()
+            )
+            subclass(
+                subclass = Songs::class,
+                serializer = Songs.serializer()
+            )
+            subclass(
+                subclass = Albums::class,
+                serializer = Albums.serializer()
+            )
+            subclass(
+                subclass = Playlists::class,
+                serializer = Playlists.serializer()
+            )
+            subclass(
+                subclass = ArtistSongs::class,
+                serializer = ArtistSongs.serializer()
+            )
+            subclass(
+                subclass = AlbumSongs::class,
+                serializer = AlbumSongs.serializer()
+            )
+            subclass(
+                subclass = PlaylistSongs::class,
+                serializer = PlaylistSongs.serializer()
+            )
+            subclass(
+                subclass = Search::class,
+                serializer = Search.serializer()
+            )
+            subclass(
+                subclass = ManagePlaylist::class,
+                serializer = ManagePlaylist.serializer()
+            )
+            subclass(
+                subclass = ManageUnsortedList::class,
+                serializer = ManageUnsortedList.serializer()
+            )
+            subclass(
+                subclass = ManageSong::class,
+                serializer = ManageSong.serializer()
+            )
+            subclass(
+                subclass = Connections::class,
+                serializer = Connections.serializer()
+            )
+            subclass(
+                subclass = Settings::class,
+                serializer = Settings.serializer()
+            )
         }
     }
 }

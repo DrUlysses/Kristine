@@ -79,7 +79,10 @@ object SongRepository : KoinComponent {
         songs.transaction {
             val stored = songs.selectPathStates().awaitAsList().associate { it.path to Song.State.fromString(it.state) }
             val scannedPaths = scanned.mapTo(HashSet()) { it.path }
-            val scannedByName = scanned.groupBy({ fileName(it.path) }, { it.path })
+            val scannedByName = scanned.groupBy(
+                keySelector = { fileName(it.path) },
+                valueTransform = { it.path }
+            )
             val claimed = HashSet<String>()
 
             suspend fun makesWay(path: String) = stored[path] == Song.State.Downloaded &&
@@ -87,19 +90,42 @@ object SongRepository : KoinComponent {
 
             for ((path, state) in stored) {
                 if (path in scannedPaths || fileExists(path)) {
-                    if (state == Song.State.NotDownloaded) songs.updateState(Song.State.Downloaded.name, path)
+                    if (state == Song.State.NotDownloaded) {
+                        songs.updateState(
+                            state = Song.State.Downloaded.name,
+                            path = path
+                        )
+                    }
                     continue
                 }
-                val target = closestPath(path, scannedByName[fileName(path)].orEmpty())
+                val target = closestPath(
+                    path = path,
+                    candidates = scannedByName[fileName(path)].orEmpty()
+                )
                     ?.takeIf { it !in claimed && (it !in stored || makesWay(it)) }
                 if (target == null) {
-                    if (state != Song.State.NotDownloaded) songs.updateState(Song.State.NotDownloaded.name, path)
+                    if (state != Song.State.NotDownloaded) {
+                        songs.updateState(
+                            state = Song.State.NotDownloaded.name,
+                            path = path
+                        )
+                    }
                     continue
                 }
                 claimed += target
-                if (target in stored) songs.deleteByPath(target)
-                songs.updatePath(newPath = target, oldPath = path)
-                if (state == Song.State.NotDownloaded) songs.updateState(Song.State.Downloaded.name, target)
+                if (target in stored) {
+                    songs.deleteByPath(target)
+                }
+                songs.updatePath(
+                    newPath = target,
+                    oldPath = path
+                )
+                if (state == Song.State.NotDownloaded) {
+                    songs.updateState(
+                        state = Song.State.Downloaded.name,
+                        path = target
+                    )
+                }
             }
             // Known and remapped paths are skipped by the OR IGNORE
             scanned.forEach { songs.insertOrIgnore(it) }
@@ -141,9 +167,15 @@ object SongRepository : KoinComponent {
     }
 
     fun updateSongDurations(): Flow<Progress> = forEachSong { db, song ->
-        if ((song.duration ?: 0L) != 0L || !isLocalFile(song.path) || !fileExists(song.path)) return@forEachSong false
+        if ((song.duration ?: 0L) != 0L || !isLocalFile(song.path) || !fileExists(song.path)) {
+            return@forEachSong false
+        }
         val duration = getDurationFromMetadata(song.path) ?: return@forEachSong false
-        db.songQueries.update(song.toSong().copy(duration = duration))
+        db.songQueries.update(
+            song.toSong().copy(
+                duration = duration
+            )
+        )
         true
     }
 
@@ -151,12 +183,31 @@ object SongRepository : KoinComponent {
         sharedDatabase { db ->
             val songs = db.songQueries.selectAll().awaitAsList()
             var changed = 0
-            emit(Progress(total = songs.size))
+            emit(
+                Progress(
+                    total = songs.size
+                )
+            )
             songs.forEachIndexed { index, song ->
-                if (action(db, song)) changed++
-                emit(Progress(index + 1, songs.size, changed))
+                if (action(db, song)) {
+                    changed++
+                }
+                emit(
+                    Progress(
+                        processed = index + 1,
+                        total = songs.size,
+                        changed = changed
+                    )
+                )
             }
-            emit(Progress(songs.size, songs.size, changed, isComplete = true))
+            emit(
+                Progress(
+                    processed = songs.size,
+                    total = songs.size,
+                    changed = changed,
+                    isComplete = true
+                )
+            )
         }
     }.flowOn(Dispatchers.Default)
 
@@ -195,7 +246,11 @@ object SongRepository : KoinComponent {
             )
         }
         val byPlaylist = db.playlistSongQueries.search(query).awaitAsList().flatMap {
-            db.songQueries.selectByPath(it.song_path).awaitAsList().map { row -> row.toSong().copy(artwork = null) }
+            db.songQueries.selectByPath(it.song_path).awaitAsList().map { row ->
+                row.toSong().copy(
+                    artwork = null
+                )
+            }
         }
         (bySong + byPlaylist).distinct()
     }

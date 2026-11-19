@@ -21,15 +21,16 @@ actual fun PermissionsAlert(
     onPermissionsChange: (Boolean) -> Unit,
 ) {
     val permissionsState = rememberMultiplePermissionsState(
-        permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+        permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             listOf(
                 Manifest.permission.READ_EXTERNAL_STORAGE,
                 Manifest.permission.READ_MEDIA_AUDIO
             )
-        else
+        } else {
             listOf(
                 Manifest.permission.READ_EXTERNAL_STORAGE,
-            ),
+            )
+        },
         onPermissionsResult = { permissions ->
             onPermissionsChange(permissions.values.all { it })
         }
@@ -45,23 +46,33 @@ actual fun PermissionsAlert(
                 permissionsState.permissions.size ==
                         permissionsState.revokedPermissions.size
 
-            val textToShow = if (!allPermissionsRevoked)
+            val textToShow = if (!allPermissionsRevoked) {
                 "Allow remaining permissions to continue."
-            else if (permissionsState.shouldShowRationale)
+            } else if (permissionsState.shouldShowRationale)
             // Both location permissions have been denied
+            {
                 "Allow permissions to continue."
-            else
+            } else
             // First time the user sees this feature or the user doesn't want to be asked again
+            {
                 "This feature requires read media permission"
+            }
 
-            val buttonText = if (!allPermissionsRevoked)
+            val buttonText = if (!allPermissionsRevoked) {
                 "Allow to read media"
-            else
+            } else {
                 "Request permissions"
+            }
 
-            Text(text = textToShow)
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = { permissionsState.launchMultiplePermissionRequest() }) {
+            Text(
+                text = textToShow
+            )
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
+            Button(
+                onClick = { permissionsState.launchMultiplePermissionRequest() }
+            ) {
                 Text(buttonText)
             }
         }

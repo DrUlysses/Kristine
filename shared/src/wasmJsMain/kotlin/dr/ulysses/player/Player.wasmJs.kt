@@ -1,5 +1,6 @@
 package dr.ulysses.player
 
+import dr.ulysses.entities.Song
 import kotlinx.browser.document
 import org.w3c.dom.HTMLAudioElement
 
@@ -13,33 +14,42 @@ private fun initAudioElement() {
     if (audioElement == null) {
         audioElement = (document.createElement("audio") as HTMLAudioElement).apply {
             id = "audio-player"
-            addEventListener("play", {
-                isPlayingCallback?.invoke(true)
-            })
-
-            addEventListener("pause", {
-                isPlayingCallback?.invoke(false)
-            })
-
-            addEventListener("ended", {
-                if (currentTrackIndex < playlist.size - 1) {
-                    playNextOnDevice()
+            addEventListener(
+                type = "play",
+                callback = {
+                    isPlayingCallback?.invoke(true)
                 }
-            })
+            )
+
+            addEventListener(
+                type = "pause",
+                callback = {
+                    isPlayingCallback?.invoke(false)
+                }
+            )
+
+            addEventListener(
+                type = "ended",
+                callback = {
+                    if (currentTrackIndex < playlist.size - 1) {
+                        playNextOnDevice()
+                    }
+                }
+            )
             style.display = "none"
             document.body?.appendChild(this)
         }
     }
 }
 
-actual fun setPlayListOnDevice(paths: List<String>) {
+actual fun setPlayListOnDevice(songs: List<Song>) {
     initAudioElement()
-    playlist = paths
+    playlist = songs.map { it.path }
     currentTrackIndex = 0
 
-    if (paths.isNotEmpty()) {
-        audioElement?.src = paths[0]
-        currentPlayingCallback?.invoke(paths[0])
+    if (playlist.isNotEmpty()) {
+        audioElement?.src = playlist[0]
+        currentPlayingCallback?.invoke(playlist[0])
     }
 }
 

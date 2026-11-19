@@ -26,15 +26,28 @@ object SettingsRepository : KoinComponent {
     // Rows with keys this version doesn't know are skipped
     suspend fun getAll(): List<Setting> = sharedDatabase { db ->
         db.settingQueries.selectAll().awaitAsList().mapNotNull { row ->
-            SettingKey.entries.find { it.name == row.key }?.let { Setting(it, row.value_) }
+            SettingKey.entries.find { it.name == row.key }?.let {
+                Setting(
+                    key = it,
+                    value = row.value_
+                )
+            }
         }
     }
 
     suspend fun get(key: SettingKey): Setting? = sharedDatabase { db ->
-        db.settingQueries.selectFirstByKey(key.name).awaitAsOneOrNull()?.let { Setting(key, it.value_) }
+        db.settingQueries.selectFirstByKey(key.name).awaitAsOneOrNull()?.let {
+            Setting(
+                key = key,
+                value = it.value_
+            )
+        }
     }
 
     suspend fun upsert(setting: Setting) = sharedDatabase { db ->
-        db.settingQueries.upsert(key = setting.key.name, value_ = setting.value)
+        db.settingQueries.upsert(
+            key = setting.key.name,
+            value_ = setting.value
+        )
     }
 }

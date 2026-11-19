@@ -22,6 +22,7 @@ import kristine.shared.generated.resources.play
 class PlaybackService : MediaLibraryService() {
 
     private var mediaSession: MediaLibrarySession? = null
+    private val callback by lazy { MediaLibrarySessionCallback(this) }
 
     companion object {
         private const val NOTIFICATION_ID = 228
@@ -42,8 +43,9 @@ class PlaybackService : MediaLibraryService() {
             addListener(object : Player.Listener {
                 override fun onPlayerError(error: PlaybackException) {
                     super.onPlayerError(error)
-                    if (error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED)
+                    if (error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED) {
                         playNextOnDevice()
+                    }
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -59,7 +61,7 @@ class PlaybackService : MediaLibraryService() {
             })
         }
 
-        mediaSession = MediaLibrarySession.Builder(this, exo, MediaLibrarySessionCallback(this)).build().apply {
+        mediaSession = MediaLibrarySession.Builder(this, exo, callback).build().apply {
             player.shuffleModeEnabled = Player.state.shuffle
         }
 
@@ -87,6 +89,7 @@ class PlaybackService : MediaLibraryService() {
             release()
             player.release()
         }
+        callback.release()
         clearListener()
         super.onDestroy()
     }

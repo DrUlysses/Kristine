@@ -27,7 +27,9 @@ fun PlaylistsList(
     listState: LazyListState = rememberLazyListState(),
     initialLoad: Boolean = true,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier.fillMaxSize()
+    ) {
         LaunchedEffect(Unit) {
             onPlaylistsChanged(PlaylistRepository.getAllPlaylists())
             if (initialLoad) {
@@ -42,7 +44,9 @@ fun PlaylistsList(
                 .fillMaxSize()
                 .overscroll(rememberOverscrollEffect()),
             content = {
-                items(items = playlists) { playlist ->
+                items(
+                    items = playlists
+                ) { playlist ->
                     val image: ByteArray? = remember { playlist.artwork }
                     image ?: LaunchedEffect(image) {
                         PlaylistRepository.getArtwork(playlist.name)

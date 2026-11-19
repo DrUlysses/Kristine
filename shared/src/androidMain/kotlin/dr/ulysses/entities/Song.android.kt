@@ -33,17 +33,17 @@ actual suspend fun refreshSongs(): List<Song> {
                 // Artwork is loaded on demand via SongRepository.getArtwork(), not during the scan
                 add(
                     Song(
-                    path = cursor.getStringOrNull(colLocation) ?: continue,
-                    title = cursor.getStringOrNull(colTitle) ?: "Unknown",
-                    album = cursor.getStringOrNull(colAlbum),
-                    duration = cursor.getIntOrNull(colDuration)?.div(1000), // MediaStore gives milliseconds
-                    artist = cursor.getStringOrNull(colArtist)
-                        ?: cursor.getStringOrNull(colAlbumArtist)
-                        ?: cursor.getStringOrNull(colComposer)
-                        ?: "",
+                        path = cursor.getStringOrNull(colLocation) ?: continue,
+                        title = cursor.getStringOrNull(colTitle) ?: "Unknown",
+                        album = cursor.getStringOrNull(colAlbum),
+                        duration = cursor.getIntOrNull(colDuration)?.div(1000), // MediaStore gives milliseconds
+                        artist = cursor.getStringOrNull(colArtist)
+                            ?: cursor.getStringOrNull(colAlbumArtist)
+                            ?: cursor.getStringOrNull(colComposer)
+                            ?: "",
+                    )
                 )
-            )
-        }
+            }
         }
     } ?: return SongRepository.getAllSongs().sortedBy { it.title } // No storage access: nothing to compare against
 

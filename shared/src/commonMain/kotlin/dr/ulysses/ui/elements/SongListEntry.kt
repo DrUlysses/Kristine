@@ -31,8 +31,17 @@ fun SongListEntry(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .alpha(if (isAvailable) 1f else 0.4f)
-            .clickable(enabled = isAvailable, onClick = onClick)
+            .alpha(
+                if (isAvailable) {
+                    1f
+                } else {
+                    0.4f
+                }
+            )
+            .clickable(
+                enabled = isAvailable,
+                onClick = onClick
+            )
     ) {
         Image(
             painter = image?.let {

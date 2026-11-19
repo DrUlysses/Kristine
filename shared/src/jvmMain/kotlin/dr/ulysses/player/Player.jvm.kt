@@ -1,5 +1,6 @@
 package dr.ulysses.player
 
+import dr.ulysses.entities.Song
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.media.MediaRef
 import uk.co.caprica.vlcj.player.base.MediaPlayer
@@ -45,7 +46,11 @@ object PlayerObject {
 
         // An unplayable file is skipped
         override fun error(mediaPlayer: MediaPlayer) {
-            onVlcThread { if (!mediaPlayer.status().isPlayable) playNextOnDevice() }
+            onVlcThread {
+                if (!mediaPlayer.status().isPlayable) {
+                    playNextOnDevice()
+                }
+            }
         }
     }
 
@@ -72,7 +77,8 @@ object PlayerObject {
     }
 }
 
-actual fun setPlayListOnDevice(paths: List<String>) {
+actual fun setPlayListOnDevice(songs: List<Song>) {
+    val paths = songs.map { it.path }
     PlayerObject.paths = paths
     PlayerObject.playerList.media().clear()
     paths.forEach { PlayerObject.playerList.media().add(it) }

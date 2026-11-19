@@ -16,7 +16,10 @@ object MainViewModel {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     // Every new state counts as a change: Song.equals ignores artwork, so an artwork-only edit would be dropped
-    var state: MainState by mutableStateOf(MainState(), referentialEqualityPolicy())
+    var state: MainState by mutableStateOf(
+        value = MainState(),
+        policy = referentialEqualityPolicy()
+    )
         private set
 
     init {
@@ -26,9 +29,14 @@ object MainViewModel {
     /** The connected server's library, or the local one. */
     fun loadSongs() {
         scope.launch {
-            state = state.copy(isLoadingSongs = true)
+            state = state.copy(
+                isLoadingSongs = true
+            )
             val songs = NetworkManager.fetchSongsFromCurrentServer() ?: SongRepository.getAllSongs()
-            state = state.copy(allSongs = songs, isLoadingSongs = false)
+            state = state.copy(
+                allSongs = songs,
+                isLoadingSongs = false
+            )
         }
     }
 
@@ -42,56 +50,88 @@ object MainViewModel {
 
     fun loadPlaylists() {
         scope.launch {
-            state = state.copy(isLoadingPlaylists = true)
-            state = state.copy(currentPlaylists = PlaylistRepository.getAllPlaylists(), isLoadingPlaylists = false)
+            state = state.copy(
+                isLoadingPlaylists = true
+            )
+            state = state.copy(
+                currentPlaylists = PlaylistRepository.getAllPlaylists(),
+                isLoadingPlaylists = false
+            )
         }
     }
 
     /** The DB keeps the edit even when the file can't be written, e.g. without storage permission. */
     suspend fun saveSong(song: Song) = withContext(Dispatchers.Default) {
-        SongRepository.upsert(song.copy(state = Song.State.Sorted))
+        SongRepository.upsert(
+            song.copy(
+                state = Song.State.Sorted
+            )
+        )
         withContext(Dispatchers.Main) { forgetArtwork(song.path) } // the cache is only touched on the UI thread
         onSongSave(song).onFailure { Logger.e(it) { "Couldn't write the tags of ${song.path}" } }
     }
 
     fun openDetail(title: String, fromTab: Int) {
-        state = state.copy(topBarText = title, previousTabIndex = fromTab, returningFromDetail = false)
+        state = state.copy(
+            topBarText = title,
+            previousTabIndex = fromTab,
+            returningFromDetail = false
+        )
     }
 
     fun closeDetail() {
-        state = state.copy(topBarText = null, returningFromDetail = true)
+        state = state.copy(
+            topBarText = null,
+            returningFromDetail = true
+        )
     }
 
     fun setTopBarText(text: String?) {
-        state = state.copy(topBarText = text)
+        state = state.copy(
+            topBarText = text
+        )
     }
 
     fun setReturningFromDetail(returning: Boolean) {
-        state = state.copy(returningFromDetail = returning)
+        state = state.copy(
+            returningFromDetail = returning
+        )
     }
 
     fun setCurrentArtistSongsList(songs: List<Song>) {
-        state = state.copy(currentArtistSongsList = songs)
+        state = state.copy(
+            currentArtistSongsList = songs
+        )
     }
 
     fun setCurrentAlbumSongsList(songs: List<Song>) {
-        state = state.copy(currentAlbumSongsList = songs)
+        state = state.copy(
+            currentAlbumSongsList = songs
+        )
     }
 
     fun setCurrentPlaylist(playlist: Playlist) {
-        state = state.copy(currentPlaylist = playlist)
+        state = state.copy(
+            currentPlaylist = playlist
+        )
     }
 
     fun setSelectedSong(song: Song?) {
-        state = state.copy(selectedSong = song)
+        state = state.copy(
+            selectedSong = song
+        )
     }
 
     fun setPendingSaveJobs(jobs: List<Job>) {
-        state = state.copy(pendingSaveJobs = jobs)
+        state = state.copy(
+            pendingSaveJobs = jobs
+        )
     }
 
     fun setSongsPathChanged(changed: Boolean) {
-        state = state.copy(songsPathChanged = changed)
+        state = state.copy(
+            songsPathChanged = changed
+        )
     }
 
     data class MainState(

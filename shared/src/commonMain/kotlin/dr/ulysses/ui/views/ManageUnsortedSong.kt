@@ -53,29 +53,57 @@ fun ManageUnsortedSong(
     var searchRun by remember(song.path) { mutableStateOf(0) }
     val position = unsortedSongs.indexOfFirst { it.path == song.path }
 
-    val songsPath by produceState(initialValue = song.path) {
+    val songsPath by produceState(
+        initialValue = song.path
+    ) {
         value = SettingsRepository.get(SettingKey.SongsPath)?.value ?: song.path
     }
 
     // Keyed by path only: typing into the fields must not start a new search
-    LaunchedEffect(song.path, searchRun) {
+    LaunchedEffect(
+        key1 = song.path,
+        key2 = searchRun
+    ) {
         searching = true
         matches = MetadataSearch.find(song)
         searching = false
     }
 
-    val imagePicker = rememberFilePickerLauncher(type = PickerType.Image, initialDirectory = songsPath) { image ->
-        image?.let { scope.launch { onSongEdited(song.copy(artwork = it.readBytes())) } }
+    val imagePicker = rememberFilePickerLauncher(
+        type = PickerType.Image,
+        initialDirectory = songsPath
+    ) { image ->
+        image?.let {
+            scope.launch {
+                onSongEdited(
+                    song.copy(
+                        artwork = it.readBytes()
+                    )
+                )
+            }
+        }
     }
     val songPicker = rememberFilePickerLauncher(
         type = PickerType.File(SUPPORTED_EXTENSIONS),
         initialDirectory = songsPath
     ) { file ->
-        file?.path?.let { onSongEdited(song.copy(path = it)) }
+        file?.path?.let {
+            onSongEdited(
+                song.copy(
+                    path = it
+                )
+            )
+        }
     }
 
     fun apply(match: MetadataCandidate) {
-        onSongEdited(song.copy(title = match.title, artist = match.artist, album = match.album ?: song.album))
+        onSongEdited(
+            song.copy(
+                title = match.title,
+                artist = match.artist,
+                album = match.album ?: song.album
+            )
+        )
         val url = match.artworkUrl ?: return
         scope.launch {
             try {
@@ -122,21 +150,34 @@ fun ManageUnsortedSong(
                 )
             }
             if (maxWidth >= 720.dp) {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                     songCard(Modifier.weight(1f))
                     matchesCard(Modifier.weight(1f))
                 }
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                     songCard(Modifier.fillMaxWidth())
                     matchesCard(Modifier.fillMaxWidth())
                 }
             }
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = onPreviousSong, enabled = position > 0) {
-                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, null)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedButton(
+                onClick = onPreviousSong,
+                enabled = position > 0
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                    contentDescription = null
+                )
                 Text("Previous")
             }
             Spacer(Modifier.weight(1f))
@@ -148,12 +189,17 @@ fun ManageUnsortedSong(
                 )
             }
             Spacer(Modifier.weight(1f))
-            Button(onClick = {
-                onSave(song)
-                onNextSong()
-            }) {
+            Button(
+                onClick = {
+                    onSave(song)
+                    onNextSong()
+                }
+            ) {
                 Text("Save & Next")
-                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null)
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null
+                )
             }
         }
     }
@@ -167,29 +213,45 @@ private fun SongCard(
     onPickFile: () -> Unit,
     modifier: Modifier,
 ) {
-    ElevatedCard(modifier = modifier) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+    ElevatedCard(
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
                     modifier = Modifier
                         .size(112.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable(onClick = onPickArtwork)
+                        .clickable(
+                            onClick = onPickArtwork
+                        )
                 ) {
-                    SongArtwork(song, Modifier.fillMaxSize())
+                    SongArtwork(
+                        song = song,
+                        modifier = Modifier.fillMaxSize()
+                    )
                     Surface(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primaryContainer,
                         modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp).size(28.dp)
                     ) {
                         Icon(
-                            Icons.Rounded.Edit,
+                            imageVector = Icons.Rounded.Edit,
                             contentDescription = "Change artwork",
                             modifier = Modifier.padding(5.dp)
                         )
                     }
                 }
-                Column(Modifier.weight(1f).padding(start = 16.dp)) {
+                Column(
+                    Modifier.weight(1f).padding(
+                        start = 16.dp
+                    )
+                ) {
                     Text(
                         text = song.title.ifBlank { "Untitled" },
                         style = MaterialTheme.typography.titleLarge,
@@ -203,19 +265,36 @@ private fun SongCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         // Mirrors the player: pauses/resumes this song when it is the current one
                         val isCurrent = Player.state.currentSong?.path == song.path
-                        FilledTonalIconButton(onClick = {
-                            if (isCurrent) Player.onPlayOrPauseCommand() else Player.onPlaySongCommand(song)
-                        }) {
+                        FilledTonalIconButton(
+                            onClick = {
+                                if (isCurrent) {
+                                    Player.onPlayOrPauseCommand()
+                                } else {
+                                    Player.onPlaySongCommand(song)
+                                }
+                            }
+                        ) {
                             Icon(
-                                if (isCurrent && Player.state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                imageVector = if (isCurrent && Player.state.isPlaying) {
+                                    Icons.Rounded.Pause
+                                } else {
+                                    Icons.Rounded.PlayArrow
+                                },
                                 contentDescription = "Play or pause"
                             )
                         }
-                        IconButton(onClick = onPickFile) {
-                            Icon(Icons.Rounded.FolderOpen, contentDescription = "Choose another file")
+                        IconButton(
+                            onClick = onPickFile
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.FolderOpen,
+                                contentDescription = "Choose another file"
+                            )
                         }
                     }
                 }
@@ -229,21 +308,39 @@ private fun SongCard(
             )
             OutlinedTextField(
                 value = song.title,
-                onValueChange = { onSongEdited(song.copy(title = it)) },
+                onValueChange = {
+                    onSongEdited(
+                        song.copy(
+                            title = it
+                        )
+                    )
+                },
                 label = { Text("Title") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
                 value = song.artist,
-                onValueChange = { onSongEdited(song.copy(artist = it)) },
+                onValueChange = {
+                    onSongEdited(
+                        song.copy(
+                            artist = it
+                        )
+                    )
+                },
                 label = { Text("Artist") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
                 value = song.album.orEmpty(),
-                onValueChange = { onSongEdited(song.copy(album = it)) },
+                onValueChange = {
+                    onSongEdited(
+                        song.copy(
+                            album = it
+                        )
+                    )
+                },
                 label = { Text("Album") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
@@ -260,25 +357,46 @@ private fun MatchesCard(
     onRetry: () -> Unit,
     modifier: Modifier,
 ) {
-    ElevatedCard(modifier = modifier) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Matches", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+    ElevatedCard(
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Matches",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
                 if (searching) {
-                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
                 } else {
-                    IconButton(onClick = onRetry) { Icon(Icons.Rounded.Refresh, contentDescription = "Search again") }
+                    IconButton(
+                        onClick = onRetry
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = "Search again"
+                        )
+                    }
                 }
             }
             when {
                 searching && matches.isEmpty() -> Text(
-                    "Searching by name, album and sound…",
+                    text = "Searching by name, album and sound…",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 matches.isEmpty() -> Text(
-                    "No matches found. To identify songs by their sound, set AcoustIdApiKey in Settings " +
+                    text = "No matches found. To identify songs by their sound, set AcoustIdApiKey in Settings " +
                             "(free at acoustid.org) and install Chromaprint's fpcalc.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -286,9 +404,10 @@ private fun MatchesCard(
 
                 else -> matches.forEachIndexed { index, match ->
                     MatchRow(
-                        match,
+                        match = match,
                         best = index == 0,
-                        onApply = { onApply(match) })
+                        onApply = { onApply(match) }
+                    )
                 }
             }
         }
@@ -299,16 +418,30 @@ private fun MatchesCard(
 private fun MatchRow(match: MetadataCandidate, best: Boolean, onApply: () -> Unit) {
     OutlinedCard(
         onClick = onApply,
-        border = if (best) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else CardDefaults.outlinedCardBorder(),
+        border = if (best) {
+            BorderStroke(
+                width = 2.dp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        } else {
+            CardDefaults.outlinedCardBorder()
+        },
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(8.dp)
+        ) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(56.dp)
                     .clip(RoundedCornerShape(8.dp))
             ) {
-                Icon(Icons.Rounded.MusicNote, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(
+                    imageVector = Icons.Rounded.MusicNote,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 AsyncImage(
                     model = match.artworkUrl,
                     contentDescription = null,
@@ -316,7 +449,11 @@ private fun MatchRow(match: MetadataCandidate, best: Boolean, onApply: () -> Uni
                     modifier = Modifier.fillMaxSize()
                 )
             }
-            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            Column(
+                Modifier.weight(1f).padding(
+                    horizontal = 12.dp
+                )
+            ) {
                 Text(
                     text = match.title,
                     fontWeight = FontWeight.SemiBold,
@@ -332,7 +469,14 @@ private fun MatchRow(match: MetadataCandidate, best: Boolean, onApply: () -> Uni
                 )
                 Text(
                     text = listOfNotNull(
-                        match.durationSeconds?.let { "${it / 60}:${(it % 60).toString().padStart(2, '0')}" },
+                        match.durationSeconds?.let {
+                            "${it / 60}:${
+                                (it % 60).toString().padStart(
+                                    length = 2,
+                                    padChar = '0'
+                                )
+                            }"
+                        },
                         match.trackNumber?.let { "Track $it" },
                         match.soundMatch?.let { "Sound ${(it * 100).toInt()}%" },
                         match.source,
@@ -346,7 +490,9 @@ private fun MatchRow(match: MetadataCandidate, best: Boolean, onApply: () -> Uni
                     text = "Best",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(end = 8.dp)
+                    modifier = Modifier.padding(
+                        end = 8.dp
+                    )
                 )
             }
         }

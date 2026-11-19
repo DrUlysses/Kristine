@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun LoadingIndicator() {
     Column(
-        Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

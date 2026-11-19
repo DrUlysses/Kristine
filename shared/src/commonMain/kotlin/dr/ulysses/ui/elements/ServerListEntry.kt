@@ -37,7 +37,10 @@ fun ServerListEntry(
             .clickable {
                 scope.launch {
                     if (!isCurrentServer) {
-                        NetworkManager.connect(serverAddress, serverPort)
+                        NetworkManager.connect(
+                            address = serverAddress,
+                            port = serverPort
+                        )
                     } else {
                         NetworkManager.disconnect()
                     }
@@ -50,7 +53,11 @@ fun ServerListEntry(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Server: $serverAddress" + if (isCurrentServer) " (Connected)" else "",
+                text = "Server: $serverAddress" + if (isCurrentServer) {
+                    " (Connected)"
+                } else {
+                    ""
+                },
                 style = MaterialTheme.typography.bodyLarge
             )
             Text(

@@ -24,7 +24,12 @@ fun Settings(
     onSongsPathChanged: (Boolean) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
-    val settingsState = remember { SettingsState(onPendingSaveJobsChanged, onSongsPathChanged) }
+    val settingsState = remember {
+        SettingsState(
+            onPendingSaveJobsChanged = onPendingSaveJobsChanged,
+            onSongsPathChanged = onSongsPathChanged
+        )
+    }
     LaunchedEffect(Unit) { settingsState.loadSettings() }
 
     Column(
@@ -37,7 +42,13 @@ fun Settings(
             SettingField(
                 key = key,
                 value = settingsState.currentSettings[key].orEmpty(),
-                onValueChange = { settingsState.updateSetting(key, it, scope) }
+                onValueChange = {
+                    settingsState.updateSetting(
+                        key = key,
+                        value = it,
+                        scope = scope
+                    )
+                }
             )
         }
     }
@@ -52,7 +63,8 @@ private fun SettingField(
     var textFieldValue by remember(value) { mutableStateOf(value) }
 
     Row(
-        verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
     ) {
         TextField(
             value = textFieldValue,
@@ -83,14 +95,23 @@ private class SettingsState(
 
     fun updateSetting(key: SettingKey, value: String, scope: CoroutineScope) {
         currentSettings = currentSettings + (key to value)
-        val job = scope.launch { SettingsRepository.upsert(Setting(key, value)) }
+        val job = scope.launch {
+            SettingsRepository.upsert(
+                Setting(
+                    key = key,
+                    value = value
+                )
+            )
+        }
         pendingSaveJobs.add(job)
         job.invokeOnCompletion {
             pendingSaveJobs.remove(job)
             onPendingSaveJobsChanged(pendingSaveJobs)
         }
         onPendingSaveJobsChanged(pendingSaveJobs)
-        if (key == SettingKey.SongsPath) onSongsPathChanged(originalSongsPath != value)
+        if (key == SettingKey.SongsPath) {
+            onSongsPathChanged(originalSongsPath != value)
+        }
     }
 
     suspend fun loadSettings() {

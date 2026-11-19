@@ -43,7 +43,9 @@ fun TabMenu(
                             text = topText,
                             fontSize = MaterialTheme.typography.titleMedium.fontSize,
                             lineHeight = MaterialTheme.typography.titleMedium.lineHeight,
-                            modifier = Modifier.padding(top = 8.dp)
+                            modifier = Modifier.padding(
+                                top = 8.dp
+                            )
                         )
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -57,7 +59,9 @@ fun TabMenu(
                         .fillMaxWidth()
                         .height(40.dp),
                     navigationIcon = {
-                        IconButton(onClick = navigateUp) {
+                        IconButton(
+                            onClick = navigateUp
+                        ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(Res.string.back)

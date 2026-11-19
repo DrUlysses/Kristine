@@ -26,7 +26,9 @@ fun PlaylistListEntry(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(
+                onClick = onClick
+            )
     ) {
         Image(
             painter = image

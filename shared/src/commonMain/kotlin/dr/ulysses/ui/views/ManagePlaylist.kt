@@ -37,7 +37,11 @@ fun ManagePlaylist(
         image?.let {
             scope.launch {
                 updatedImage = image.readBytes()
-                onPlaylistChanged(playlist.copy(artwork = updatedImage))
+                onPlaylistChanged(
+                    playlist.copy(
+                        artwork = updatedImage
+                    )
+                )
             }
         }
     }
@@ -45,7 +49,11 @@ fun ManagePlaylist(
     var searchQuery by remember { mutableStateOf("") }
     var entries by remember { mutableStateOf(emptyList<Song>()) }
     LaunchedEffect(searchQuery) {
-        entries = if (searchQuery.isBlank()) emptyList() else SongRepository.search(searchQuery)
+        entries = if (searchQuery.isBlank()) {
+            emptyList()
+        } else {
+            SongRepository.search(searchQuery)
+        }
     }
 
     Column(
@@ -76,7 +84,11 @@ fun ManagePlaylist(
                         ),
                     value = playlist.name,
                     onValueChange = {
-                        onPlaylistChanged(playlist.copy(name = it))
+                        onPlaylistChanged(
+                            playlist.copy(
+                                name = it
+                            )
+                        )
                     },
                     singleLine = true
                 )
@@ -103,7 +115,11 @@ fun ManagePlaylist(
                         .padding(8.dp),
                     songs = playlist.songs,
                     onSongsChanged = { songs ->
-                        onPlaylistChanged(playlist.copy(songs = songs))
+                        onPlaylistChanged(
+                            playlist.copy(
+                                songs = songs
+                            )
+                        )
                     },
                     rearrangeable = true,
                 )
@@ -132,7 +148,11 @@ fun ManagePlaylist(
                 songs = entries,
                 onSongsChanged = { entries = it },
                 onClick = { song ->
-                    onPlaylistChanged(playlist.copy(songs = playlist.songs + song))
+                    onPlaylistChanged(
+                        playlist.copy(
+                            songs = playlist.songs + song
+                        )
+                    )
                 }
             )
         }

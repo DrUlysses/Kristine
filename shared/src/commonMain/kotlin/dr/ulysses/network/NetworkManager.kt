@@ -51,8 +51,14 @@ object NetworkManager {
     }
 
     fun connectToCustomServer(address: String, port: Int) {
-        client.addCustomServer(address, port) { _discoveredServers.value = it }
-        connect(address, port)
+        client.addCustomServer(
+            address = address,
+            port = port
+        ) { _discoveredServers.value = it }
+        connect(
+            address = address,
+            port = port
+        )
     }
 
     fun connect(address: String, port: Int) {
@@ -68,7 +74,9 @@ object NetworkManager {
             },
             onConnectionChanged = { connected ->
                 _isConnected.value = connected
-                if (!connected) _currentServer.value = null
+                if (!connected) {
+                    _currentServer.value = null
+                }
                 Player.setRemote(connected)
             },
         )
@@ -84,7 +92,10 @@ object NetworkManager {
     suspend fun fetchSongsFromCurrentServer(): List<Song>? {
         val (address, port) = _currentServer.value ?: return null
         return try {
-            client.fetchSongs(address, port)
+            client.fetchSongs(
+                address = address,
+                port = port
+            )
         } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
             Logger.e(e) { "Failed to fetch songs from $address:$port" }
@@ -93,7 +104,9 @@ object NetworkManager {
     }
 
     fun send(command: WebSocketCommand) {
-        if (_isConnected.value) client.send(command)
+        if (_isConnected.value) {
+            client.send(command)
+        }
     }
 
     fun sendPlayerUpdate(update: PlayerUpdate) = server.sendPlayerUpdate(update)

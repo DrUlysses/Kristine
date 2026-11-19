@@ -35,13 +35,23 @@ actual class NetworkServer {
     private var lastPlaybackState: String? = null
 
     actual suspend fun start(): ServerInfo {
-        if (broadcastJob != null) return server
+        if (broadcastJob != null) {
+            return server
+        }
 
         val selectorManager = SelectorManager(Dispatchers.IO)
-        val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", 0)) { broadcast = true }
+        val socket = aSocket(selectorManager).udp().bind(
+            InetSocketAddress(
+                hostname = "0.0.0.0",
+                port = 0
+            )
+        ) { broadcast = true }
         val port = (socket.localAddress as InetSocketAddress).port
         startHttpServer(port)
-        server = ServerInfo(port, localIpv4Addresses())
+        server = ServerInfo(
+            port = port,
+            addresses = localIpv4Addresses()
+        )
         Logger.d { "Server started: $server" }
 
         val announcement = "$BROADCAST_MESSAGE_PREFIX$port".encodeToByteArray()
@@ -54,8 +64,11 @@ actual class NetworkServer {
                         try {
                             socket.send(
                                 Datagram(
-                                    ByteReadPacket(announcement),
-                                    InetSocketAddress(address, DISCOVERY_PORT)
+                                    packet = ByteReadPacket(announcement),
+                                    address = InetSocketAddress(
+                                        hostname = address,
+                                        port = DISCOVERY_PORT
+                                    )
                                 )
                             )
                         } catch (e: Exception) {
@@ -74,7 +87,10 @@ actual class NetworkServer {
     }
 
     private fun startHttpServer(port: Int) {
-        httpServer = embeddedServer(CIO, port = port) {
+        httpServer = embeddedServer(
+            factory = CIO,
+            port = port
+        ) {
             install(WebSockets) {
                 contentConverter = KotlinxWebsocketSerializationConverter(Json)
             }
@@ -84,7 +100,9 @@ actual class NetworkServer {
                     try {
                         listOfNotNull(lastNowPlaying, lastPlaybackState).forEach { send(Frame.Text(it)) }
                         for (frame in incoming) {
-                            if (frame !is Frame.Text) continue
+                            if (frame !is Frame.Text) {
+                                continue
+                            }
                             // A malformed or unknown command must not drop the client
                             runCatching { Json.decodeFromString<WebSocketCommand>(frame.readText()) }
                                 .onSuccess { handle(it) }
@@ -95,22 +113,35 @@ actual class NetworkServer {
                     }
                 }
                 get("/songs") {
-                    call.response.header(HttpHeaders.AccessControlAllowOrigin, "*")
-                    call.respondText(Json.encodeToString(SongRepository.getAllSongs()), ContentType.Application.Json)
+                    call.response.header(
+                        name = HttpHeaders.AccessControlAllowOrigin,
+                        value = "*"
+                    )
+                    call.respondText(
+                        text = Json.encodeToString(SongRepository.getAllSongs()),
+                        contentType = ContentType.Application.Json
+                    )
                 }
             }
-        }.start(wait = false)
+        }.start(
+            wait = false
+        )
     }
 
     private suspend fun handle(command: WebSocketCommand) {
         when (command) {
-            is PlaySongCommand -> if (command.song.path in libraryPaths()) Player.onPlaySongCommand(command.song)
+            is PlaySongCommand -> if (command.song.path in libraryPaths()) {
+                Player.onPlaySongCommand(command.song)
+            }
+
             is SetPlaylistCommand -> {
                 // Anyone on the LAN can send commands, so only songs from this library are played
                 val library = libraryPaths()
                 val current = command.songs.getOrNull(command.currentSongIndex)
                 Player.onSongsChanged(command.songs.filter { it.path in library })
-                if (current != null && current.path in library) Player.onPlaySongCommand(current)
+                if (current != null && current.path in library) {
+                    Player.onPlaySongCommand(current)
+                }
             }
 
             PauseCommand -> Player.onPauseCommand()
@@ -125,7 +156,10 @@ actual class NetworkServer {
     actual fun stop() {
         broadcastJob?.cancel()
         broadcastJob = null
-        httpServer?.stop(1000, 2000)
+        httpServer?.stop(
+            gracePeriodMillis = 1000,
+            timeoutMillis = 2000
+        )
         httpServer = null
     }
 
@@ -136,7 +170,9 @@ actual class NetworkServer {
             is PlaybackStateUpdate -> lastPlaybackState = json
         }
         val clients = sessions.value
-        if (clients.isEmpty()) return
+        if (clients.isEmpty()) {
+            return
+        }
         scope.launch {
             clients.forEach { session ->
                 try {
@@ -161,16 +197,25 @@ private fun ByteArray.toIpv4() = joinToString(".") { (it.toInt() and 0xff).toStr
 internal actual fun serverAnnouncements(): Flow<Pair<String, Int>> = flow {
     val releaseLock = acquireMulticastLock()
     val selectorManager = SelectorManager(Dispatchers.IO)
-    val socket = aSocket(selectorManager).udp().bind(InetSocketAddress("0.0.0.0", DISCOVERY_PORT))
+    val socket = aSocket(selectorManager).udp().bind(
+        InetSocketAddress(
+            hostname = "0.0.0.0",
+            port = DISCOVERY_PORT
+        )
+    )
     try {
         while (true) {
             val datagram = socket.receive()
             val message = datagram.packet.readText()
             val port = message.removePrefix(BROADCAST_MESSAGE_PREFIX).toIntOrNull()
-            if (!message.startsWith(BROADCAST_MESSAGE_PREFIX) || port == null || port <= 0) continue
+            if (!message.startsWith(BROADCAST_MESSAGE_PREFIX) || port == null || port <= 0) {
+                continue
+            }
             // The raw IP: hostname could trigger a reverse DNS lookup
             val address = (datagram.address as? InetSocketAddress)?.resolveAddress()?.takeIf { it.size == 4 }?.toIpv4()
-            if (address != null && address != "0.0.0.0" && address != "255.255.255.255") emit(address to port)
+            if (address != null && address != "0.0.0.0" && address != "255.255.255.255") {
+                emit(address to port)
+            }
         }
     } finally {
         socket.close()

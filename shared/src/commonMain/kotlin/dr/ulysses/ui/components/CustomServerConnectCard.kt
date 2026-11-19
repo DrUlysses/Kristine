@@ -31,7 +31,10 @@ fun CustomServerConnectCard(
         val address = customServerAddress.value.trim()
         val port = customServerPort.value.trim().toIntOrNull()?.takeIf { it in 1..65535 }
         if (address.isNotEmpty() && port != null) {
-            NetworkManager.connectToCustomServer(address, port)
+            NetworkManager.connectToCustomServer(
+                address = address,
+                port = port
+            )
             showCustomServerError.value = false
         } else {
             showCustomServerError.value = true
@@ -41,7 +44,9 @@ fun CustomServerConnectCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 8.dp)
+            .padding(
+                bottom = 8.dp
+            )
     ) {
         Column(
             modifier = Modifier
@@ -51,7 +56,9 @@ fun CustomServerConnectCard(
             Text(
                 text = "Connect to Server",
                 style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 4.dp)
+                modifier = Modifier.padding(
+                    bottom = 4.dp
+                )
             )
 
             Row {
@@ -60,7 +67,9 @@ fun CustomServerConnectCard(
                     maxLines = 1,
                     onValueChange = { customServerAddress.value = it },
                     label = { Text("Address") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text
+                    ),
                     keyboardActions = KeyboardActions(
                         onNext = {
                             focusManager.moveFocus(FocusDirection.Next)
@@ -68,7 +77,9 @@ fun CustomServerConnectCard(
                     ),
                     modifier = Modifier
                         .weight(1f)
-                        .padding(bottom = 4.dp)
+                        .padding(
+                            bottom = 4.dp
+                        )
                         .onPreviewKeyEvent { keyEvent ->
                             if (keyEvent.key == Key.Tab && keyEvent.type == KeyEventType.KeyDown) {
                                 portFieldFocusRequester.requestFocus()
@@ -79,7 +90,9 @@ fun CustomServerConnectCard(
                         }
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(
+                    modifier = Modifier.width(8.dp)
+                )
 
                 OutlinedTextField(
                     value = customServerPort.value,
@@ -90,10 +103,14 @@ fun CustomServerConnectCard(
                         }
                     },
                     label = { Text("Port") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    ),
                     modifier = Modifier
                         .weight(1f)
-                        .padding(bottom = 4.dp)
+                        .padding(
+                            bottom = 4.dp
+                        )
                         .focusRequester(portFieldFocusRequester)
                         .onPreviewKeyEvent { keyEvent ->
                             if (keyEvent.key == Key.Enter && keyEvent.type == KeyEventType.KeyDown) {
@@ -108,7 +125,9 @@ fun CustomServerConnectCard(
                 IconButton(
                     modifier = Modifier
                         .weight(0.2f)
-                        .padding(top = 14.dp)
+                        .padding(
+                            top = 14.dp
+                        )
                         .fillMaxSize(),
                     onClick = onServerChosen,
                 ) {
@@ -124,7 +143,9 @@ fun CustomServerConnectCard(
                     text = "Please enter a valid server address and port",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(
+                        bottom = 8.dp
+                    )
                 )
             }
         }

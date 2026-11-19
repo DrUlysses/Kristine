@@ -47,7 +47,9 @@ fun Main() {
         stringResource(Res.string.albums),
         stringResource(Res.string.playlists),
     )
-    val pagerState = rememberPagerState(initialPage = 1) { tabs.size }
+    val pagerState = rememberPagerState(
+        initialPage = 1
+    ) { tabs.size }
     val searchText = stringResource(Res.string.search)
     val addPlaylistText = stringResource(Res.string.add_playlist)
     val manageUnsortedText = stringResource(Res.string.manage_unsorted)
@@ -79,7 +81,10 @@ fun Main() {
     )
 
     // The NavDisplay is only composed while a title is shown, so navigation waits for it
-    LaunchedEffect(state.topBarText, pendingRoute) {
+    LaunchedEffect(
+        key1 = state.topBarText,
+        key2 = pendingRoute
+    ) {
         val route = pendingRoute
         if (state.topBarText != null && route != null) {
             navStack.add(route)
@@ -88,11 +93,16 @@ fun Main() {
     }
 
     LaunchedEffect(pagerState.currentPage) {
-        if (state.topBarText == null) MainViewModel.setReturningFromDetail(false)
+        if (state.topBarText == null) {
+            MainViewModel.setReturningFromDetail(false)
+        }
     }
 
     fun open(title: String, route: NavKey) {
-        MainViewModel.openDetail(title, fromTab = pagerState.currentPage)
+        MainViewModel.openDetail(
+            title = title,
+            fromTab = pagerState.currentPage
+        )
         pendingRoute = route
     }
 
@@ -104,7 +114,10 @@ fun Main() {
 
     fun addPlaylist() {
         MainViewModel.setCurrentPlaylist(Playlist())
-        open(addPlaylistText, ManagePlaylist)
+        open(
+            title = addPlaylistText,
+            route = ManagePlaylist
+        )
     }
 
     Scaffold(
@@ -123,12 +136,22 @@ fun Main() {
                     SettingsDropdownEntry(
                         text = manageUnsortedText,
                         icon = Icons.Default.EditNote,
-                        onClick = { open(manageUnsortedText, ManageUnsortedList) }
+                        onClick = {
+                            open(
+                                title = manageUnsortedText,
+                                route = ManageUnsortedList
+                            )
+                        }
                     ),
                     SettingsDropdownEntry(
                         text = connectionsText,
                         icon = Icons.Default.Link,
-                        onClick = { open(connectionsText, Connections) }
+                        onClick = {
+                            open(
+                                title = connectionsText,
+                                route = Connections
+                            )
+                        }
                     ),
                     SettingsDropdownEntry(
                         text = refreshSongsText,
@@ -138,7 +161,12 @@ fun Main() {
                     SettingsDropdownEntry(
                         text = settingsText,
                         icon = Icons.Default.Settings,
-                        onClick = { open(settingsText, Settings) }
+                        onClick = {
+                            open(
+                                title = settingsText,
+                                route = Settings
+                            )
+                        }
                     )
                 )
             )
@@ -250,7 +278,13 @@ fun Main() {
                                         onSave = { saved ->
                                             scope.launch { MainViewModel.saveSong(saved) }
                                             unsortedSongs =
-                                                unsortedSongs.map { if (it.path == saved.path) saved else it }
+                                                unsortedSongs.map {
+                                                    if (it.path == saved.path) {
+                                                        saved
+                                                    } else {
+                                                        it
+                                                    }
+                                                }
                                         },
                                         onNextSong = {
                                             MainViewModel.setSelectedSong(unsortedSongs.getOrNull(currentSongIndex + 1))
@@ -274,76 +308,93 @@ fun Main() {
                             }
                         }
                     )
-                } else HorizontalPager(
-                    modifier = Modifier.fillMaxSize(),
-                    state = pagerState
-                ) { page ->
-                    when (page) {
-                        0 -> if (state.isLoadingSongs) {
-                            LoadingIndicator()
-                        } else {
-                            ArtistsList(
-                                artists = state.allSongs
-                                    .map { it.artist.trim() }
-                                    .fastDistinctBy(String::lowercase),
-                                onArtistsChanged = {},
-                                listState = artistsListState,
-                                initialLoad = !state.returningFromDetail,
-                                onArtistClicked = { artist ->
-                                    MainViewModel.setCurrentArtistSongsList(state.allSongs.filter {
-                                        it.artist.trim().equals(artist.trim(), ignoreCase = true)
-                                    })
-                                    open(artist, ArtistSongs)
-                                }
-                            )
-                        }
-
-                        1 -> if (state.isLoadingSongs) {
-                            LoadingIndicator()
-                        } else {
-                            SongsList(
-                                songs = state.allSongs,
-                                onClick = { song ->
-                                    Player.onSongsChanged(state.allSongs)
-                                    Player.onPlaySongCommand(song)
-                                }
-                            )
-                        }
-
-                        2 -> if (state.isLoadingSongs) {
-                            LoadingIndicator()
-                        } else {
-                            AlbumsList(
-                                albums = state.allSongs
-                                    .mapNotNull { it.album?.trim() }
-                                    .fastDistinctBy(String::lowercase),
-                                listState = albumsListState,
-                                initialLoad = !state.returningFromDetail,
-                                onAlbumClicked = { album ->
-                                    MainViewModel.setCurrentAlbumSongsList(state.allSongs.filter {
-                                        it.album.equals(album, ignoreCase = true)
-                                    })
-                                    open(album, AlbumSongs)
-                                }
-                            )
-                        }
-
-                        3 -> {
-                            LaunchedEffect(Unit) { MainViewModel.loadPlaylists() }
-
-                            if (state.isLoadingPlaylists) {
+                } else {
+                    HorizontalPager(
+                        modifier = Modifier.fillMaxSize(),
+                        state = pagerState
+                    ) { page ->
+                        when (page) {
+                            0 -> if (state.isLoadingSongs) {
                                 LoadingIndicator()
                             } else {
-                                PlaylistsList(
-                                    playlists = state.currentPlaylists,
-                                    listState = playlistsListState,
+                                ArtistsList(
+                                    artists = state.allSongs
+                                        .map { it.artist.trim() }
+                                        .fastDistinctBy(String::lowercase),
+                                    onArtistsChanged = {},
+                                    listState = artistsListState,
                                     initialLoad = !state.returningFromDetail,
-                                    onPlaylistsChanged = { MainViewModel.loadPlaylists() },
-                                    onPlaylistClicked = { playlist ->
-                                        MainViewModel.setCurrentPlaylist(playlist)
-                                        open(playlist.name, PlaylistSongs)
+                                    onArtistClicked = { artist ->
+                                        MainViewModel.setCurrentArtistSongsList(state.allSongs.filter {
+                                            it.artist.trim().equals(
+                                                other = artist.trim(),
+                                                ignoreCase = true
+                                            )
+                                        })
+                                        open(
+                                            title = artist,
+                                            route = ArtistSongs
+                                        )
                                     }
                                 )
+                            }
+
+                            1 -> if (state.isLoadingSongs) {
+                                LoadingIndicator()
+                            } else {
+                                SongsList(
+                                    songs = state.allSongs,
+                                    onClick = { song ->
+                                        Player.onSongsChanged(state.allSongs)
+                                        Player.onPlaySongCommand(song)
+                                    }
+                                )
+                            }
+
+                            2 -> if (state.isLoadingSongs) {
+                                LoadingIndicator()
+                            } else {
+                                AlbumsList(
+                                    albums = state.allSongs
+                                        .mapNotNull { it.album?.trim() }
+                                        .fastDistinctBy(String::lowercase),
+                                    listState = albumsListState,
+                                    initialLoad = !state.returningFromDetail,
+                                    onAlbumClicked = { album ->
+                                        MainViewModel.setCurrentAlbumSongsList(state.allSongs.filter {
+                                            it.album.equals(
+                                                other = album,
+                                                ignoreCase = true
+                                            )
+                                        })
+                                        open(
+                                            title = album,
+                                            route = AlbumSongs
+                                        )
+                                    }
+                                )
+                            }
+
+                            3 -> {
+                                LaunchedEffect(Unit) { MainViewModel.loadPlaylists() }
+
+                                if (state.isLoadingPlaylists) {
+                                    LoadingIndicator()
+                                } else {
+                                    PlaylistsList(
+                                        playlists = state.currentPlaylists,
+                                        listState = playlistsListState,
+                                        initialLoad = !state.returningFromDetail,
+                                        onPlaylistsChanged = { MainViewModel.loadPlaylists() },
+                                        onPlaylistClicked = { playlist ->
+                                            MainViewModel.setCurrentPlaylist(playlist)
+                                            open(
+                                                title = playlist.name,
+                                                route = PlaylistSongs
+                                            )
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -355,8 +406,13 @@ fun Main() {
             val route = navStack.lastOrNull()
             when {
                 route == Search ->
-                    FloatingActionButton(onClick = ::close) {
-                        Icon(imageVector = Icons.Filled.Close, contentDescription = searchTooltip)
+                    FloatingActionButton(
+                        onClick = ::close
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = searchTooltip
+                        )
                     }
 
                 route == ManagePlaylist ->
@@ -374,7 +430,10 @@ fun Main() {
                             }
                         }
                     ) {
-                        Icon(imageVector = Icons.Filled.Check, contentDescription = searchTooltip)
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = searchTooltip
+                        )
                     }
 
                 route == ManageSong ->
@@ -388,7 +447,10 @@ fun Main() {
                             }
                         }
                     ) {
-                        Icon(imageVector = Icons.Filled.Check, contentDescription = editText)
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = editText
+                        )
                     }
 
                 route == ManageUnsortedList -> UnsortedFabMenu()
@@ -399,21 +461,41 @@ fun Main() {
                             scope.launch {
                                 MainViewModel.state.pendingSaveJobs.joinAll()
                                 close()
-                                if (MainViewModel.state.songsPathChanged) MainViewModel.scanLibrary()
+                                if (MainViewModel.state.songsPathChanged) {
+                                    MainViewModel.scanLibrary()
+                                }
                             }
                         }
                     ) {
-                        Icon(imageVector = Icons.Filled.Check, contentDescription = searchTooltip)
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = searchTooltip
+                        )
                     }
 
                 pagerState.currentPage == 3 ->
-                    FloatingActionButton(onClick = ::addPlaylist) {
-                        Icon(imageVector = Icons.Filled.Add, contentDescription = addPlaylistText)
+                    FloatingActionButton(
+                        onClick = ::addPlaylist
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = addPlaylistText
+                        )
                     }
 
                 else ->
-                    FloatingActionButton(onClick = { open(searchText, Search) }) {
-                        Icon(imageVector = Icons.Filled.Search, contentDescription = searchTooltip)
+                    FloatingActionButton(
+                        onClick = {
+                            open(
+                                title = searchText,
+                                route = Search
+                            )
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = searchTooltip
+                        )
                     }
             }
         }

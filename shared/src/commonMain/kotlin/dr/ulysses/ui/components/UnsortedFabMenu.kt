@@ -46,8 +46,22 @@ fun UnsortedFabMenu() {
     var state by remember { mutableStateOf(UnsortedFabMenuState()) }
     val coroutineScope = rememberCoroutineScope()
 
-    val rotation by animateFloatAsState(targetValue = if (state.expanded) 90f else 0f, label = "rotation")
-    val fabScale by animateFloatAsState(targetValue = if (state.expanded) 1.1f else 1.0f, label = "fabScale")
+    val rotation by animateFloatAsState(
+        targetValue = if (state.expanded) {
+            90f
+        } else {
+            0f
+        },
+        label = "rotation"
+    )
+    val fabScale by animateFloatAsState(
+        targetValue = if (state.expanded) {
+            1.1f
+        } else {
+            1.0f
+        },
+        label = "fabScale"
+    )
 
     fun run(operation: OperationType, progress: Flow<SongRepository.Progress>) {
         state = state.copy(
@@ -62,7 +76,11 @@ fun UnsortedFabMenu() {
                     processedCount = p.processed,
                     totalCount = p.total,
                     changedCount = p.changed,
-                    progress = if (p.total > 0) p.processed.toFloat() / p.total else 0f,
+                    progress = if (p.total > 0) {
+                        p.processed.toFloat() / p.total
+                    } else {
+                        0f
+                    },
                     showProgressDialog = !p.isComplete,
                     showResultDialog = p.isComplete,
                 )
@@ -72,21 +90,33 @@ fun UnsortedFabMenu() {
 
     if (state.showRemoveDialog) {
         AlertDialog(
-            onDismissRequest = { state = state.copy(showRemoveDialog = false) },
+            onDismissRequest = {
+                state = state.copy(
+                    showRemoveDialog = false
+                )
+            },
             title = { Text("Remove non-existing?") },
             text = { Text("This will remove all songs from the database where the file no longer exists on the device.") },
             confirmButton = {
-                TextButton(onClick = {
-                    run(
-                        OperationType.REMOVE_NON_EXISTING,
-                        SongRepository.removeNonExistingSongs()
-                    )
-                }) {
+                TextButton(
+                    onClick = {
+                        run(
+                            operation = OperationType.REMOVE_NON_EXISTING,
+                            progress = SongRepository.removeNonExistingSongs()
+                        )
+                    }
+                ) {
                     Text("Yes")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { state = state.copy(showRemoveDialog = false) }) {
+                TextButton(
+                    onClick = {
+                        state = state.copy(
+                            showRemoveDialog = false
+                        )
+                    }
+                ) {
                     Text("No")
                 }
             }
@@ -95,16 +125,33 @@ fun UnsortedFabMenu() {
 
     if (state.showUpdateDurationDialog) {
         AlertDialog(
-            onDismissRequest = { state = state.copy(showUpdateDurationDialog = false) },
+            onDismissRequest = {
+                state = state.copy(
+                    showUpdateDurationDialog = false
+                )
+            },
             title = { Text("Update song durations?") },
             text = { Text("This will update the duration for all songs in the database from their metadata. This can fix issues with the player slider.") },
             confirmButton = {
-                TextButton(onClick = { run(OperationType.UPDATE_DURATIONS, SongRepository.updateSongDurations()) }) {
+                TextButton(
+                    onClick = {
+                        run(
+                            operation = OperationType.UPDATE_DURATIONS,
+                            progress = SongRepository.updateSongDurations()
+                        )
+                    }
+                ) {
                     Text("Yes")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { state = state.copy(showUpdateDurationDialog = false) }) {
+                TextButton(
+                    onClick = {
+                        state = state.copy(
+                            showUpdateDurationDialog = false
+                        )
+                    }
+                ) {
                     Text("No")
                 }
             }
@@ -127,9 +174,11 @@ fun UnsortedFabMenu() {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        "Processed ${state.processedCount} of ${state.totalCount} songs",
+                        text = "Processed ${state.processedCount} of ${state.totalCount} songs",
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(
+                            bottom = 8.dp
+                        )
                     )
                     LinearProgressIndicator(
                         progress = { state.progress },
@@ -141,23 +190,29 @@ fun UnsortedFabMenu() {
                     when (state.operationType) {
                         OperationType.REMOVE_NON_EXISTING ->
                             Text(
-                                "Removed ${state.changedCount} songs so far",
+                                text = "Removed ${state.changedCount} songs so far",
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(top = 8.dp)
+                                modifier = Modifier.padding(
+                                    top = 8.dp
+                                )
                             )
 
                         OperationType.UPDATE_DURATIONS ->
                             Text(
-                                "Updated ${state.changedCount} songs so far",
+                                text = "Updated ${state.changedCount} songs so far",
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(top = 8.dp)
+                                modifier = Modifier.padding(
+                                    top = 8.dp
+                                )
                             )
 
                         else ->
                             Text(
-                                "Processing...",
+                                text = "Processing...",
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(top = 8.dp)
+                                modifier = Modifier.padding(
+                                    top = 8.dp
+                                )
                             )
                     }
                 }
@@ -168,22 +223,48 @@ fun UnsortedFabMenu() {
 
     if (state.showResultDialog) {
         AlertDialog(
-            onDismissRequest = { state = state.copy(showResultDialog = false) },
+            onDismissRequest = {
+                state = state.copy(
+                    showResultDialog = false
+                )
+            },
             title = { Text("Operation Complete") },
             text = {
                 when (state.operationType) {
                     OperationType.REMOVE_NON_EXISTING ->
-                        Text("Removed ${state.changedCount} non-existing song${if (state.changedCount != 1) "s" else ""} from the database.")
+                        Text(
+                            "Removed ${state.changedCount} non-existing song${
+                                if (state.changedCount != 1) {
+                                    "s"
+                                } else {
+                                    ""
+                                }
+                            } from the database."
+                        )
 
                     OperationType.UPDATE_DURATIONS ->
-                        Text("Updated the duration of ${state.changedCount} song${if (state.changedCount != 1) "s" else ""}. The player slider should now work correctly.")
+                        Text(
+                            "Updated the duration of ${state.changedCount} song${
+                                if (state.changedCount != 1) {
+                                    "s"
+                                } else {
+                                    ""
+                                }
+                            }. The player slider should now work correctly."
+                        )
 
                     else ->
                         Text("Operation completed successfully.")
                 }
             },
             confirmButton = {
-                TextButton(onClick = { state = state.copy(showResultDialog = false) }) {
+                TextButton(
+                    onClick = {
+                        state = state.copy(
+                            showResultDialog = false
+                        )
+                    }
+                ) {
                     Text("OK")
                 }
             }
@@ -194,7 +275,9 @@ fun UnsortedFabMenu() {
         horizontalAlignment = Alignment.End,
         modifier = Modifier.fillMaxSize().padding(8.dp)
     ) {
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(
+            modifier = Modifier.weight(1f)
+        )
 
         if (state.expanded) {
             SmallFloatingActionButton(
@@ -205,7 +288,9 @@ fun UnsortedFabMenu() {
                     )
                 },
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(
+                    bottom = 8.dp
+                )
             ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
@@ -221,7 +306,9 @@ fun UnsortedFabMenu() {
                     )
                 },
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(
+                    bottom = 8.dp
+                )
             ) {
                 Icon(
                     imageVector = Icons.Filled.Update,
@@ -231,12 +318,24 @@ fun UnsortedFabMenu() {
         }
 
         FloatingActionButton(
-            onClick = { state = state.copy(expanded = !state.expanded) },
+            onClick = {
+                state = state.copy(
+                    expanded = !state.expanded
+                )
+            },
             modifier = Modifier.scale(fabScale)
         ) {
             Icon(
-                imageVector = if (state.expanded) Icons.Filled.Close else Icons.Filled.Add,
-                contentDescription = if (state.expanded) "Close menu" else "Open menu",
+                imageVector = if (state.expanded) {
+                    Icons.Filled.Close
+                } else {
+                    Icons.Filled.Add
+                },
+                contentDescription = if (state.expanded) {
+                    "Close menu"
+                } else {
+                    "Open menu"
+                },
                 modifier = Modifier.rotate(rotation)
             )
         }

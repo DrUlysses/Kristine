@@ -48,13 +48,21 @@ data class Playlist(
     }
 
     override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other == null || this::class != other::class) return false
+        if (this === other) {
+            return true
+        }
+        if (other == null || this::class != other::class) {
+            return false
+        }
 
         other as Playlist
 
-        if (name != other.name) return false
-        if (songs != other.songs) return false
+        if (name != other.name) {
+            return false
+        }
+        if (songs != other.songs) {
+            return false
+        }
 
         return true
     }

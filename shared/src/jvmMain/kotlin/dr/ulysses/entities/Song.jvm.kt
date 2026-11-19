@@ -11,7 +11,9 @@ actual suspend fun refreshSongs(): List<Song> = withContext(Dispatchers.IO) {
     // jaudiotagger only reads java.io.File, so the scan walks Files too
     val songsRoot = SettingsRepository.get(SettingKey.SongsPath)?.value?.let(::File) ?: File("music").absoluteFile
     // An unmounted drive would otherwise mark the whole library NotDownloaded
-    if (!songsRoot.isDirectory) return@withContext SongRepository.getAllSongs()
+    if (!songsRoot.isDirectory) {
+        return@withContext SongRepository.getAllSongs()
+    }
     val songs = songsRoot.walkTopDown()
         .filter { it.extension in SUPPORTED_EXTENSIONS }
         .mapNotNull { file ->

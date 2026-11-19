@@ -29,8 +29,16 @@ fun Search(
     // Restarted per keystroke, so a slow earlier search can't overwrite newer results
     LaunchedEffect(searchQuery) {
         // An empty query would match everything ('%' || '' || '%')
-        entries = if (searchQuery.isBlank()) emptyList() else SongRepository.search(searchQuery) +
-                if (playlistsIncluded) PlaylistRepository.search(searchQuery) else emptyList()
+        entries = if (searchQuery.isBlank()) {
+            emptyList()
+        } else {
+            SongRepository.search(searchQuery) +
+                    if (playlistsIncluded) {
+                        PlaylistRepository.search(searchQuery)
+                    } else {
+                        emptyList()
+                    }
+        }
     }
 
     Column(
