@@ -24,7 +24,10 @@ internal const val ARTWORK_ROUTE = "/artwork"
 
 /** The server's songs and playlists (with their songs), without song artwork. */
 @Serializable
-data class Library(val songs: List<Song>, val playlists: List<Playlist>)
+data class Library(
+    val songs: List<Song>,
+    val playlists: List<Playlist>,
+)
 
 /** Plays commands from LAN clients, pushes [PlayerUpdate]s to them and announces itself over UDP. */
 expect class NetworkServer() {
@@ -39,7 +42,10 @@ internal expect fun serverAnnouncements(): Flow<Pair<String, Int>>
 /** Server songs downloaded to play here, kept by their server path. */
 internal expect class SongCache() {
     /** The local path of the server song at [serverPath], downloading it first; null where files can't be stored. */
-    suspend fun pathFor(serverPath: String, download: suspend () -> ByteArray): String?
+    suspend fun pathFor(
+        serverPath: String,
+        download: suspend () -> ByteArray,
+    ): String?
 
     /** Deletes every cached song except [serverPaths]. */
     suspend fun retain(serverPaths: Set<String>)

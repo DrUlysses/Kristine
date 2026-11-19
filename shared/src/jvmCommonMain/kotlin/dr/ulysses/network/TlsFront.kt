@@ -17,7 +17,12 @@ import javax.net.ssl.SSLContext
  * works on every Android version.
  */
 // shortcut: javax.net.ssl and java.net sockets, because no Kotlin library serves TLS on Android below 8
-internal class TlsFront(keyStore: KeyStore, password: CharArray, port: Int, private val backendPort: Int) {
+internal class TlsFront(
+    keyStore: KeyStore,
+    password: CharArray,
+    port: Int,
+    private val backendPort: Int,
+) {
     private val serverSocket: ServerSocket = SSLContext.getInstance("TLS").apply {
         val keyManagers = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm()).apply {
             init(

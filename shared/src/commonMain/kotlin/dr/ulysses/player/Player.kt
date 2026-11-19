@@ -130,7 +130,10 @@ object Player {
     }
 
     /** As a remote control that plays along: plays [song] (a local copy of the server's current song) on this device. */
-    fun followOnDevice(song: Song?, isPlaying: Boolean) {
+    fun followOnDevice(
+        song: Song?,
+        isPlaying: Boolean,
+    ) {
         if (!remote) {
             return
         }
@@ -197,7 +200,10 @@ object Player {
     }
 
     /** The device got a queue from outside the app (Android Auto, Bluetooth) and is starting it at [trackNum]. */
-    fun onQueueSetByDevice(playlist: Playlist, trackNum: Int) {
+    fun onQueueSetByDevice(
+        playlist: Playlist,
+        trackNum: Int,
+    ) {
         if (remote) {
             return
         }

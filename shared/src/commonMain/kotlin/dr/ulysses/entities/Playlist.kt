@@ -77,7 +77,10 @@ data class Playlist(
 object PlaylistRepository : KoinComponent {
     private val sharedDatabase: SharedDatabase by inject()
 
-    suspend fun rename(oldName: String, newName: String) = sharedDatabase { appDatabase ->
+    suspend fun rename(
+        oldName: String,
+        newName: String,
+    ) = sharedDatabase { appDatabase ->
         appDatabase.playlistQueries.transactionWithResult {
             appDatabase.playlistQueries.rename(
                 name = newName,

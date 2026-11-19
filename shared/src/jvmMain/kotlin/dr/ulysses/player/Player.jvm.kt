@@ -56,7 +56,10 @@ object PlayerObject {
 
     private val listListener = object : MediaListPlayerEventAdapter() {
         // The only event that says which track VLC really plays; it is mapped back by position in the queue
-        override fun nextItem(mediaListPlayer: MediaListPlayer, item: MediaRef) {
+        override fun nextItem(
+            mediaListPlayer: MediaListPlayer,
+            item: MediaRef,
+        ) {
             val media = item.duplicateMedia()
             onVlcThread {
                 val mrl = media.info().mrl()

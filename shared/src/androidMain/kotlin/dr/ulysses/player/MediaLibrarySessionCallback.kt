@@ -338,7 +338,10 @@ open class MediaLibrarySessionCallback(context: Context) :
         }
     }
 
-    private fun folder(id: String, title: String) = MediaItem.Builder()
+    private fun folder(
+        id: String,
+        title: String,
+    ) = MediaItem.Builder()
         .setMediaId(id)
         .setMediaMetadata(
             MediaMetadata.Builder()
@@ -350,7 +353,10 @@ open class MediaLibrarySessionCallback(context: Context) :
         )
         .build()
 
-    private fun List<MediaItem>.page(page: Int, pageSize: Int) =
+    private fun List<MediaItem>.page(
+        page: Int,
+        pageSize: Int,
+    ) =
         drop((page.toLong() * pageSize).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()).take(pageSize)
 
     companion object {

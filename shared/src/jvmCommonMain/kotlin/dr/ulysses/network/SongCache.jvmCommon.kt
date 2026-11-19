@@ -16,7 +16,10 @@ internal actual class SongCache {
     )
     private val mutex = Mutex()
 
-    actual suspend fun pathFor(serverPath: String, download: suspend () -> ByteArray): String? = mutex.withLock {
+    actual suspend fun pathFor(
+        serverPath: String,
+        download: suspend () -> ByteArray,
+    ): String? = mutex.withLock {
         val file = fileFor(serverPath)
         if (!SystemFileSystem.exists(file)) {
             val bytes = download()

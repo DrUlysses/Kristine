@@ -53,7 +53,10 @@ class PlaybackService : MediaLibraryService() {
                     onIsPlayingChangedOnDevice(isPlaying)
                 }
 
-                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                override fun onMediaItemTransition(
+                    mediaItem: MediaItem?,
+                    reason: Int,
+                ) {
                     super.onMediaItemTransition(mediaItem, reason)
                     // The media id is the song path exactly as the app gave it
                     onCurrentPlayingChangedOnDevice(mediaItem?.mediaId)

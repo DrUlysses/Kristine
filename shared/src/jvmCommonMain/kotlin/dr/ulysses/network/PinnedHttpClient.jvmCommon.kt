@@ -15,7 +15,10 @@ internal actual fun pinnedHttpClient(
 ): HttpClient {
     // Self-signed certificates have no authority to check, so the fingerprint is the whole trust decision
     val trustManager = object : X509TrustManager {
-        override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {
+        override fun checkServerTrusted(
+            chain: Array<X509Certificate>,
+            authType: String,
+        ) {
             val fingerprint = chain.first().fingerprint()
             onCertificate(fingerprint)
             if (pinnedFingerprint != null && fingerprint != pinnedFingerprint) {
@@ -23,7 +26,10 @@ internal actual fun pinnedHttpClient(
             }
         }
 
-        override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {
+        override fun checkClientTrusted(
+            chain: Array<X509Certificate>,
+            authType: String,
+        ) {
             throw CertificateException("Clients aren't authenticated by certificate")
         }
 

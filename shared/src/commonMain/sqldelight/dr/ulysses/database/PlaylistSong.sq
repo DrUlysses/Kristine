@@ -9,6 +9,10 @@ CREATE TABLE IF NOT EXISTS playlist_song(
 insert:
 INSERT OR IGNORE INTO playlist_song(playlist_name, song_path) VALUES(?, ?);
 
+-- OR IGNORE: a playlist that holds both songs keeps its row of newPath; the old row goes with the song
+moveSong:
+UPDATE OR IGNORE playlist_song SET song_path = :newPath WHERE song_path = :oldPath;
+
 countBySong:
 SELECT COUNT(*) FROM playlist_song WHERE song_path = ?;
 

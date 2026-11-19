@@ -132,6 +132,42 @@ object SongRepository : KoinComponent {
         }
     }
 
+    /** Points the entry at [oldPath] to the new file at [newPath], e.g. after downloading it. */
+    suspend fun relink(
+        oldPath: String,
+        newPath: String,
+    ) = sharedDatabase { db ->
+        val songs = db.songQueries
+        songs.transaction {
+            // A scan during the download may already have added the new file as its own entry
+            if (newPath != oldPath) {
+                songs.deleteByPath(newPath)
+            }
+            songs.updatePath(
+                newPath = newPath,
+                oldPath = oldPath
+            )
+            songs.updateState(
+                state = Song.State.Downloaded.name,
+                path = newPath
+            )
+        }
+    }
+
+    /** Removes the entry at [oldPath], a copy of the song at [keepPath], which takes its place in playlists. */
+    suspend fun mergeInto(
+        oldPath: String,
+        keepPath: String,
+    ) = sharedDatabase { db ->
+        db.songQueries.transaction {
+            db.playlistSongQueries.moveSong(
+                newPath = keepPath,
+                oldPath = oldPath
+            )
+            db.songQueries.deleteByPath(oldPath)
+        }
+    }
+
     private fun fileName(path: String) = path.substringAfterLast('/')
 
     /**
@@ -157,7 +193,10 @@ object SongRepository : KoinComponent {
     }
 
     /** The candidate sharing the most trailing path segments with [path], or null on a tie. */
-    private fun closestPath(path: String, candidates: List<String>): String? {
+    private fun closestPath(
+        path: String,
+        candidates: List<String>,
+    ): String? {
         val segments = path.split('/').asReversed()
         val scored = candidates.map { candidate ->
             candidate to candidate.split('/').asReversed().zip(segments).takeWhile { (a, b) -> a == b }.size

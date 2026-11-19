@@ -18,7 +18,10 @@ import kristine.shared.generated.resources.compose_multiplatform
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.jetbrains.compose.resources.painterResource
 
-/** @param isAvailable False for a song whose file is missing: dimmed and not clickable */
+/**
+ * @param isAvailable False for a song whose file is missing: dimmed and not clickable
+ * @param trailing At the end of the row, never dimmed, e.g. a [SongDownloadButton]
+ */
 @Composable
 fun SongListEntry(
     modifier: Modifier = Modifier,
@@ -27,54 +30,75 @@ fun SongListEntry(
     artist: String = "Unknown Artist",
     isAvailable: Boolean = true,
     onClick: () -> Unit = {},
+    trailing: @Composable () -> Unit = {},
 ) {
     Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .alpha(
-                if (isAvailable) {
-                    1f
-                } else {
-                    0.4f
-                }
-            )
             .clickable(
                 enabled = isAvailable,
                 onClick = onClick
             )
     ) {
-        Image(
-            painter = image?.let {
-                runCatching {
-                    BitmapPainter(it.decodeToImageBitmap())
-                }.getOrNull()
-            } ?: painterResource(Res.drawable.compose_multiplatform),
-            contentDescription = "Art",
+        Row(
             modifier = Modifier
-                .padding(8.dp)
-                .size(64.dp)
-        )
-        Column(
-            modifier = Modifier
-                .align(Alignment.CenterVertically)
-                .padding(8.dp)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.SpaceEvenly
+                .weight(1f)
+                .alpha(
+                    if (isAvailable) {
+                        1f
+                    } else {
+                        0.4f
+                    }
+                )
         ) {
-            Text(
-                text = title,
-                style = TextStyle(
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            )
-            Text(
-                text = artist,
-                style = TextStyle(
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal
-                )
+            SongInfo(
+                image = image,
+                title = title,
+                artist = artist
             )
         }
+        trailing()
+    }
+}
+
+@Composable
+private fun RowScope.SongInfo(
+    image: ByteArray?,
+    title: String,
+    artist: String,
+) {
+    Image(
+        painter = image?.let {
+            runCatching {
+                BitmapPainter(it.decodeToImageBitmap())
+            }.getOrNull()
+        } ?: painterResource(Res.drawable.compose_multiplatform),
+        contentDescription = "Art",
+        modifier = Modifier
+            .padding(8.dp)
+            .size(64.dp)
+    )
+    Column(
+        modifier = Modifier
+            .align(Alignment.CenterVertically)
+            .padding(8.dp)
+            .fillMaxWidth(),
+        verticalArrangement = Arrangement.SpaceEvenly
+    ) {
+        Text(
+            text = title,
+            style = TextStyle(
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        )
+        Text(
+            text = artist,
+            style = TextStyle(
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal
+            )
+        )
     }
 }

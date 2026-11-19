@@ -40,6 +40,9 @@ data object ManageUnsortedList : NavKey
 data object ManageSong : NavKey
 
 @Serializable
+data object ManageDuplicates : NavKey
+
+@Serializable
 data object Connections : NavKey
 
 @Serializable
@@ -91,6 +94,10 @@ val config = SavedStateConfiguration {
             subclass(
                 subclass = ManageSong::class,
                 serializer = ManageSong.serializer()
+            )
+            subclass(
+                subclass = ManageDuplicates::class,
+                serializer = ManageDuplicates.serializer()
             )
             subclass(
                 subclass = Connections::class,

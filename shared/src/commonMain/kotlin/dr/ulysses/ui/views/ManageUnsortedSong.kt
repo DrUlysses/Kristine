@@ -415,7 +415,11 @@ private fun MatchesCard(
 }
 
 @Composable
-private fun MatchRow(match: MetadataCandidate, best: Boolean, onApply: () -> Unit) {
+private fun MatchRow(
+    match: MetadataCandidate,
+    best: Boolean,
+    onApply: () -> Unit,
+) {
     OutlinedCard(
         onClick = onApply,
         border = if (best) {

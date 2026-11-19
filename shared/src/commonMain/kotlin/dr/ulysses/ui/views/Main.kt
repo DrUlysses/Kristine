@@ -100,7 +100,10 @@ fun Main() {
         }
     }
 
-    fun open(title: String, route: NavKey) {
+    fun open(
+        title: String,
+        route: NavKey,
+    ) {
         MainViewModel.openDetail(
             title = title,
             fromTab = pagerState.currentPage
@@ -111,6 +114,11 @@ fun Main() {
     fun close() {
         val leaving = navStack.lastOrNull()
         navStack.removeLastOrNull()
+        // Duplicates opens from the unsorted list and goes back to it
+        if (leaving == ManageDuplicates) {
+            MainViewModel.setTopBarText(manageUnsortedText)
+            return
+        }
         MainViewModel.closeDetail()
         scope.launch { pagerState.scrollToPage(MainViewModel.state.previousTabIndex) }
         // Tags edited there show up in the lists, like after "Refresh songs"
@@ -253,13 +261,19 @@ fun Main() {
                                 )
                             }
                             entry<ManageUnsortedList> {
-                                var unsortedSongs by remember { mutableStateOf(emptyList<Song>()) }
+                                var unsortedSongs by remember { mutableStateOf<List<Song>?>(null) }
+                                // Also after returning from Duplicates, which may have removed some
                                 LaunchedEffect(Unit) {
                                     unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
                                 }
-                                if (unsortedSongs.isNotEmpty()) {
+                                val songs = unsortedSongs
+                                if (songs != null) {
                                     ManageUnsortedList(
-                                        unsortedSongs = unsortedSongs,
+                                        unsortedSongs = songs,
+                                        onDuplicatesClick = {
+                                            MainViewModel.setTopBarText(RESOLVE_DUPLICATES)
+                                            navStack.add(ManageDuplicates)
+                                        },
                                         onClick = { song ->
                                             MainViewModel.setSelectedSong(song)
                                             navStack.add(ManageSong)
@@ -268,6 +282,9 @@ fun Main() {
                                 } else {
                                     LoadingIndicator()
                                 }
+                            }
+                            entry<ManageDuplicates> {
+                                ManageDuplicates()
                             }
                             entry<ManageSong> {
                                 var unsortedSongs by remember { mutableStateOf(emptyList<Song>()) }

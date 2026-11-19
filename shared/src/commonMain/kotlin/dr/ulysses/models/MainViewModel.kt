@@ -86,7 +86,10 @@ object MainViewModel {
         onSongSave(song).onFailure { Logger.e(it) { "Couldn't write the tags of ${song.path}" } }
     }
 
-    fun openDetail(title: String, fromTab: Int) {
+    fun openDetail(
+        title: String,
+        fromTab: Int,
+    ) {
         state = state.copy(
             topBarText = title,
             previousTabIndex = fromTab,

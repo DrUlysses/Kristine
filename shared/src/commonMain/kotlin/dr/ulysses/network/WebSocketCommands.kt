@@ -12,7 +12,10 @@ data class PlaySongCommand(val song: Song) : WebSocketCommand
 
 /** Replaces the server's queue and plays the song at [currentSongIndex]. */
 @Serializable
-data class SetPlaylistCommand(val songs: List<Song>, val currentSongIndex: Int) : WebSocketCommand
+data class SetPlaylistCommand(
+    val songs: List<Song>,
+    val currentSongIndex: Int,
+) : WebSocketCommand
 
 @Serializable
 data object PauseCommand : WebSocketCommand

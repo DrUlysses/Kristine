@@ -84,7 +84,10 @@ fun Connections() {
 }
 
 /** How a server is shown, copied and typed: the address, plus the port only when it isn't the usual one. */
-private fun serverText(address: String, port: Int) = if (port == SERVER_PORT) {
+private fun serverText(
+    address: String,
+    port: Int,
+) = if (port == SERVER_PORT) {
     address
 } else {
     "$address:$port"
@@ -162,7 +165,10 @@ private fun ConnectField() {
 }
 
 @Composable
-private fun NearbyServers(servers: Map<String, Int>, currentServer: Pair<String, Int>?) {
+private fun NearbyServers(
+    servers: Map<String, Int>,
+    currentServer: Pair<String, Int>?,
+) {
     Column {
         Text(
             text = "Nearby servers",
@@ -218,7 +224,11 @@ private fun NearbyServers(servers: Map<String, Int>, currentServer: Pair<String,
 }
 
 @Composable
-private fun CurrentServerCard(server: String, isConnected: Boolean, playHere: Boolean) {
+private fun CurrentServerCard(
+    server: String,
+    isConnected: Boolean,
+    playHere: Boolean,
+) {
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer

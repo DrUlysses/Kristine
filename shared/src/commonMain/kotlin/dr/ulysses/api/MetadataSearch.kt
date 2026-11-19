@@ -31,9 +31,15 @@ data class MetadataCandidate(
 )
 
 /** Audio fingerprint from Chromaprint, or null where `fpcalc` isn't available. */
-class AudioFingerprint(val durationSeconds: Int, val fingerprint: String)
+class AudioFingerprint(
+    val durationSeconds: Int,
+    val fingerprint: String,
+)
 
 expect suspend fun audioFingerprint(path: String): AudioFingerprint?
+
+/** Chromaprint's uncompressed fingerprint, one 32-bit value per ~0.12 s of sound; null where `fpcalc` isn't available. */
+expect suspend fun rawFingerprint(path: String): IntArray?
 
 /**
  * Finds metadata for a song whose tags may be empty or wrong, the way Picard and beets do:
@@ -46,7 +52,10 @@ object MetadataSearch {
     private val client = HttpClient()
     private val json = Json { ignoreUnknownKeys = true }
 
-    private class Guess(val title: String, val artist: String)
+    private class Guess(
+        val title: String,
+        val artist: String,
+    )
 
     /** Best match first, at most 3. */
     suspend fun find(song: Song): List<MetadataCandidate> = coroutineScope {
@@ -176,7 +185,8 @@ object MetadataSearch {
         option = RegexOption.IGNORE_CASE
     )
 
-    private fun clean(text: String) = text.replace(
+    /** [text] without what search engines stumble on: track numbers, "(Official Video)", "feat. …", underscores. */
+    internal fun clean(text: String) = text.replace(
         oldChar = '_',
         newChar = ' '
     )
@@ -206,7 +216,8 @@ object MetadataSearch {
         )
         .trim()
 
-    private fun normalize(text: String?) =
+    /** Lower case letters, digits and single spaces only, for comparing names written differently. */
+    internal fun normalize(text: String?) =
         text.orEmpty().lowercase().filter { it.isLetterOrDigit() || it == ' ' }.replace(
             regex = Regex("\\s+"),
             replacement = " "
@@ -215,7 +226,10 @@ object MetadataSearch {
     private fun tokens(text: String?) = normalize(text).split(' ').filter { it.isNotEmpty() }.toSet()
 
     // Dice coefficient over words: 1 for the same words, 0 for none in common
-    private fun similarity(a: String?, b: String?): Double {
+    private fun similarity(
+        a: String?,
+        b: String?,
+    ): Double {
         val ta = tokens(a)
         val tb = tokens(b)
         if (ta.isEmpty() || tb.isEmpty()) {
@@ -224,7 +238,12 @@ object MetadataSearch {
         return 2.0 * ta.intersect(tb).size / (ta.size + tb.size)
     }
 
-    private fun score(candidate: MetadataCandidate, guesses: List<Guess>, song: Song, trackHint: Int?): Double {
+    private fun score(
+        candidate: MetadataCandidate,
+        guesses: List<Guess>,
+        song: Song,
+        trackHint: Int?,
+    ): Double {
         val text = guesses.maxOfOrNull { guess ->
             if (guess.artist.isBlank()) {
                 similarity(
@@ -284,7 +303,10 @@ object MetadataSearch {
             )
         }
 
-    private suspend fun deezerAlbumTracks(artist: String, album: String): List<MetadataCandidate> {
+    private suspend fun deezerAlbumTracks(
+        artist: String,
+        album: String,
+    ): List<MetadataCandidate> {
         val found = getJson<DeezerAlbums>("https://api.deezer.com/search/album") {
             parameter(
                 key = "q",
@@ -328,7 +350,10 @@ object MetadataSearch {
             )
         }.results.mapNotNull { it.toCandidate() }
 
-    private suspend fun itunesAlbumTracks(artist: String, album: String): List<MetadataCandidate> {
+    private suspend fun itunesAlbumTracks(
+        artist: String,
+        album: String,
+    ): List<MetadataCandidate> {
         val found = getJson<ItunesResults>("https://itunes.apple.com/search") {
             parameter(
                 key = "term",
@@ -428,7 +453,10 @@ object MetadataSearch {
         val artist: DeezerName,
         val album: DeezerAlbum? = null,
     ) {
-        fun toCandidate(album: String?, artworkUrl: String?) =
+        fun toCandidate(
+            album: String?,
+            artworkUrl: String?,
+        ) =
             MetadataCandidate(
                 title = title,
                 artist = artist.name,
@@ -487,7 +515,10 @@ object MetadataSearch {
     private class AcoustIdResponse(val results: List<AcoustIdResult> = emptyList())
 
     @Serializable
-    private class AcoustIdResult(val score: Double, val recordings: List<AcoustIdRecording> = emptyList())
+    private class AcoustIdResult(
+        val score: Double,
+        val recordings: List<AcoustIdRecording> = emptyList(),
+    )
 
     @Serializable
     private class AcoustIdRecording(
@@ -501,5 +532,8 @@ object MetadataSearch {
     private class AcoustIdName(val name: String)
 
     @Serializable
-    private class AcoustIdReleaseGroup(val id: String, val title: String? = null)
+    private class AcoustIdReleaseGroup(
+        val id: String,
+        val title: String? = null,
+    )
 }

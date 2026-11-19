@@ -29,7 +29,10 @@ class NetworkClient {
     private var connectionClient: HttpClient? = null
     private var serverUrl = ""
 
-    private class Seen(val port: Int, val at: Long)
+    private class Seen(
+        val port: Int,
+        val at: Long,
+    )
 
     fun startDiscovery(onServersChanged: (Map<String, Int>) -> Unit) {
         if (discoveryJob != null) {
@@ -63,7 +66,11 @@ class NetworkClient {
     }
 
     /** A server typed in by hand never announces itself, so it never goes stale. */
-    fun addCustomServer(address: String, port: Int, onServersChanged: (Map<String, Int>) -> Unit) {
+    fun addCustomServer(
+        address: String,
+        port: Int,
+        onServersChanged: (Map<String, Int>) -> Unit,
+    ) {
         scope.launch(discoveryContext) {
             servers[address] = Seen(
                 port = port,
@@ -180,7 +187,10 @@ class NetworkClient {
     }
 
     /** A request to the connected server, about its song at [path] when given. */
-    private suspend fun get(route: String, path: String? = null): HttpResponse {
+    private suspend fun get(
+        route: String,
+        path: String? = null,
+    ): HttpResponse {
         val client = checkNotNull(connectionClient) { "Not connected" }
         return client.get("$serverUrl$route") {
             path?.let {

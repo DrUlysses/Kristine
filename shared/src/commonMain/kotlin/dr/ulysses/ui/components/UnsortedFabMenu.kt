@@ -63,7 +63,10 @@ fun UnsortedFabMenu() {
         label = "fabScale"
     )
 
-    fun run(operation: OperationType, progress: Flow<SongRepository.Progress>) {
+    fun run(
+        operation: OperationType,
+        progress: Flow<SongRepository.Progress>,
+    ) {
         state = state.copy(
             showRemoveDialog = false,
             showUpdateDurationDialog = false,

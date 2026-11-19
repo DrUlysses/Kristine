@@ -23,7 +23,6 @@ import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import dr.ulysses.entities.Song
-import dr.ulysses.entities.SongRepository
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.player.Player
 import dr.ulysses.player.RepeatMode
@@ -141,7 +140,10 @@ fun Player(onManageSong: (Song) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NowPlaying(onDismiss: () -> Unit, onManageSong: (Song) -> Unit) {
+private fun NowPlaying(
+    onDismiss: () -> Unit,
+    onManageSong: (Song) -> Unit,
+) {
     val state = Player.state
     val song = state.currentSong
     var position by rememberPosition(
@@ -379,7 +381,12 @@ private fun NowPlaying(onDismiss: () -> Unit, onManageSong: (Song) -> Unit) {
 }
 
 @Composable
-private fun ToggleIcon(icon: ImageVector, active: Boolean, description: String, onClick: () -> Unit) {
+private fun ToggleIcon(
+    icon: ImageVector,
+    active: Boolean,
+    description: String,
+    onClick: () -> Unit,
+) {
     IconButton(
         onClick = onClick
     ) {
@@ -397,7 +404,10 @@ private fun ToggleIcon(icon: ImageVector, active: Boolean, description: String, 
 
 /** Artwork from the song or the DB, or a note icon on a tinted square. */
 @Composable
-fun SongArtwork(song: Song?, modifier: Modifier = Modifier) {
+fun SongArtwork(
+    song: Song?,
+    modifier: Modifier = Modifier,
+) {
     val path = song?.path
     // Keyed by path: a new song must never show the previous song's artwork while its own loads;
     // and by the bytes, so artwork edited on the same song (Manage Unsorted) shows up
@@ -446,7 +456,10 @@ fun SongArtwork(song: Song?, modifier: Modifier = Modifier) {
 // Recently shown artwork, so queue rows and the player don't hit the DB again; null = song has none
 private val artworkCache = mutableMapOf<String, ByteArray?>()
 
-private fun rememberArtwork(path: String, artwork: ByteArray?) {
+private fun rememberArtwork(
+    path: String,
+    artwork: ByteArray?,
+) {
     if (artworkCache.size >= 200) {
         artworkCache.remove(artworkCache.keys.first())
     }
@@ -460,7 +473,10 @@ internal fun forgetArtwork(path: String) {
 
 /** Playback position in seconds, polled while playing and read once when paused. */
 @Composable
-private fun rememberPosition(song: Song?, isPlaying: Boolean): MutableState<Int> {
+private fun rememberPosition(
+    song: Song?,
+    isPlaying: Boolean,
+): MutableState<Int> {
     val position = remember(song?.path) { mutableStateOf(0) }
     LaunchedEffect(
         key1 = song?.path,
@@ -477,7 +493,10 @@ private fun rememberPosition(song: Song?, isPlaying: Boolean): MutableState<Int>
     return position
 }
 
-private fun progressOf(position: Int, song: Song?): Float {
+private fun progressOf(
+    position: Int,
+    song: Song?,
+): Float {
     val duration = song?.duration ?: 0
     return if (duration > 0) {
         (position.toFloat() / duration).coerceIn(
@@ -490,7 +509,7 @@ private fun progressOf(position: Int, song: Song?): Float {
 }
 
 // m:ss
-private fun formatTime(seconds: Int): String =
+internal fun formatTime(seconds: Int): String =
     if (seconds <= 0) {
         "0:00"
     } else {

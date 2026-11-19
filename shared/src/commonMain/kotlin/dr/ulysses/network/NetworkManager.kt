@@ -42,7 +42,11 @@ object NetworkManager {
     val remoteLibrary: StateFlow<Library?> = _remoteLibrary.asStateFlow()
 
     /** A server that presented a different certificate than the one pinned for it. */
-    data class CertificateChange(val address: String, val port: Int, val fingerprint: String)
+    data class CertificateChange(
+        val address: String,
+        val port: Int,
+        val fingerprint: String,
+    )
 
     private val _certificateChange = MutableStateFlow<CertificateChange?>(null)
     val certificateChange: StateFlow<CertificateChange?> = _certificateChange.asStateFlow()
@@ -74,7 +78,10 @@ object NetworkManager {
         client.disconnect()
     }
 
-    fun connectToCustomServer(address: String, port: Int) {
+    fun connectToCustomServer(
+        address: String,
+        port: Int,
+    ) {
         client.addCustomServer(
             address = address,
             port = port
@@ -85,7 +92,10 @@ object NetworkManager {
         )
     }
 
-    fun connect(address: String, port: Int) = scope.launch {
+    fun connect(
+        address: String,
+        port: Int,
+    ) = scope.launch {
         _currentServer.value = address to port
         _certificateChange.value = null
         client.connect(
@@ -107,7 +117,9 @@ object NetworkManager {
                 _isConnected.value = connected
                 if (connected) {
                     scope.launch {
-                        val library = runCatching { client.fetchLibrary() }.onFailure { Logger.e(it) { "Loading the library of $address failed" } }.getOrNull()
+                        val library =
+                            runCatching { client.fetchLibrary() }.onFailure { Logger.e(it) { "Loading the library of $address failed" } }
+                                .getOrNull()
                         // The connection may have dropped while loading
                         if (_isConnected.value) {
                             _remoteLibrary.value = library

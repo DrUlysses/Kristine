@@ -23,6 +23,7 @@ import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.loadArtworkFromFile
 import dr.ulysses.models.MainViewModel
+import dr.ulysses.ui.elements.SongDownloadButton
 import dr.ulysses.ui.elements.SongListEntry
 import kotlin.math.roundToInt
 
@@ -94,6 +95,7 @@ actual fun SongsList(
                         title = song.title,
                         artist = song.artist,
                         isAvailable = song.state != Song.State.NotDownloaded,
+                        trailing = { SongDownloadButton(song) },
                         onClick = { onClick(song) },
                         modifier = if (!rearrangeable) {
                             Modifier

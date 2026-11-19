@@ -12,6 +12,7 @@ enum class SettingKey {
     PlaylistPath,
     DefaultServerAddress,
     AcoustIdApiKey, // free application key from acoustid.org, for identifying songs by their sound
+    YtDlpPath, // desktop: the yt-dlp program, when it isn't on the PATH
 }
 
 @Serializable

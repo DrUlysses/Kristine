@@ -70,4 +70,9 @@ internal object ServerCertificate {
 /** SHA-256 of the certificate, as colon-separated hex like browsers show it. */
 internal fun Certificate.fingerprint(): String =
     MessageDigest.getInstance("SHA-256").digest(encoded)
-        .joinToString(":") { it.toUByte().toString(16).padStart(2, '0').uppercase() }
+        .joinToString(":") {
+            it.toUByte().toString(16).padStart(
+                length = 2,
+                padChar = '0'
+            ).uppercase()
+        }

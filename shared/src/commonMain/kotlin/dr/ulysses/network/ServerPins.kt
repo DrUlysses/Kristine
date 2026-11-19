@@ -13,7 +13,10 @@ object ServerPins : KoinComponent {
         db.serverPinQueries.selectFingerprint(address).awaitAsOneOrNull()
     }
 
-    suspend fun save(address: String, fingerprint: String) = sharedDatabase { db ->
+    suspend fun save(
+        address: String,
+        fingerprint: String,
+    ) = sharedDatabase { db ->
         db.serverPinQueries.upsert(
             address = address,
             fingerprint = fingerprint

@@ -8,16 +8,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.overscroll
 import androidx.compose.foundation.rememberOverscrollEffect
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Playlist
+import dr.ulysses.entities.PlaylistRepository
 import dr.ulysses.entities.Song
-import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.base.Searchable
+import dr.ulysses.models.MainViewModel
 import dr.ulysses.ui.elements.PlaylistListEntry
+import dr.ulysses.ui.elements.SongDownloadButton
 import dr.ulysses.ui.elements.SongListEntry
 
 @Composable
@@ -44,23 +44,28 @@ fun SearchList(
                 ) { entry ->
                     when (entry) {
                         is Song -> {
-                            val image: ByteArray? = remember { entry.artwork }
-                            image ?: LaunchedEffect(image) {
-                                SongRepository.getArtwork(entry.path)
+                            var image: ByteArray? by remember { mutableStateOf(entry.artwork) }
+                            if (image == null) {
+                                LaunchedEffect(entry.path) {
+                                    image = MainViewModel.artwork(entry.path)
+                                }
                             }
                             SongListEntry(
                                 image = image,
                                 title = entry.title,
                                 artist = entry.artist,
                                 isAvailable = entry.state != Song.State.NotDownloaded,
+                                trailing = { SongDownloadButton(entry) },
                                 onClick = { onSongClicked(entry) }
                             )
                         }
 
                         is Playlist -> {
-                            val image: ByteArray? = remember { entry.artwork }
-                            image ?: LaunchedEffect(image) {
-                                SongRepository.getArtwork(entry.name)
+                            var image: ByteArray? by remember { mutableStateOf(entry.artwork) }
+                            if (image == null) {
+                                LaunchedEffect(entry.name) {
+                                    image = PlaylistRepository.getArtwork(entry.name)
+                                }
                             }
                             PlaylistListEntry(
                                 image = image,

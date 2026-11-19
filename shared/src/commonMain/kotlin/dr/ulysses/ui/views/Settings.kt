@@ -93,7 +93,11 @@ private class SettingsState(
         onSongsPathChanged(false)
     }
 
-    fun updateSetting(key: SettingKey, value: String, scope: CoroutineScope) {
+    fun updateSetting(
+        key: SettingKey,
+        value: String,
+        scope: CoroutineScope,
+    ) {
         currentSettings = currentSettings + (key to value)
         val job = scope.launch {
             SettingsRepository.upsert(
