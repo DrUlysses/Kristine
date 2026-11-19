@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.loadArtworkFromFile
+import dr.ulysses.models.MainViewModel
 import dr.ulysses.ui.elements.SongListEntry
 import kotlin.math.roundToInt
 
@@ -69,9 +70,12 @@ actual fun SongsList(
                     var image: ByteArray? by remember { mutableStateOf(song.artwork) }
                     if (image == null) {
                         LaunchedEffect(song.path) {
-                            image = SongRepository.getArtwork(song.path)
-                            // Not stored yet: read it from the file once and keep it (NotDownloaded has no file)
-                            if (image == null && song.state != Song.State.NotDownloaded &&
+                            image = MainViewModel.artwork(song.path)
+                            // Not stored yet: read it from the file once and keep it (NotDownloaded and server songs have no file here)
+                            if (
+                                image == null &&
+                                song.state != Song.State.NotDownloaded &&
+                                !MainViewModel.isRemote &&
                                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
                             ) {
                                 image = loadArtworkFromFile(song.path)

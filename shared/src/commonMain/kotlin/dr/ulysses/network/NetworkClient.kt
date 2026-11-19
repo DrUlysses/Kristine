@@ -27,6 +27,7 @@ class NetworkClient {
 
     // Each connection has its own client, because the client holds that server's pinned certificate
     private var connectionClient: HttpClient? = null
+    private var serverUrl = ""
 
     private class Seen(val port: Int, val at: Long)
 
@@ -102,6 +103,7 @@ class NetworkClient {
                 }
             }
             connectionClient = client
+            serverUrl = "https://$address:$port"
             try {
                 client.wss(
                     host = address,
@@ -155,17 +157,39 @@ class NetworkClient {
         }
     }
 
+    suspend fun fetchLibrary(): Library {
+        val response = get(LIBRARY_ROUTE)
+        check(response.status.isSuccess()) { "Library: ${response.status}" }
+        return Json.decodeFromString(response.bodyAsText())
+    }
+
+    /** Null when the server has no artwork for [path]. */
+    suspend fun fetchArtwork(path: String): ByteArray? = get(
+        route = ARTWORK_ROUTE,
+        path = path
+    ).takeIf { it.status.isSuccess() }?.bodyAsBytes()
+
     /** A whole song file of the server's current window. */
-    suspend fun downloadSong(address: String, port: Int, path: String): ByteArray {
-        val client = checkNotNull(connectionClient) { "Not connected" }
-        val response = client.get("https://$address:$port$SONG_ROUTE") {
-            parameter(
-                key = "path",
-                value = path
-            )
-        }
+    suspend fun downloadSong(path: String): ByteArray {
+        val response = get(
+            route = SONG_ROUTE,
+            path = path
+        )
         check(response.status.isSuccess()) { "Download of $path: ${response.status}" }
         return response.bodyAsBytes()
+    }
+
+    /** A request to the connected server, about its song at [path] when given. */
+    private suspend fun get(route: String, path: String? = null): HttpResponse {
+        val client = checkNotNull(connectionClient) { "Not connected" }
+        return client.get("$serverUrl$route") {
+            path?.let {
+                parameter(
+                    key = "path",
+                    value = it
+                )
+            }
+        }
     }
 
     private companion object {

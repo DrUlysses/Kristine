@@ -19,7 +19,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
-import dr.ulysses.entities.SongRepository
+import dr.ulysses.models.MainViewModel
 import dr.ulysses.ui.elements.SongListEntry
 import kotlin.math.roundToInt
 
@@ -64,9 +64,11 @@ actual fun SongsList(
                     items = rememberedSongs
                 ) { index, song ->
                     val isDragging = draggedIndex == index
-                    val image: ByteArray? = remember { song.artwork }
-                    image ?: LaunchedEffect(image) {
-                        SongRepository.getArtwork(song.path)
+                    var image: ByteArray? by remember { mutableStateOf(song.artwork) }
+                    if (image == null) {
+                        LaunchedEffect(song.path) {
+                            image = MainViewModel.artwork(song.path)
+                        }
                     }
                     SongListEntry(
                         image = image,

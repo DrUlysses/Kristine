@@ -1,6 +1,7 @@
 package dr.ulysses.network
 
 import dr.ulysses.Logger
+import dr.ulysses.entities.PlaylistRepository
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.localFilePath
 import dr.ulysses.player.Player
@@ -24,6 +25,7 @@ import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.Json
 import java.net.NetworkInterface
+import kotlin.use
 
 actual class NetworkServer {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -53,8 +55,7 @@ actual class NetworkServer {
                 port = 0
             )
         ) { broadcast = true }
-        val port = (socket.localAddress as InetSocketAddress).port
-        startHttpServer(port)
+        val port = startHttpServer()
         server = ServerInfo(
             port = port,
             addresses = localIpv4Addresses(),
@@ -96,7 +97,8 @@ actual class NetworkServer {
 
     // TLS only: the plain server listens on loopback, and the LAN reaches it through the TLS front on [port].
     // Clients pin the certificate's fingerprint on their first connection
-    private suspend fun startHttpServer(port: Int) {
+    /** Returns the port the LAN reaches the server on. */
+    private suspend fun startHttpServer(): Int {
         val server = embeddedServer(
             factory = CIO,
             host = "127.0.0.1",
@@ -105,6 +107,17 @@ actual class NetworkServer {
             install(WebSockets) {
                 contentConverter = KotlinxWebsocketSerializationConverter(Json)
             }
+            // The web app is served from another origin
+            install(
+                createApplicationPlugin("AllowAnyOrigin") {
+                    onCall { call ->
+                        call.response.header(
+                            name = HttpHeaders.AccessControlAllowOrigin,
+                            value = "*"
+                        )
+                    }
+                }
+            )
             routing {
                 webSocket("/player") {
                     sessions.update { it + this }
@@ -123,6 +136,33 @@ actual class NetworkServer {
                         sessions.update { it - this }
                     }
                 }
+                get(LIBRARY_ROUTE) {
+                    // Neither query loads artwork; it comes per song from ARTWORK_ROUTE
+                    val library = Library(
+                        songs = SongRepository.getAllSongs(),
+                        playlists = PlaylistRepository.getAllPlaylists().map { playlist ->
+                            playlist.copy(
+                                songs = PlaylistRepository.getPlaylistSongs(playlist.name)
+                            )
+                        }
+                    )
+                    call.respondText(
+                        text = Json.encodeToString(library),
+                        contentType = ContentType.Application.Json
+                    )
+                }
+                get(ARTWORK_ROUTE) {
+                    // shortcut: only artwork already stored in the DB; an Android server stores it once a list showed the song
+                    val artwork = call.request.queryParameters["path"]?.let { SongRepository.getArtwork(it) }
+                    if (artwork == null) {
+                        call.respond(HttpStatusCode.NotFound)
+                    } else {
+                        call.respondBytes(
+                            bytes = artwork,
+                            contentType = ContentType.Application.OctetStream
+                        )
+                    }
+                }
                 get(SONG_ROUTE) {
                     val path = call.request.queryParameters["path"]
                     if (path == null || path !in windowPaths) {
@@ -132,10 +172,6 @@ actual class NetworkServer {
                     val bytes = withContext(Dispatchers.IO) {
                         SystemFileSystem.source(Path(localFilePath(path))).buffered().use { it.readByteArray() }
                     }
-                    call.response.header(
-                        name = HttpHeaders.AccessControlAllowOrigin,
-                        value = "*"
-                    )
                     call.respondBytes(
                         bytes = bytes,
                         contentType = ContentType.Application.OctetStream
@@ -146,12 +182,18 @@ actual class NetworkServer {
             wait = false
         )
         httpServer = server
-        tlsFront = TlsFront(
+        val backendPort = server.engine.resolvedConnectors().first().port
+        fun front(port: Int) = TlsFront(
             keyStore = ServerCertificate.keyStore,
             password = ServerCertificate.PASSWORD.toCharArray(),
             port = port,
-            backendPort = server.engine.resolvedConnectors().first().port
-        ).also { it.start(scope) }
+            backendPort = backendPort
+        )
+        // A fixed port, so a browser keeps the certificate exception it was given; any free one when it's taken
+        val front = runCatching { front(SERVER_PORT) }.getOrElse { front(0) }
+        front.start(scope)
+        tlsFront = front
+        return front.port
     }
 
     private suspend fun handle(command: WebSocketCommand) {
@@ -161,9 +203,9 @@ actual class NetworkServer {
             is PlaySongCommand -> SongRepository.findMatch(command.song)?.let { Player.onPlaySongCommand(it) }
 
             is SetPlaylistCommand -> {
-                val current = command.songs.getOrNull(command.currentSongIndex)?.let { SongRepository.findMatch(it) }
-                Player.onSongsChanged(command.songs.mapNotNull { SongRepository.findMatch(it) })
-                current?.let { Player.onPlaySongCommand(it) }
+                val matches = SongRepository.findMatches(command.songs)
+                Player.onSongsChanged(matches.filterNotNull())
+                matches.getOrNull(command.currentSongIndex)?.let { Player.onPlaySongCommand(it) }
             }
 
             PauseCommand -> Player.onPauseCommand()
@@ -209,12 +251,33 @@ actual class NetworkServer {
         }
     }
 
+    /** This device's LAN addresses, the one other devices most likely reach first. */
     // shortcut: Ktor has no API to list network interfaces, so this one call stays on java.net
-    private fun localIpv4Addresses(): List<String> = NetworkInterface.getNetworkInterfaces().toList()
-        .flatMap { it.inetAddresses.toList() }
-        .filter { !it.isLoopbackAddress && it.address.size == 4 }
-        .map { it.address.toIpv4() }
+    private suspend fun localIpv4Addresses(): List<String> {
+        val addresses = NetworkInterface.getNetworkInterfaces().toList()
+            .filter { it.isUp && !VIRTUAL_INTERFACE.containsMatchIn(it.name) }
+            .flatMap { it.inetAddresses.toList() }
+            .filter { !it.isLoopbackAddress && it.address.size == 4 }
+            .map { it.address.toIpv4() }
+        val routed = defaultRouteAddress()
+        return addresses.sortedByDescending { it == routed }
+    }
+
+    /** The address the default route leaves from; connecting a UDP socket picks the route without sending anything. */
+    private suspend fun defaultRouteAddress(): String? = runCatching {
+        SelectorManager(Dispatchers.IO).use { selector ->
+            aSocket(selector).udp().connect(
+                remoteAddress = InetSocketAddress(
+                    hostname = "192.0.2.1", // TEST-NET-1: never answered, only routed
+                    port = 9
+                )
+            ).use { (it.localAddress as InetSocketAddress).resolveAddress()?.toIpv4() }
+        }
+    }.getOrNull()
 }
+
+// Docker, VM and container bridges only reach this machine's own containers and VMs
+private val VIRTUAL_INTERFACE = Regex("^(docker|br-|veth|virbr|vmnet|vboxnet)")
 
 private fun ByteArray.toIpv4() = joinToString(".") { (it.toInt() and 0xff).toString() }
 

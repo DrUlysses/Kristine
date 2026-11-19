@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
+import dr.ulysses.models.MainViewModel
 import dr.ulysses.ui.elements.SongListEntry
 import org.jaudiotagger.audio.AudioFileIO
 import kotlin.io.path.Path
@@ -67,10 +68,10 @@ actual fun SongsList(
                     var image: ByteArray? by remember { mutableStateOf(song.artwork) }
                     if (image == null) {
                         LaunchedEffect(song.path) {
-                            image = SongRepository.getArtwork(song.path)
+                            image = MainViewModel.artwork(song.path)
 
-                            // A NotDownloaded song has no file to read
-                            if (image == null && song.state != Song.State.NotDownloaded) {
+                            // A NotDownloaded song has no file to read, and a server's song no file here
+                            if (image == null && song.state != Song.State.NotDownloaded && !MainViewModel.isRemote) {
                                 runCatching {
                                     image = AudioFileIO
                                         .read(Path(song.path.substringAfter("file:///")).toFile())

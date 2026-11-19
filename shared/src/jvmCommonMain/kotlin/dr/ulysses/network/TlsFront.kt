@@ -32,6 +32,9 @@ internal class TlsFront(keyStore: KeyStore, password: CharArray, port: Int, priv
         )
     }.serverSocketFactory.createServerSocket(port)
 
+    /** The port actually listened on; differs from the requested one when that was 0. */
+    val port: Int get() = serverSocket.localPort
+
     fun start(scope: CoroutineScope): Job = scope.launch(Dispatchers.IO) {
         try {
             while (isActive) {

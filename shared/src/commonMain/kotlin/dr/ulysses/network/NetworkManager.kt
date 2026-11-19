@@ -34,6 +34,13 @@ object NetworkManager {
 
     private val _isConnected = MutableStateFlow(false)
 
+    /** False while [currentServer] is still being connected to. */
+    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+
+    /** The connected server's songs and playlists, shown instead of this device's; null when not connected. */
+    private val _remoteLibrary = MutableStateFlow<Library?>(null)
+    val remoteLibrary: StateFlow<Library?> = _remoteLibrary.asStateFlow()
+
     /** A server that presented a different certificate than the one pinned for it. */
     data class CertificateChange(val address: String, val port: Int, val fingerprint: String)
 
@@ -98,8 +105,17 @@ object NetworkManager {
             },
             onConnectionChanged = { connected ->
                 _isConnected.value = connected
-                if (!connected) {
+                if (connected) {
+                    scope.launch {
+                        val library = runCatching { client.fetchLibrary() }.onFailure { Logger.e(it) { "Loading the library of $address failed" } }.getOrNull()
+                        // The connection may have dropped while loading
+                        if (_isConnected.value) {
+                            _remoteLibrary.value = library
+                        }
+                    }
+                } else {
                     _currentServer.value = null
+                    _remoteLibrary.value = null
                     stopFollowing()
                 }
                 Player.setRemote(connected)
@@ -139,10 +155,13 @@ object NetworkManager {
         _certificateChange.value = null
     }
 
+    suspend fun remoteArtwork(path: String): ByteArray? = runCatching { client.fetchArtwork(path) }.getOrNull()
+
     fun disconnect() {
         client.disconnect()
         _isConnected.value = false
         _currentServer.value = null
+        _remoteLibrary.value = null
         stopFollowing()
         Player.setRemote(false)
     }
@@ -164,27 +183,14 @@ object NetworkManager {
     private fun follow(window: QueueWindowUpdate) {
         followJob?.cancel()
         followJob = scope.launch {
-            val (address, port) = _currentServer.value ?: return@launch
             try {
-                val current = window.current?.let {
-                    localCopy(
-                        song = it,
-                        address = address,
-                        port = port
-                    )
-                }
+                val current = window.current?.let { localCopy(it) }
                 Player.followOnDevice(
                     song = current,
                     isPlaying = window.isPlaying
                 )
                 // The neighbours come ahead of time, so skipping doesn't wait for a download
-                listOfNotNull(window.next, window.previous).forEach {
-                    localCopy(
-                        song = it,
-                        address = address,
-                        port = port
-                    )
-                }
+                listOfNotNull(window.next, window.previous).forEach { localCopy(it) }
                 songCache.retain(window.songs.mapTo(HashSet()) { it.path })
             } catch (e: Exception) {
                 ensureActive()
@@ -193,14 +199,8 @@ object NetworkManager {
         }
     }
 
-    private suspend fun localCopy(song: Song, address: String, port: Int): Song? =
-        SongRepository.findMatch(song) ?: songCache.pathFor(song.path) {
-            client.downloadSong(
-                address = address,
-                port = port,
-                path = song.path
-            )
-        }?.let {
+    private suspend fun localCopy(song: Song): Song? =
+        SongRepository.findMatch(song) ?: songCache.pathFor(song.path) { client.downloadSong(song.path) }?.let {
             song.copy(
                 path = it
             )

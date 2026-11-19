@@ -24,6 +24,7 @@ import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
+import dr.ulysses.models.MainViewModel
 import dr.ulysses.player.Player
 import dr.ulysses.player.RepeatMode
 import kotlinx.coroutines.delay
@@ -408,7 +409,7 @@ fun SongArtwork(song: Song?, modifier: Modifier = Modifier) {
         if (path == null || artwork != null || path in artworkCache) {
             return@LaunchedEffect
         }
-        artwork = SongRepository.getArtwork(path)
+        artwork = MainViewModel.artwork(path)
         rememberArtwork(
             path = path,
             artwork = artwork

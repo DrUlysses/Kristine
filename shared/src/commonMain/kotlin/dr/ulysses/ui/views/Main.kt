@@ -69,10 +69,12 @@ fun Main() {
 
     val navStack = rememberNavBackStack(config, Songs)
     var pendingRoute by remember { mutableStateOf<NavKey?>(null) }
-    val serverConnection by NetworkManager.currentServer.collectAsState()
+    val remoteLibrary by NetworkManager.remoteLibrary.collectAsState()
 
-    LaunchedEffect(serverConnection) {
+    // Connecting and disconnecting switch between the server's library and this device's
+    LaunchedEffect(remoteLibrary) {
         MainViewModel.loadSongs()
+        MainViewModel.loadPlaylists()
     }
 
     PermissionsAlert(
@@ -221,7 +223,7 @@ fun Main() {
                             entry<PlaylistSongs> {
                                 var songs by remember { mutableStateOf(emptyList<Song>()) }
                                 LaunchedEffect(state.currentPlaylist.name) {
-                                    songs = PlaylistRepository.getPlaylistSongs(state.currentPlaylist.name)
+                                    songs = MainViewModel.playlistSongs(state.currentPlaylist.name)
                                 }
                                 SongsList(
                                     songs = songs,

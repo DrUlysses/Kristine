@@ -138,22 +138,21 @@ object SongRepository : KoinComponent {
      * This library's copy of a song from another device: the same path, else the same file name in the most
      * similar folders (as in [syncWithScan]), else the only song with the same title and artist.
      */
-    suspend fun findMatch(song: Song): Song? {
-        val songs = getAllSongs().filter { it.state != Song.State.NotDownloaded }
-        songs.find { it.path == song.path }?.let { return it }
-        val sameName = songs.filter { fileName(it.path) == fileName(song.path) }
-        closestPath(
-            path = song.path,
-            candidates = sameName.map { it.path }
-        )?.let { path -> return sameName.first { it.path == path } }
-        return songs.singleOrNull {
-            it.title.equals(
-                other = song.title,
-                ignoreCase = true
-            ) && it.artist.equals(
-                other = song.artist,
-                ignoreCase = true
-            )
+    suspend fun findMatch(song: Song): Song? = findMatches(listOf(song)).single()
+
+    /** [findMatch] for many songs at once, e.g. a whole queue, reading the library only once. */
+    suspend fun findMatches(songs: List<Song>): List<Song?> {
+        val library = getAllSongs().filter { it.state != Song.State.NotDownloaded }
+        val byPath = library.associateBy { it.path }
+        val byFileName = library.groupBy { fileName(it.path) }
+        val byTitleAndArtist = library.groupBy { it.title.lowercase() to it.artist.lowercase() }
+        return songs.map { song ->
+            byPath[song.path] ?: byFileName[fileName(song.path)]?.let { sameName ->
+                closestPath(
+                    path = song.path,
+                    candidates = sameName.map { it.path }
+                )?.let { path -> sameName.first { it.path == path } }
+            } ?: byTitleAndArtist[song.title.lowercase() to song.artist.lowercase()]?.singleOrNull()
         }
     }
 

@@ -6,6 +6,7 @@ import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.setValue
 import dr.ulysses.Logger
 import dr.ulysses.entities.*
+import dr.ulysses.network.NetworkManager
 import dr.ulysses.ui.views.forgetArtwork
 import dr.ulysses.ui.views.onSongSave
 import kotlinx.coroutines.*
@@ -25,13 +26,13 @@ object MainViewModel {
         loadSongs()
     }
 
-    /** This device's library; as a remote control too, picked songs are matched to the server's copies. */
+    /** The connected server's library, otherwise this device's. */
     fun loadSongs() {
         scope.launch {
             state = state.copy(
                 isLoadingSongs = true
             )
-            val songs = SongRepository.getAllSongs()
+            val songs = remoteLibrary?.songs ?: SongRepository.getAllSongs()
             state = state.copy(
                 allSongs = songs,
                 isLoadingSongs = false
@@ -53,11 +54,26 @@ object MainViewModel {
                 isLoadingPlaylists = true
             )
             state = state.copy(
-                currentPlaylists = PlaylistRepository.getAllPlaylists(),
+                currentPlaylists = remoteLibrary?.playlists ?: PlaylistRepository.getAllPlaylists(),
                 isLoadingPlaylists = false
             )
         }
     }
+
+    /** The artwork of a listed song: from the connected server, otherwise from this device. */
+    suspend fun artwork(path: String): ByteArray? = if (isRemote) {
+        NetworkManager.remoteArtwork(path)
+    } else {
+        SongRepository.getArtwork(path)
+    }
+
+    /** The lists show the connected server's library. */
+    val isRemote get() = remoteLibrary != null
+
+    suspend fun playlistSongs(name: String): List<Song> =
+        remoteLibrary?.playlists?.find { it.name == name }?.songs ?: PlaylistRepository.getPlaylistSongs(name)
+
+    private val remoteLibrary get() = NetworkManager.remoteLibrary.value
 
     /** The DB keeps the edit even when the file can't be written, e.g. without storage permission. */
     suspend fun saveSong(song: Song) = withContext(Dispatchers.Default) {
