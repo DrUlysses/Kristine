@@ -11,8 +11,6 @@ enum class SettingKey {
     SongsPath,
     PlaylistPath,
     DefaultServerAddress,
-    SpotifyClientId,
-    SpotifyClientSecret,
     AcoustIdApiKey, // free application key from acoustid.org, for identifying songs by their sound
 }
 

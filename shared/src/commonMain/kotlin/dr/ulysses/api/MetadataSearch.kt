@@ -57,7 +57,7 @@ object MetadataSearch {
         val album = song.album?.takeUnless { it.isBlank() || it.equals("Unknown album", ignoreCase = true) }
 
         val lookups = buildList<suspend () -> List<MetadataCandidate>> {
-            queries.forEach { query -> listOf(::spotify, ::deezer, ::itunes).forEach { add { it(query) } } }
+            queries.forEach { query -> listOf(::deezer, ::itunes).forEach { add { it(query) } } }
             if (artist != null && album != null) {
                 add { deezerAlbumTracks(artist, album) }
                 add { itunesAlbumTracks(artist, album) }
@@ -158,8 +158,6 @@ object MetadataSearch {
         val sound = 1.5 * (candidate.soundMatch ?: 0.0)
         return text + albumMatch + lengthMatch + sound
     }
-
-    private suspend fun spotify(query: String) = SpotifyAppApi.searchTrack(query).getOrThrow()
 
     private suspend fun deezer(query: String): List<MetadataCandidate> =
         getJson<DeezerTracks>("https://api.deezer.com/search") {

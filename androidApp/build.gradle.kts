@@ -14,10 +14,6 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = libs.versions.kristine.get()
-
-        // Placeholder values for Spotify OAuth redirect
-        manifestPlaceholders["redirectHostName"] = "localhost"
-        manifestPlaceholders["redirectSchemeName"] = "kristine"
     }
     packaging {
         resources {
