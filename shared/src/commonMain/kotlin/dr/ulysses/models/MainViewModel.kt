@@ -6,7 +6,6 @@ import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.setValue
 import dr.ulysses.Logger
 import dr.ulysses.entities.*
-import dr.ulysses.network.NetworkManager
 import dr.ulysses.ui.views.forgetArtwork
 import dr.ulysses.ui.views.onSongSave
 import kotlinx.coroutines.*
@@ -26,13 +25,13 @@ object MainViewModel {
         loadSongs()
     }
 
-    /** The connected server's library, or the local one. */
+    /** This device's library; as a remote control too, picked songs are matched to the server's copies. */
     fun loadSongs() {
         scope.launch {
             state = state.copy(
                 isLoadingSongs = true
             )
-            val songs = NetworkManager.fetchSongsFromCurrentServer() ?: SongRepository.getAllSongs()
+            val songs = SongRepository.getAllSongs()
             state = state.copy(
                 allSongs = songs,
                 isLoadingSongs = false

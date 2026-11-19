@@ -59,6 +59,19 @@ fun LocalServerCard(
                     )
                 }
             }
+            localServer.fingerprint?.let { fingerprint ->
+                // Lets the user check, on a client's first connection, that it pinned this server
+                Text(
+                    text = "Certificate SHA-256",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(
+                        top = 8.dp
+                    )
+                )
+                LocalServerCardEntry(
+                    text = fingerprint,
+                )
+            }
         }
     }
 }

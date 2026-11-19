@@ -6,14 +6,9 @@ import android.provider.MediaStore
 import android.provider.MediaStore.MediaColumns.*
 import androidx.core.database.getIntOrNull
 import androidx.core.database.getStringOrNull
-import dr.ulysses.network.NetworkManager
 import org.koin.java.KoinJavaComponent.inject
 
 actual suspend fun refreshSongs(): List<Song> {
-    if (NetworkManager.currentServer.value != null) {
-        NetworkManager.fetchSongsFromCurrentServer()?.let { return it }
-    }
-
     val context: Context by inject(Context::class.java)
     val projection = arrayOf(_ID, TITLE, DURATION, DATA, ARTIST, ALBUM_ARTIST, COMPOSER, ALBUM)
     val selection = "${MediaStore.Audio.AudioColumns.IS_MUSIC}=1 AND $TITLE != '' AND $DURATION >= 10000"

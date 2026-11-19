@@ -1,11 +1,11 @@
 package dr.ulysses.network
 
 import dr.ulysses.Logger
-import dr.ulysses.entities.Song
 import io.ktor.client.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
@@ -15,11 +15,6 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
 class NetworkClient {
-    private val httpClient = HttpClient {
-        install(WebSockets) {
-            contentConverter = KotlinxWebsocketSerializationConverter(Json)
-        }
-    }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     // Every read and write of `servers` runs here, so the map needs no locking
@@ -29,6 +24,9 @@ class NetworkClient {
 
     private var connectionJob: Job? = null
     private var session: DefaultClientWebSocketSession? = null
+
+    // Each connection has its own client, because the client holds that server's pinned certificate
+    private var connectionClient: HttpClient? = null
 
     private class Seen(val port: Int, val at: Long)
 
@@ -77,23 +75,41 @@ class NetworkClient {
     // A copy, because StateFlow ignores a value equal to the previous one
     private fun snapshot() = servers.mapValues { it.value.port }
 
+    /**
+     * Connects over TLS, accepting only [pinnedFingerprint] (any certificate when null). [onCertificate] gets the
+     * fingerprint of a connected server, [onCertificateChanged] the one a server presented instead of the pinned one.
+     */
     fun connect(
         address: String,
         port: Int,
+        pinnedFingerprint: String?,
         onPlayerUpdate: (PlayerUpdate) -> Unit,
         onConnectionChanged: (Boolean) -> Unit,
+        onCertificate: suspend (String) -> Unit,
+        onCertificateChanged: (String) -> Unit,
     ) {
         if (connectionJob?.isActive == true) {
             return
         }
         connectionJob = scope.launch {
+            var presented: String? = null
+            val client = pinnedHttpClient(
+                pinnedFingerprint = pinnedFingerprint,
+                onCertificate = { presented = it }
+            ) {
+                install(WebSockets) {
+                    contentConverter = KotlinxWebsocketSerializationConverter(Json)
+                }
+            }
+            connectionClient = client
             try {
-                httpClient.webSocket(
+                client.wss(
                     host = address,
                     port = port,
                     path = "/player"
                 ) {
                     session = this
+                    presented?.let { onCertificate(it) }
                     onConnectionChanged(true)
                     for (frame in incoming) {
                         if (frame !is Frame.Text) {
@@ -106,10 +122,17 @@ class NetworkClient {
                 }
             } catch (e: Exception) {
                 currentCoroutineContext().ensureActive()
-                Logger.e(e) { "WebSocket connection to $address:$port failed" }
+                val changed = presented?.takeIf { pinnedFingerprint != null && it != pinnedFingerprint }
+                if (changed != null) {
+                    onCertificateChanged(changed)
+                } else {
+                    Logger.e(e) { "WebSocket connection to $address:$port failed" }
+                }
             } finally {
                 // Also runs when the server closes the socket, so the app falls back to local playback
                 session = null
+                connectionClient = null
+                client.close()
                 onConnectionChanged(false)
             }
         }
@@ -132,8 +155,18 @@ class NetworkClient {
         }
     }
 
-    suspend fun fetchSongs(address: String, port: Int): List<Song> =
-        Json.decodeFromString(httpClient.get("http://$address:$port/songs").bodyAsText())
+    /** A whole song file of the server's current window. */
+    suspend fun downloadSong(address: String, port: Int, path: String): ByteArray {
+        val client = checkNotNull(connectionClient) { "Not connected" }
+        val response = client.get("https://$address:$port$SONG_ROUTE") {
+            parameter(
+                key = "path",
+                value = path
+            )
+        }
+        check(response.status.isSuccess()) { "Download of $path: ${response.status}" }
+        return response.bodyAsBytes()
+    }
 
     private companion object {
         val SERVER_TIMEOUT = 15.seconds

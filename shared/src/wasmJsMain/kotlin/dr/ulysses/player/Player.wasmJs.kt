@@ -53,6 +53,13 @@ actual fun setPlayListOnDevice(songs: List<Song>) {
     }
 }
 
+actual fun removeFromPlayListOnDevice(index: Int) {
+    playlist = playlist.filterIndexed { i, _ -> i != index }
+    if (index < currentTrackIndex) {
+        currentTrackIndex--
+    }
+}
+
 actual fun pauseCurrentSongOnDevice() {
     audioElement?.pause()
 }

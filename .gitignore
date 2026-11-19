@@ -9,4 +9,9 @@ captures
 .cxx
 /.fleet/*
 /*.db
+# The desktop server's private key (ServerCertificate)
+/*.keystore
 pebbleApp/src/nativeInterop/cinterop/*.def
+graphify-out
+kotlin-js-store
+.kotlin

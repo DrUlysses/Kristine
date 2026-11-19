@@ -107,9 +107,14 @@ fun Main() {
     }
 
     fun close() {
+        val leaving = navStack.lastOrNull()
         navStack.removeLastOrNull()
         MainViewModel.closeDetail()
         scope.launch { pagerState.scrollToPage(MainViewModel.state.previousTabIndex) }
+        // Tags edited there show up in the lists, like after "Refresh songs"
+        if (leaving == ManageSong || leaving == ManageUnsortedList) {
+            MainViewModel.scanLibrary()
+        }
     }
 
     fun addPlaylist() {
@@ -265,11 +270,33 @@ fun Main() {
                             entry<ManageSong> {
                                 var unsortedSongs by remember { mutableStateOf(emptyList<Song>()) }
                                 LaunchedEffect(Unit) {
-                                    unsortedSongs = SongRepository.getByNotState(Song.State.Sorted)
+                                    val opened = MainViewModel.state.selectedSong
+                                    val unsorted = SongRepository.getByNotState(Song.State.Sorted)
+                                    // A song opened from the player may be sorted already: it comes first, then the unsorted ones
+                                    unsortedSongs = if (opened == null || unsorted.any { it.path == opened.path }) {
+                                        unsorted
+                                    } else {
+                                        listOf(opened) + unsorted
+                                    }
                                 }
                                 val currentSong = state.selectedSong
                                 // By path: the selected song is a draft whose title/artist may differ from the list's copy
                                 val currentSongIndex = unsortedSongs.indexOfFirst { it.path == currentSong?.path }
+
+                                // Another song takes the screen, so the one being left leaves the queue if it plays
+                                fun showSong(index: Int) {
+                                    if (currentSong != null && Player.state.currentSong?.path == currentSong.path) {
+                                        Player.onRemoveFromQueueCommand(currentSong)
+                                    }
+                                    val next = unsortedSongs.getOrNull(index)
+                                    if (next == null) {
+                                        // Past the last song there is nothing left to manage
+                                        MainViewModel.setSelectedSong(null)
+                                        close()
+                                        return
+                                    }
+                                    MainViewModel.setSelectedSong(next)
+                                }
                                 if (currentSong != null && unsortedSongs.isNotEmpty()) {
                                     ManageUnsortedSong(
                                         song = currentSong,
@@ -287,10 +314,10 @@ fun Main() {
                                                 }
                                         },
                                         onNextSong = {
-                                            MainViewModel.setSelectedSong(unsortedSongs.getOrNull(currentSongIndex + 1))
+                                            showSong(currentSongIndex + 1)
                                         },
                                         onPreviousSong = {
-                                            MainViewModel.setSelectedSong(unsortedSongs.getOrNull(currentSongIndex - 1))
+                                            showSong(currentSongIndex - 1)
                                         }
                                     )
                                 } else {
@@ -401,7 +428,21 @@ fun Main() {
                 }
             }
         },
-        bottomBar = { Player() },
+        bottomBar = {
+            Player(
+                onManageSong = { song ->
+                    scope.launch {
+                        // The player's copy has no artwork; saving it would erase the stored one
+                        val stored = SongRepository.getByPathOrNull(song.path) ?: return@launch
+                        MainViewModel.setSelectedSong(stored)
+                        open(
+                            title = editText,
+                            route = ManageSong
+                        )
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             val route = navStack.lastOrNull()
             when {
@@ -442,7 +483,6 @@ fun Main() {
                             scope.launch {
                                 MainViewModel.state.selectedSong?.let { MainViewModel.saveSong(it) }
                                 MainViewModel.setSelectedSong(null)
-                                MainViewModel.loadSongs()
                                 close()
                             }
                         }

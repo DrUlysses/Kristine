@@ -134,6 +134,29 @@ object SongRepository : KoinComponent {
 
     private fun fileName(path: String) = path.substringAfterLast('/')
 
+    /**
+     * This library's copy of a song from another device: the same path, else the same file name in the most
+     * similar folders (as in [syncWithScan]), else the only song with the same title and artist.
+     */
+    suspend fun findMatch(song: Song): Song? {
+        val songs = getAllSongs().filter { it.state != Song.State.NotDownloaded }
+        songs.find { it.path == song.path }?.let { return it }
+        val sameName = songs.filter { fileName(it.path) == fileName(song.path) }
+        closestPath(
+            path = song.path,
+            candidates = sameName.map { it.path }
+        )?.let { path -> return sameName.first { it.path == path } }
+        return songs.singleOrNull {
+            it.title.equals(
+                other = song.title,
+                ignoreCase = true
+            ) && it.artist.equals(
+                other = song.artist,
+                ignoreCase = true
+            )
+        }
+    }
+
     /** The candidate sharing the most trailing path segments with [path], or null on a tie. */
     private fun closestPath(path: String, candidates: List<String>): String? {
         val segments = path.split('/').asReversed()

@@ -2,6 +2,7 @@ package dr.ulysses.network
 
 import dr.ulysses.Logger
 import dr.ulysses.entities.SongRepository
+import dr.ulysses.entities.localFilePath
 import dr.ulysses.player.Player
 import io.ktor.http.*
 import io.ktor.network.selector.*
@@ -17,6 +18,10 @@ import io.ktor.utils.io.core.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.io.buffered
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
+import kotlinx.io.readByteArray
 import kotlinx.serialization.json.Json
 import java.net.NetworkInterface
 
@@ -24,15 +29,17 @@ actual class NetworkServer {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var broadcastJob: Job? = null
     private var httpServer: EmbeddedServer<*, *>? = null
+    private var tlsFront: TlsFront? = null
     private var server = ServerInfo(0)
     private val sessions = MutableStateFlow(emptySet<DefaultWebSocketSession>())
 
-    // A client that connects later needs both the current song and the play state
+    // A client that connects later gets the window right away
     @Volatile
-    private var lastNowPlaying: String? = null
+    private var lastWindow: String? = null
 
+    // Only these songs can be downloaded: the ones clients were told about
     @Volatile
-    private var lastPlaybackState: String? = null
+    private var windowPaths: Set<String> = emptySet()
 
     actual suspend fun start(): ServerInfo {
         if (broadcastJob != null) {
@@ -50,7 +57,8 @@ actual class NetworkServer {
         startHttpServer(port)
         server = ServerInfo(
             port = port,
-            addresses = localIpv4Addresses()
+            addresses = localIpv4Addresses(),
+            fingerprint = ServerCertificate.fingerprint
         )
         Logger.d { "Server started: $server" }
 
@@ -86,10 +94,13 @@ actual class NetworkServer {
         return server
     }
 
-    private fun startHttpServer(port: Int) {
-        httpServer = embeddedServer(
+    // TLS only: the plain server listens on loopback, and the LAN reaches it through the TLS front on [port].
+    // Clients pin the certificate's fingerprint on their first connection
+    private suspend fun startHttpServer(port: Int) {
+        val server = embeddedServer(
             factory = CIO,
-            port = port
+            host = "127.0.0.1",
+            port = 0
         ) {
             install(WebSockets) {
                 contentConverter = KotlinxWebsocketSerializationConverter(Json)
@@ -98,7 +109,7 @@ actual class NetworkServer {
                 webSocket("/player") {
                     sessions.update { it + this }
                     try {
-                        listOfNotNull(lastNowPlaying, lastPlaybackState).forEach { send(Frame.Text(it)) }
+                        lastWindow?.let { send(Frame.Text(it)) }
                         for (frame in incoming) {
                             if (frame !is Frame.Text) {
                                 continue
@@ -112,36 +123,47 @@ actual class NetworkServer {
                         sessions.update { it - this }
                     }
                 }
-                get("/songs") {
+                get(SONG_ROUTE) {
+                    val path = call.request.queryParameters["path"]
+                    if (path == null || path !in windowPaths) {
+                        return@get call.respond(HttpStatusCode.NotFound)
+                    }
+                    // shortcut: the whole file is read into memory, fine for one song at a time; stream it if many clients download at once
+                    val bytes = withContext(Dispatchers.IO) {
+                        SystemFileSystem.source(Path(localFilePath(path))).buffered().use { it.readByteArray() }
+                    }
                     call.response.header(
                         name = HttpHeaders.AccessControlAllowOrigin,
                         value = "*"
                     )
-                    call.respondText(
-                        text = Json.encodeToString(SongRepository.getAllSongs()),
-                        contentType = ContentType.Application.Json
+                    call.respondBytes(
+                        bytes = bytes,
+                        contentType = ContentType.Application.OctetStream
                     )
                 }
             }
         }.start(
             wait = false
         )
+        httpServer = server
+        tlsFront = TlsFront(
+            keyStore = ServerCertificate.keyStore,
+            password = ServerCertificate.PASSWORD.toCharArray(),
+            port = port,
+            backendPort = server.engine.resolvedConnectors().first().port
+        ).also { it.start(scope) }
     }
 
     private suspend fun handle(command: WebSocketCommand) {
+        // Anyone on the LAN can send commands, so only songs from this library are played; a client sends its own
+        // copies, which are looked up here
         when (command) {
-            is PlaySongCommand -> if (command.song.path in libraryPaths()) {
-                Player.onPlaySongCommand(command.song)
-            }
+            is PlaySongCommand -> SongRepository.findMatch(command.song)?.let { Player.onPlaySongCommand(it) }
 
             is SetPlaylistCommand -> {
-                // Anyone on the LAN can send commands, so only songs from this library are played
-                val library = libraryPaths()
-                val current = command.songs.getOrNull(command.currentSongIndex)
-                Player.onSongsChanged(command.songs.filter { it.path in library })
-                if (current != null && current.path in library) {
-                    Player.onPlaySongCommand(current)
-                }
+                val current = command.songs.getOrNull(command.currentSongIndex)?.let { SongRepository.findMatch(it) }
+                Player.onSongsChanged(command.songs.mapNotNull { SongRepository.findMatch(it) })
+                current?.let { Player.onPlaySongCommand(it) }
             }
 
             PauseCommand -> Player.onPauseCommand()
@@ -151,11 +173,11 @@ actual class NetworkServer {
         }
     }
 
-    private suspend fun libraryPaths() = SongRepository.getAllSongs().mapTo(HashSet()) { it.path }
-
     actual fun stop() {
         broadcastJob?.cancel()
         broadcastJob = null
+        tlsFront?.stop()
+        tlsFront = null
         httpServer?.stop(
             gracePeriodMillis = 1000,
             timeoutMillis = 2000
@@ -166,8 +188,10 @@ actual class NetworkServer {
     actual fun sendPlayerUpdate(update: PlayerUpdate) {
         val json = Json.encodeToString<PlayerUpdate>(update)
         when (update) {
-            is NowPlayingUpdate -> lastNowPlaying = json
-            is PlaybackStateUpdate -> lastPlaybackState = json
+            is QueueWindowUpdate -> {
+                lastWindow = json
+                windowPaths = update.songs.mapTo(HashSet()) { it.path }
+            }
         }
         val clients = sessions.value
         if (clients.isEmpty()) {

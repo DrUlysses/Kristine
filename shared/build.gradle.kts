@@ -88,6 +88,7 @@ kotlin {
             implementation(libs.jthink.jaudiotagger)
             implementation(libs.kotlinx.io.core)
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.ktor.network.tls.certificates)
         }
         androidMain.dependencies {
             implementation(libs.accompanist.permissions)

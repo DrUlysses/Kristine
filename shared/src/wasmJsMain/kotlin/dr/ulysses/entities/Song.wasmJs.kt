@@ -1,9 +1,7 @@
 package dr.ulysses.entities
 
-import dr.ulysses.network.NetworkManager
-
-// The browser has no file system: the library is whatever the connected server has
-actual suspend fun refreshSongs(): List<Song> = NetworkManager.fetchSongsFromCurrentServer().orEmpty()
+// The browser has no music folder to scan; it remote-controls a server, whose window it shows
+actual suspend fun refreshSongs(): List<Song> = SongRepository.getAllSongs()
 
 actual fun fileExists(path: String): Boolean = false
 

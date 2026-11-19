@@ -34,6 +34,12 @@ object Player {
     // The local queue survives a session as a remote control
     private var localState: PlayerState? = null
 
+    // As a remote control: the list the next picked song is played in, sent to the server along with it
+    private var remoteQueue: List<Song> = emptyList()
+
+    // The server song this device plays along with, as a local file path
+    private var followedPath: String? = null
+
     private val remote get() = state.isRemotePlaying
 
     // The track the app last asked the device for. Device reports lag behind fast clicking, so until the device
@@ -91,11 +97,89 @@ object Player {
         } else {
             state = localState ?: PlayerState()
             localState = null
+            remoteQueue = emptyList()
+            // The device played the server's songs; it gets the local queue back, paused
+            if (followedPath != null) {
+                followedPath = null
+                stopCurrentSongOnDevice()
+                setPlayListOnDevice(state.currentPlaylist.songs)
+            }
+        }
+    }
+
+    /** As a remote control: shows the server's queue window. */
+    fun onRemoteWindow(window: QueueWindowUpdate) {
+        if (!remote) {
+            return
+        }
+        setState {
+            copy(
+                currentSong = window.current,
+                isPlaying = window.isPlaying,
+                currentPlaylist = Playlist(
+                    name = "Server",
+                    songs = listOfNotNull(window.previous, window.current, window.next)
+                ),
+                currentTrackNum = if (window.previous != null) {
+                    1
+                } else {
+                    0
+                }
+            )
+        }
+    }
+
+    /** As a remote control that plays along: plays [song] (a local copy of the server's current song) on this device. */
+    fun followOnDevice(song: Song?, isPlaying: Boolean) {
+        if (!remote) {
+            return
+        }
+        if (song?.path != followedPath) {
+            followedPath = song?.path
+            if (song == null) {
+                stopCurrentSongOnDevice()
+                return
+            }
+            setPlayListOnDevice(listOf(song))
+            playTrackOnDevice(0)
+        }
+        if (song == null) {
+            return
+        }
+        if (isPlaying) {
+            resumeCurrentSongOnDevice()
+        } else {
+            pauseCurrentSongOnDevice()
         }
     }
 
     fun onPlaySongCommand(song: Song) {
         if (!song.isPlayable()) {
+            return
+        }
+        if (remote) {
+            // A pick from the server's window ("Up next") moves the server's queue instead of replacing it
+            when (song) {
+                state.currentPlaylist.songs.getOrNull(state.currentTrackNum + 1) -> {
+                    return NetworkManager.send(NextCommand)
+                }
+
+                state.currentPlaylist.songs.getOrNull(state.currentTrackNum - 1) -> {
+                    return NetworkManager.send(PreviousCommand)
+                }
+            }
+            // The server answers with its new window; the songs go without artwork to keep the message small
+            val queue = remoteQueue.takeIf { song in it } ?: listOf(song)
+            NetworkManager.send(
+                SetPlaylistCommand(
+                    songs = queue.map {
+                        it.copy(
+                            artwork = null
+                        )
+                    },
+                    currentSongIndex = queue.indexOf(song)
+                )
+            )
             return
         }
         // A song outside the queue goes to its front, so the device plays what the UI shows
@@ -109,25 +193,7 @@ object Player {
                 currentSong = song
             )
         }
-        if (remote) {
-            NetworkManager.send(
-                SetPlaylistCommand(
-                    songs = state.currentPlaylist.songs,
-                    currentSongIndex = trackNum
-                )
-            )
-        } else {
-            playTrack(trackNum)
-        }
-    }
-
-    fun onUpdateSongCommand(song: Song) {
-        setState {
-            copy(
-                currentSong = song,
-                currentTrackNum = currentPlaylist.songs.indexOf(song)
-            )
-        }
+        playTrack(trackNum)
     }
 
     /** The device got a queue from outside the app (Android Auto, Bluetooth) and is starting it at [trackNum]. */
@@ -145,25 +211,6 @@ object Player {
         }
     }
 
-    fun onFindSongCommand(query: String): List<Song> = state.currentPlaylist.songs.filter {
-        it.title.contains(
-            other = query,
-            ignoreCase = true
-        ) ||
-                it.artist.contains(
-                    other = query,
-                    ignoreCase = true
-                ) ||
-                it.album?.contains(
-                    other = query,
-                    ignoreCase = true
-                ) == true ||
-                it.path.contains(
-                    other = query,
-                    ignoreCase = true
-                )
-    }
-
     fun onIsPlayingChanged(isPlaying: Boolean) {
         setState {
             copy(
@@ -179,7 +226,7 @@ object Player {
 
     fun onPlayCommand() {
         if (remote) {
-            state.currentSong?.let { NetworkManager.send(PlaySongCommand(it)) }
+            NetworkManager.send(ResumeCommand)
             return
         }
         state.currentPlaylist.songs.getOrNull(state.currentTrackNum)?.let {
@@ -214,14 +261,6 @@ object Player {
             onPauseCommand()
         } else {
             onResumeCommand()
-        }
-    }
-
-    fun onUpdatePlaybackStateCommand(isPlaying: Boolean) {
-        setState {
-            copy(
-                isPlaying = isPlaying
-            )
         }
     }
 
@@ -352,6 +391,10 @@ object Player {
 
     fun onPlaylistChanged(playlist: Playlist) {
         val songs = playlist.songs.filter { it.isPlayable() }
+        if (remote) {
+            remoteQueue = songs
+            return
+        }
         setState {
             copy(
                 currentPlaylist = playlist.copy(
@@ -360,13 +403,15 @@ object Player {
                 currentTrackNum = 0
             )
         }
-        if (!remote) {
-            setPlayListOnDevice(songs)
-        }
+        setPlayListOnDevice(songs)
     }
 
     fun onSongsChanged(songs: List<Song>) {
         val playable = songs.filter { it.isPlayable() }
+        if (remote) {
+            remoteQueue = playable
+            return
+        }
         setState {
             copy(
                 currentPlaylist = currentPlaylist.copy(
@@ -374,13 +419,63 @@ object Player {
                 )
             )
         }
-        if (!remote) {
-            setPlayListOnDevice(playable)
+        setPlayListOnDevice(playable)
+    }
+
+    /** Takes [song] out of the local queue; the current song stops, any other keeps playing. */
+    fun onRemoveFromQueueCommand(song: Song) {
+        if (remote) {
+            return
+        }
+        val songs = state.currentPlaylist.songs
+        val index = songs.indexOfFirst { it.path == song.path }
+        if (index == -1) {
+            return
+        }
+        val isCurrent = index == state.currentTrackNum
+        if (isCurrent) {
+            stopCurrentSongOnDevice()
+        }
+        removeFromPlayListOnDevice(index)
+        setState {
+            copy(
+                currentPlaylist = currentPlaylist.copy(
+                    songs = songs.filterIndexed { i, _ -> i != index }
+                ),
+                // Play resumes where the removed song was, so the next song plays next
+                currentTrackNum = if (index < currentTrackNum) {
+                    currentTrackNum - 1
+                } else {
+                    currentTrackNum
+                },
+                currentSong = if (isCurrent) {
+                    null
+                } else {
+                    currentSong
+                }
+            )
         }
     }
 
     // A missing file must never reach the device player: VLC errors on it and the skip chain can crash it
     private fun Song.isPlayable() = state != Song.State.NotDownloaded
+
+    private fun PlayerState.window(): QueueWindowUpdate {
+        val songs = currentPlaylist.songs
+
+        // Songs go without artwork: it would make every message megabytes big
+        fun at(index: Int) = songs.getOrNull(index)?.copy(
+            artwork = null
+        )
+        return QueueWindowUpdate(
+            current = currentSong?.copy(
+                artwork = null
+            ),
+            next = at(currentTrackNum + 1),
+            previous = at(currentTrackNum - 1),
+            isPlaying = isPlaying
+        )
+    }
 
     private inline fun setState(update: PlayerState.() -> PlayerState) {
         val old = state
@@ -389,20 +484,17 @@ object Player {
         if (remote) {
             return
         }
-        if (old.currentSong != state.currentSong) {
-            state.currentSong?.let {
-                NetworkManager.sendPlayerUpdate(
-                    NowPlayingUpdate(it)
-                )
-            }
-        }
-        if (old.isPlaying != state.isPlaying) {
-            NetworkManager.sendPlayerUpdate(PlaybackStateUpdate(state.isPlaying))
+        val window = state.window()
+        if (window != old.window()) {
+            NetworkManager.sendPlayerUpdate(window)
         }
     }
 }
 
 expect fun setPlayListOnDevice(songs: List<Song>)
+
+/** Removes the queue entry at [index] without interrupting the song that plays. */
+expect fun removeFromPlayListOnDevice(index: Int)
 
 /** Starts playing the queue at [trackNum] in one step; a separate resume could race the switch and play another track. */
 expect fun playTrackOnDevice(trackNum: Int)

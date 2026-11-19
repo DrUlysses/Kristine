@@ -84,6 +84,11 @@ actual fun setPlayListOnDevice(songs: List<Song>) {
     paths.forEach { PlayerObject.playerList.media().add(it) }
 }
 
+actual fun removeFromPlayListOnDevice(index: Int) {
+    PlayerObject.paths = PlayerObject.paths.filterIndexed { i, _ -> i != index }
+    PlayerObject.playerList.media().remove(index)
+}
+
 actual fun pauseCurrentSongOnDevice() {
     PlayerObject.player.controls().pause()
     PlayerObject.onMediaStateChanged(false)

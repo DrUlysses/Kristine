@@ -10,8 +10,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dr.ulysses.ui.elements.SettingsDropdownEntry
 import kotlinx.coroutines.launch
@@ -20,7 +22,7 @@ import kristine.shared.generated.resources.back
 import kristine.shared.generated.resources.more
 import org.jetbrains.compose.resources.stringResource
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** One bar: the tabs, or a detail view's back button and title, with the menu at its end. */
 @Composable
 fun TabMenu(
     pagerState: PagerState,
@@ -31,51 +33,46 @@ fun TabMenu(
 ) {
     val menuExpanded = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    Row {
-        Column(
+    val isDetail = !topText.isNullOrEmpty()
+    // The background reaches under the status bar; the content stays below it
+    Surface(
+        color = if (isDetail) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .weight(1f)
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .fillMaxWidth()
+                .height(48.dp)
         ) {
-            if (!topText.isNullOrEmpty()) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = topText,
-                            fontSize = MaterialTheme.typography.titleMedium.fontSize,
-                            lineHeight = MaterialTheme.typography.titleMedium.lineHeight,
-                            modifier = Modifier.padding(
-                                top = 8.dp
-                            )
-                        )
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        scrolledContainerColor = Color.Unspecified,
-                        navigationIconContentColor = Color.Unspecified,
-                        titleContentColor = Color.Unspecified,
-                        actionIconContentColor = Color.Unspecified
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp),
-                    navigationIcon = {
-                        IconButton(
-                            onClick = navigateUp
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(Res.string.back)
-                            )
-                        }
-                    }
+            if (isDetail) {
+                IconButton(
+                    onClick = navigateUp
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(Res.string.back)
+                    )
+                }
+                Text(
+                    text = topText,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
             } else {
                 PrimaryTabRow(
                     containerColor = Color.Transparent,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp),
                     selectedTabIndex = pagerState.currentPage,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
                 ) {
                     tabs.forEachIndexed { index, title ->
                         Tab(
@@ -91,19 +88,9 @@ fun TabMenu(
                     }
                 }
             }
-        }
-        Column(
-            modifier = Modifier
-                .weight(0.1f)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(40.dp)
-            ) {
+            Box {
                 IconButton(
-                    onClick = { menuExpanded.value = !(menuExpanded.value) },
-                    modifier = Modifier.fillMaxWidth()
+                    onClick = { menuExpanded.value = !menuExpanded.value }
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,

@@ -30,9 +30,12 @@ import kotlinx.coroutines.delay
 import kristine.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
-/** Bottom bar of the main screen; tapping it opens the full-screen Now Playing sheet. */
+/**
+ * Bottom bar of the main screen; tapping it opens the full-screen Now Playing sheet.
+ * @param onManageSong opens the tag editor for the current song
+ */
 @Composable
-fun Player() {
+fun Player(onManageSong: (Song) -> Unit) {
     val state = Player.state
     val song = state.currentSong
     val position by rememberPosition(
@@ -126,14 +129,18 @@ fun Player() {
 
     if (nowPlayingOpen) {
         NowPlaying(
-            onDismiss = { nowPlayingOpen = false }
+            onDismiss = { nowPlayingOpen = false },
+            onManageSong = { song ->
+                nowPlayingOpen = false
+                onManageSong(song)
+            }
         )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NowPlaying(onDismiss: () -> Unit) {
+private fun NowPlaying(onDismiss: () -> Unit, onManageSong: (Song) -> Unit) {
     val state = Player.state
     val song = state.currentSong
     var position by rememberPosition(
@@ -182,6 +189,20 @@ private fun NowPlaying(onDismiss: () -> Unit) {
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    // A server's song isn't in this library, so only local songs can be edited
+                    if (!state.isRemotePlaying) {
+                        TextButton(
+                            onClick = { onManageSong(song) }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(Res.string.edit))
+                        }
+                    }
                 }
                 Spacer(Modifier.height(16.dp))
             }

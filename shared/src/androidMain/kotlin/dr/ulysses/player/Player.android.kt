@@ -46,6 +46,9 @@ actual fun setPlayListOnDevice(songs: List<Song>) {
 }
 
 @UnstableApi
+actual fun removeFromPlayListOnDevice(index: Int) = onMain { removeMediaItem(index) }
+
+@UnstableApi
 actual fun pauseCurrentSongOnDevice() = onMain { pause() }
 
 @UnstableApi
