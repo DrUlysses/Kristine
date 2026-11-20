@@ -17,7 +17,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastDistinctBy
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -114,9 +113,14 @@ fun Main() {
     fun close() {
         val leaving = navStack.lastOrNull()
         navStack.removeLastOrNull()
-        // Duplicates opens from the unsorted list and goes back to it
-        if (leaving == ManageDuplicates) {
+        // These open from the unsorted list and go back to it
+        if (leaving == ManageDuplicates || leaving == AutoSortSongs || leaving == MergeNames) {
             MainViewModel.setTopBarText(manageUnsortedText)
+            return
+        }
+        // An album opened from its artist goes back to the artist
+        if (leaving == AlbumSongs && navStack.lastOrNull() == ArtistSongs) {
+            MainViewModel.setTopBarText(MainViewModel.state.currentArtist)
             return
         }
         MainViewModel.closeDetail()
@@ -125,6 +129,14 @@ fun Main() {
         if (leaving == ManageSong || leaving == ManageUnsortedList) {
             MainViewModel.scanLibrary()
         }
+    }
+
+    fun openAlbum(album: AlbumRef) {
+        MainViewModel.setCurrentAlbum(album)
+        open(
+            title = album.title,
+            route = AlbumSongs
+        )
     }
 
     fun addPlaylist() {
@@ -211,21 +223,16 @@ fun Main() {
                                 LaunchedEffect(Unit) { pagerState.scrollToPage(3) }
                             }
                             entry<ArtistSongs> {
-                                SongsList(
-                                    songs = state.currentArtistSongsList,
-                                    onClick = { song ->
-                                        Player.onSongsChanged(state.currentArtistSongsList)
-                                        Player.onPlaySongCommand(song)
-                                    }
+                                ArtistView(
+                                    artist = state.currentArtist,
+                                    allSongs = state.allSongs,
+                                    onAlbumClick = ::openAlbum
                                 )
                             }
                             entry<AlbumSongs> {
-                                SongsList(
-                                    songs = state.currentAlbumSongsList,
-                                    onClick = { song ->
-                                        Player.onSongsChanged(state.currentAlbumSongsList)
-                                        Player.onPlaySongCommand(song)
-                                    }
+                                AlbumView(
+                                    album = state.currentAlbum,
+                                    allSongs = state.allSongs
                                 )
                             }
                             entry<PlaylistSongs> {
@@ -274,6 +281,14 @@ fun Main() {
                                             MainViewModel.setTopBarText(RESOLVE_DUPLICATES)
                                             navStack.add(ManageDuplicates)
                                         },
+                                        onAutoSortClick = {
+                                            MainViewModel.setTopBarText(AUTO_SORT)
+                                            navStack.add(AutoSortSongs)
+                                        },
+                                        onMergeNamesClick = {
+                                            MainViewModel.setTopBarText(MERGE_NAMES)
+                                            navStack.add(MergeNames)
+                                        },
                                         onClick = { song ->
                                             MainViewModel.setSelectedSong(song)
                                             navStack.add(ManageSong)
@@ -286,11 +301,19 @@ fun Main() {
                             entry<ManageDuplicates> {
                                 ManageDuplicates()
                             }
+                            entry<AutoSortSongs> {
+                                AutoSortView()
+                            }
+                            entry<MergeNames> {
+                                MergeNamesView()
+                            }
                             entry<ManageSong> {
                                 var unsortedSongs by remember { mutableStateOf(emptyList<Song>()) }
                                 LaunchedEffect(Unit) {
                                     val opened = MainViewModel.state.selectedSong
+                                    // Only songs with their file; the others wait in Missing files
                                     val unsorted = SongRepository.getByNotState(Song.State.Sorted)
+                                        .filter { it.state != Song.State.NotDownloaded }
                                     // A song opened from the player may be sorted already: it comes first, then the unsorted ones
                                     unsortedSongs = if (opened == null || unsorted.any { it.path == opened.path }) {
                                         unsorted
@@ -322,15 +345,20 @@ fun Main() {
                                         unsortedSongs = unsortedSongs,
                                         onSongEdited = MainViewModel::setSelectedSong,
                                         onSave = { saved ->
-                                            scope.launch { MainViewModel.saveSong(saved) }
-                                            unsortedSongs =
-                                                unsortedSongs.map {
+                                            scope.launch {
+                                                // At its new path once filed in its Artist / Album folder
+                                                val filed = MainViewModel.saveSong(saved)
+                                                unsortedSongs = unsortedSongs.map {
                                                     if (it.path == saved.path) {
-                                                        saved
+                                                        filed
                                                     } else {
                                                         it
                                                     }
                                                 }
+                                                if (MainViewModel.state.selectedSong?.path == saved.path) {
+                                                    MainViewModel.setSelectedSong(filed)
+                                                }
+                                            }
                                         },
                                         onNextSong = {
                                             showSong(currentSongIndex + 1)
@@ -364,19 +392,11 @@ fun Main() {
                                 LoadingIndicator()
                             } else {
                                 ArtistsList(
-                                    artists = state.allSongs
-                                        .map { it.artist.trim() }
-                                        .fastDistinctBy(String::lowercase),
-                                    onArtistsChanged = {},
+                                    library = state.allSongs,
                                     listState = artistsListState,
                                     initialLoad = !state.returningFromDetail,
                                     onArtistClicked = { artist ->
-                                        MainViewModel.setCurrentArtistSongsList(state.allSongs.filter {
-                                            it.artist.trim().equals(
-                                                other = artist.trim(),
-                                                ignoreCase = true
-                                            )
-                                        })
+                                        MainViewModel.setCurrentArtist(artist)
                                         open(
                                             title = artist,
                                             route = ArtistSongs
@@ -401,23 +421,10 @@ fun Main() {
                                 LoadingIndicator()
                             } else {
                                 AlbumsList(
-                                    albums = state.allSongs
-                                        .mapNotNull { it.album?.trim() }
-                                        .fastDistinctBy(String::lowercase),
+                                    library = state.allSongs,
                                     listState = albumsListState,
                                     initialLoad = !state.returningFromDetail,
-                                    onAlbumClicked = { album ->
-                                        MainViewModel.setCurrentAlbumSongsList(state.allSongs.filter {
-                                            it.album.equals(
-                                                other = album,
-                                                ignoreCase = true
-                                            )
-                                        })
-                                        open(
-                                            title = album,
-                                            route = AlbumSongs
-                                        )
-                                    }
+                                    onAlbumClicked = ::openAlbum
                                 )
                             }
 

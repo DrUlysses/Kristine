@@ -13,21 +13,45 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongDownloader
 import dr.ulysses.entities.canDownloadSongs
 import dr.ulysses.models.MainViewModel
 
-/** For a song whose file is missing: downloads it, shows that it's downloading, and offers a retry after a failure. */
+/**
+ * For a song whose file is missing: downloads it, shows that it's downloading, and offers a retry after a failure.
+ */
 @Composable
 fun SongDownloadButton(song: Song) {
-    // A server's song is downloaded on the server, not here
-    if (song.state != Song.State.NotDownloaded || !canDownloadSongs || MainViewModel.isRemote) {
+    if (song.state == Song.State.NotDownloaded) {
+        DownloadButton(
+            key = song.path,
+            icon = Icons.Filled.Download,
+            description = "Download",
+            onClick = { SongDownloader.download(song) }
+        )
+    }
+}
+
+/**
+ * Starts a download with [onClick], then shows its [SongDownloader.status] under [key]: running, or failed with
+ * [onClick] to try again. Nothing where this device can't download.
+ */
+@Composable
+fun DownloadButton(
+    key: String,
+    icon: ImageVector,
+    description: String,
+    onClick: () -> Unit,
+) {
+    // A server's library is changed on the server, not here
+    if (!canDownloadSongs || MainViewModel.isRemote) {
         return
     }
     val status by SongDownloader.status.collectAsState()
-    when (status[song.path]) {
+    when (status[key]) {
         SongDownloader.Status.Running -> CircularProgressIndicator(
             strokeWidth = 2.dp,
             modifier = Modifier
@@ -35,22 +59,22 @@ fun SongDownloadButton(song: Song) {
                 .size(24.dp)
         )
 
-        SongDownloader.Status.Failed -> IconButton(
-            onClick = { SongDownloader.download(song) }
+        is SongDownloader.Status.Failed -> IconButton(
+            onClick = onClick
         ) {
             Icon(
                 imageVector = Icons.Filled.ErrorOutline,
-                contentDescription = "Download failed, retry",
+                contentDescription = "Download failed, try again",
                 tint = MaterialTheme.colorScheme.error
             )
         }
 
         null -> IconButton(
-            onClick = { SongDownloader.download(song) }
+            onClick = onClick
         ) {
             Icon(
-                imageVector = Icons.Filled.Download,
-                contentDescription = "Download"
+                imageVector = icon,
+                contentDescription = description
             )
         }
     }

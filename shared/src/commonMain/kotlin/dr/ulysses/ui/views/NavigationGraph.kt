@@ -43,6 +43,12 @@ data object ManageSong : NavKey
 data object ManageDuplicates : NavKey
 
 @Serializable
+data object AutoSortSongs : NavKey
+
+@Serializable
+data object MergeNames : NavKey
+
+@Serializable
 data object Connections : NavKey
 
 @Serializable
@@ -98,6 +104,14 @@ val config = SavedStateConfiguration {
             subclass(
                 subclass = ManageDuplicates::class,
                 serializer = ManageDuplicates.serializer()
+            )
+            subclass(
+                subclass = AutoSortSongs::class,
+                serializer = AutoSortSongs.serializer()
+            )
+            subclass(
+                subclass = MergeNames::class,
+                serializer = MergeNames.serializer()
             )
             subclass(
                 subclass = Connections::class,

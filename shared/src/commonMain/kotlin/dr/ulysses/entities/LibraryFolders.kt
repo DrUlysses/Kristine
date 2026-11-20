@@ -3,22 +3,30 @@ package dr.ulysses.entities
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** The folder sorted songs are filed in; null where song files can't be moved (the browser). */
+/**
+ * The folder sorted songs are filed in; null where song files can't be moved (the browser).
+ */
 expect suspend fun musicFolder(): String?
 
-/** Moves the song file at [from] to [to], creating its folders; false when that isn't possible or allowed. */
+/**
+ * Moves the song file at [from] to [to], creating its folders; false when that isn't possible or allowed.
+ */
 expect suspend fun moveSongFile(
     from: String,
     to: String,
 ): Boolean
 
-/** A sorted song whose file goes to [target], in the same path form as the song's own path. */
+/**
+ * A sorted song whose file goes to [target], in the same path form as the song's own path.
+ */
 class Move(
     val song: Song,
     val target: String,
 )
 
-/** What organizing would do: the moves into [root], and the songs it leaves where they are, with why. */
+/**
+ * What organizing would do: the moves into [root], and the songs it leaves where they are, with why.
+ */
 class OrganizePlan(
     val root: String,
     val moves: List<Move>,
@@ -61,7 +69,9 @@ suspend fun planOrganize(): OrganizePlan? {
     )
 }
 
-/** Moves the files and their entries; returns the moves that failed, whose files and entries stay as they were. */
+/**
+ * Moves the files and their entries; returns the moves that failed, whose files and entries stay as they were.
+ */
 suspend fun organize(moves: List<Move>): List<Move> = moves.filter { move ->
     val moved = moveSongFile(
         from = move.song.path,
@@ -76,7 +86,37 @@ suspend fun organize(moves: List<Move>): List<Move> = moves.filter { move ->
     !moved
 }
 
-/** Where [song] belongs, written like its own path: desktop paths start with file:///, Android paths don't. */
+/**
+ * Moves a song just sorted to where [planOrganize] would, and returns its path afterwards: the old one when it
+ * stays, because files can't be moved here, it is there already, or its target is taken.
+ */
+suspend fun fileSorted(song: Song): String {
+    val root = musicFolder() ?: return song.path
+    val target = target(
+        root = root,
+        song = song
+    )
+    if (target == song.path || withContext(Dispatchers.Default) { fileExists(target) }) {
+        return song.path
+    }
+    val failed = organize(
+        listOf(
+            Move(
+                song = song,
+                target = target
+            )
+        )
+    )
+    return if (failed.isEmpty()) {
+        target
+    } else {
+        song.path
+    }
+}
+
+/**
+ * Where [song] belongs, written like its own path: desktop paths start with file:///, Android paths don't.
+ */
 private fun target(
     root: String,
     song: Song,
@@ -90,21 +130,18 @@ private fun target(
         delimiter = '.',
         missingDelimiterValue = ""
     )
-    val album = song.album?.takeUnless {
-        it.isBlank() || it.equals(
-            other = "Unknown album",
-            ignoreCase = true
-        )
-    }
+    // The main artist, so a song with a guest is in the artist's folder
     val folders = listOfNotNull(
         root.trimEnd('/'),
-        folderName(song.artist.ifBlank { "Unknown artist" }),
-        album?.let(::folderName)
+        folderName(artistOf(song).ifBlank { "Unknown artist" }),
+        albumOf(song)?.let(::folderName)
     )
     return prefix + (folders + "${folderName(song.title)}.$extension").joinToString("/")
 }
 
-/** [name] as a file or folder name on every file system: no separators or reserved characters, no trailing dots. */
+/**
+ * [name] as a file or folder name on every file system: no separators or reserved characters, no trailing dots.
+ */
 private fun folderName(name: String) = name.replace(
     regex = UNSAFE_IN_NAME,
     replacement = "_"

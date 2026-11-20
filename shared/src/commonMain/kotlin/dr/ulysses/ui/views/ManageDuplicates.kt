@@ -8,8 +8,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteForever
@@ -26,9 +24,14 @@ import dr.ulysses.entities.*
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.player.Player
 import dr.ulysses.ui.elements.ListScrollbar
+import dr.ulysses.ui.elements.PlayIconButton
+import dr.ulysses.ui.elements.count
+import dr.ulysses.ui.elements.songs
 import kotlinx.coroutines.launch
 
-/** Songs in the library more than once: one recording of each stays, its best copy. */
+/**
+ * Songs in the library more than once: one recording of each stays, its best copy.
+ */
 @Composable
 fun ManageDuplicates() {
     var groups by remember { mutableStateOf<List<DuplicateGroup>?>(null) }
@@ -185,7 +188,9 @@ private fun RemainingHeader(
     }
 }
 
-/** Confirms resolving every song whose copies all sound the same: names the file that stays for each. */
+/**
+ * Confirms resolving every song whose copies all sound the same: names the file that stays for each.
+ */
 @Composable
 private fun AutoResolveDialog(
     groups: List<DuplicateGroup>,
@@ -242,7 +247,9 @@ private fun AutoResolveDialog(
     }
 }
 
-/** What both delete confirmations share: a delete icon, [title], [content], the playlist note and a red Confirm. */
+/**
+ * What both delete confirmations share: a delete icon, [title], [content], the playlist note and a red Confirm.
+ */
 @Composable
 private fun DeleteDialog(
     title: String,
@@ -291,7 +298,9 @@ private fun DeleteDialog(
     )
 }
 
-/** A song's file that stays, and how many of its copies go. */
+/**
+ * A song's file that stays, and how many of its copies go.
+ */
 @Composable
 private fun KeptFileItem(group: DuplicateGroup) {
     val kept = group.recordings.single().best
@@ -323,13 +332,17 @@ private fun KeptFileItem(group: DuplicateGroup) {
     )
 }
 
-/** What resolving one group did. */
+/**
+ * What resolving one group did.
+ */
 private class Resolution(
     val removedPaths: Set<String>,
     val notDeleted: List<Song>,
 )
 
-/** Keeps [kept] and deletes the group's other copies; a copy that couldn't be deleted stays. */
+/**
+ * Keeps [kept] and deletes the group's other copies; a copy that couldn't be deleted stays.
+ */
 private suspend fun resolve(
     group: DuplicateGroup,
     keep: List<Recording>,
@@ -350,12 +363,6 @@ private suspend fun resolve(
     )
 }
 
-private fun songs(number: Int) = count(
-    number = number,
-    one = "song",
-    many = "songs"
-)
-
 private fun copies(number: Int) = count(
     number = number,
     one = "copy",
@@ -368,18 +375,9 @@ private fun files(number: Int) = count(
     many = "files"
 )
 
-/** "1 song", "3 songs". */
-private fun count(
-    number: Int,
-    one: String,
-    many: String,
-) = if (number == 1) {
-    "1 $one"
-} else {
-    "$number $many"
-}
-
-/** The group without the songs at [paths]; null once less than two songs are left. */
+/**
+ * The group without the songs at [paths]; null once less than two songs are left.
+ */
 private fun DuplicateGroup.without(paths: Set<String>): DuplicateGroup? = DuplicateGroup(
     recordings.mapNotNull { recording ->
         recording.copies.filter { it.path !in paths }.takeIf { it.isNotEmpty() }?.let { copies ->
@@ -500,7 +498,9 @@ private fun DuplicateGroupCard(
     }
 }
 
-/** Why one recording is suggested. */
+/**
+ * Why one recording is suggested.
+ */
 @Composable
 private fun SuggestionLine(suggestion: Suggestion) {
     Row(
@@ -524,7 +524,9 @@ private fun SuggestionLine(suggestion: Suggestion) {
     }
 }
 
-/** Confirms deleting the copies: names the files that stay and every file that goes. */
+/**
+ * Confirms deleting the copies: names the files that stay and every file that goes.
+ */
 @Composable
 private fun DeleteCopiesDialog(
     kept: List<Song>,
@@ -627,7 +629,9 @@ private fun FileSection(
     }
 }
 
-/** One recording, shown by its best copy; its identical copies are listed below it. */
+/**
+ * One recording, shown by its best copy; its identical copies are listed below it.
+ */
 @Composable
 private fun RecordingItem(
     recording: Recording,
@@ -636,7 +640,6 @@ private fun RecordingItem(
     onSelect: () -> Unit,
 ) {
     val song = recording.best
-    val isPlaying = Player.state.currentSong?.path == song.path && Player.state.isPlaying
     val identical = recording.copies.filter { it.path != song.path }
     ListItem(
         overlineContent = if (isSuggested) {
@@ -671,9 +674,10 @@ private fun RecordingItem(
             )
         },
         trailingContent = {
-            PlayButton(
-                song = song,
-                isPlaying = isPlaying
+            // Alone in the queue: one copy, not the others with the same tags
+            PlayIconButton(
+                name = displayPath(song),
+                songs = listOf(song)
             )
         },
         colors = ListItemDefaults.colors(
@@ -687,38 +691,6 @@ private fun RecordingItem(
     )
 }
 
-/** Plays [song] alone, or pauses and resumes it while it's the player's current song. */
-@Composable
-private fun PlayButton(
-    song: Song,
-    isPlaying: Boolean,
-) {
-    IconButton(
-        onClick = {
-            if (Player.state.currentSong?.path == song.path) {
-                Player.onPlayOrPauseCommand()
-            } else {
-                // Alone in the queue: the player finds songs by Song.equals, and copies have equal tags
-                Player.onSongsChanged(listOf(song))
-                Player.onPlaySongCommand(song)
-            }
-        }
-    ) {
-        Icon(
-            imageVector = if (isPlaying) {
-                Icons.Filled.Pause
-            } else {
-                Icons.Filled.PlayArrow
-            },
-            contentDescription = if (isPlaying) {
-                "Pause"
-            } else {
-                "Play ${displayPath(song)}"
-            }
-        )
-    }
-}
-
 private fun displayPath(song: Song) = song.path.removePrefix("file://")
 
 private fun folderOf(song: Song) = displayPath(song).substringBeforeLast(
@@ -726,7 +698,9 @@ private fun folderOf(song: Song) = displayPath(song).substringBeforeLast(
     missingDelimiterValue = ""
 )
 
-/** Album, length and state, e.g. "Drive · 4:28 · Sorted". */
+/**
+ * Album, length and state, e.g. "Album · 4:28 · Sorted".
+ */
 private fun details(song: Song) = listOfNotNull(
     song.album?.takeIf { it.isNotBlank() },
     song.duration?.let(::formatTime),

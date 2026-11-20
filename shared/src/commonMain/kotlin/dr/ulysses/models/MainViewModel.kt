@@ -7,11 +7,15 @@ import androidx.compose.runtime.setValue
 import dr.ulysses.Logger
 import dr.ulysses.entities.*
 import dr.ulysses.network.NetworkManager
+import dr.ulysses.player.Player
+import dr.ulysses.ui.views.AlbumRef
 import dr.ulysses.ui.views.forgetArtwork
 import dr.ulysses.ui.views.onSongSave
 import kotlinx.coroutines.*
 
-/** The single source of the Main screen's state; it outlives navigation. */
+/**
+ * The single source of the Main screen's state; it outlives navigation.
+ */
 object MainViewModel {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -26,7 +30,9 @@ object MainViewModel {
         loadSongs()
     }
 
-    /** The connected server's library, otherwise this device's. */
+    /**
+     * The connected server's library, otherwise this device's.
+     */
     fun loadSongs() {
         scope.launch {
             state = state.copy(
@@ -40,7 +46,9 @@ object MainViewModel {
         }
     }
 
-    /** Scans the music folder for new files, then reloads. */
+    /**
+     * Scans the music folder for new files, then reloads.
+     */
     fun scanLibrary() {
         scope.launch {
             withContext(Dispatchers.Default) { refreshSongs() }
@@ -60,14 +68,18 @@ object MainViewModel {
         }
     }
 
-    /** The artwork of a listed song: from the connected server, otherwise from this device. */
+    /**
+     * The artwork of a listed song: from the connected server, otherwise from this device.
+     */
     suspend fun artwork(path: String): ByteArray? = if (isRemote) {
         NetworkManager.remoteArtwork(path)
     } else {
         SongRepository.getArtwork(path)
     }
 
-    /** The lists show the connected server's library. */
+    /**
+     * The lists show the connected server's library.
+     */
     val isRemote get() = remoteLibrary != null
 
     suspend fun playlistSongs(name: String): List<Song> =
@@ -75,15 +87,37 @@ object MainViewModel {
 
     private val remoteLibrary get() = NetworkManager.remoteLibrary.value
 
-    /** The DB keeps the edit even when the file can't be written, e.g. without storage permission. */
-    suspend fun saveSong(song: Song) = withContext(Dispatchers.Default) {
-        SongRepository.upsert(
+    /**
+     * The DB keeps the edit even when the file can't be written, e.g. without storage permission.
+     * Saves the song's tags, marked sorted unless [sort] is false, and files a sorted song in <music folder>/Artist/
+     * Album/Title like Organize folders; returns the song at its new path.
+     */
+    suspend fun saveSong(
+        song: Song,
+        sort: Boolean = true,
+    ): Song = withContext(Dispatchers.Default) {
+        val sorted = if (sort) {
             song.copy(
                 state = Song.State.Sorted
             )
-        )
+        } else {
+            song
+        }
+        SongRepository.upsert(sorted)
         withContext(Dispatchers.Main) { forgetArtwork(song.path) } // the cache is only touched on the UI thread
         onSongSave(song).onFailure { Logger.e(it) { "Couldn't write the tags of ${song.path}" } }
+        val path = if (sorted.state == Song.State.Sorted) {
+            fileSorted(sorted)
+        } else {
+            song.path
+        }
+        if (path != song.path) {
+            // Its old path is gone
+            withContext(Dispatchers.Main) { Player.onRemoveFromQueueCommand(song) }
+        }
+        sorted.copy(
+            path = path
+        )
     }
 
     fun openDetail(
@@ -116,15 +150,15 @@ object MainViewModel {
         )
     }
 
-    fun setCurrentArtistSongsList(songs: List<Song>) {
+    fun setCurrentArtist(artist: String) {
         state = state.copy(
-            currentArtistSongsList = songs
+            currentArtist = artist
         )
     }
 
-    fun setCurrentAlbumSongsList(songs: List<Song>) {
+    fun setCurrentAlbum(album: AlbumRef) {
         state = state.copy(
-            currentAlbumSongsList = songs
+            currentAlbum = album
         )
     }
 
@@ -156,8 +190,11 @@ object MainViewModel {
         val allSongs: List<Song> = emptyList(),
         val selectedSong: Song? = null,
         val isLoadingSongs: Boolean = true,
-        val currentArtistSongsList: List<Song> = emptyList(),
-        val currentAlbumSongsList: List<Song> = emptyList(),
+        val currentArtist: String = "",
+        val currentAlbum: AlbumRef = AlbumRef(
+            title = "",
+            artist = ""
+        ),
         val currentPlaylist: Playlist = Playlist(),
         val currentPlaylists: List<Playlist> = emptyList(),
         val isLoadingPlaylists: Boolean = true,

@@ -1,6 +1,5 @@
 package dr.ulysses.ui.views
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,12 +16,15 @@ import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.*
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.player.Player
+import dr.ulysses.ui.components.ToolChip
 import dr.ulysses.ui.elements.ListScrollbar
 import kotlinx.coroutines.launch
 
-/** Opens [OrganizeDialog]; shown only where song files can be moved. */
+/**
+ * Opens [OrganizeDialog]; shown only where song files can be moved.
+ */
 @Composable
-fun OrganizeFoldersItem() {
+fun OrganizeFoldersChip() {
     var isAvailable by remember { mutableStateOf(false) }
     var isOpen by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -31,16 +33,10 @@ fun OrganizeFoldersItem() {
     if (!isAvailable) {
         return
     }
-    ListItem(
-        headlineContent = { Text("Organize folders") },
-        supportingContent = { Text("Move sorted songs into Artist / Album folders") },
-        leadingContent = {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.DriveFileMove,
-                contentDescription = null
-            )
-        },
-        modifier = Modifier.clickable { isOpen = true }
+    ToolChip(
+        label = "Organize folders",
+        icon = Icons.AutoMirrored.Outlined.DriveFileMove,
+        onClick = { isOpen = true }
     )
     if (isOpen) {
         OrganizeDialog(
@@ -49,7 +45,9 @@ fun OrganizeFoldersItem() {
     }
 }
 
-/** Shows where each sorted song goes, moves them on confirmation, then tells how it went. */
+/**
+ * Shows where each sorted song goes, moves them on confirmation, then tells how it went.
+ */
 @Composable
 private fun OrganizeDialog(onClose: () -> Unit) {
     var plan by remember { mutableStateOf<OrganizePlan?>(null) }
@@ -150,7 +148,9 @@ private fun OrganizeDialog(onClose: () -> Unit) {
     )
 }
 
-/** Where each song goes, relative to the music folder, and which songs stay and why. */
+/**
+ * Where each song goes, relative to the music folder, and which songs stay and why.
+ */
 @Composable
 private fun PlanContent(plan: OrganizePlan) {
     Column(
