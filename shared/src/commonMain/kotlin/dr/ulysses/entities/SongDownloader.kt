@@ -1,9 +1,12 @@
 package dr.ulysses.entities
 
 import dr.ulysses.Logger
+import dr.ulysses.api.Catalog
+import dr.ulysses.api.CatalogAlbum
 import dr.ulysses.api.MetadataSearch
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.ui.views.onSongSave
+import io.ktor.http.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -13,7 +16,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Whether this platform can run yt-dlp. */
+/**
+ * Whether this platform can run yt-dlp.
+ */
 expect val canDownloadSongs: Boolean
 
 /**
@@ -26,15 +31,23 @@ expect suspend fun downloadAudio(
     fileName: String,
 ): String
 
-/** Gets the file of a song whose file is missing ([Song.State.NotDownloaded]) with yt-dlp. */
+/**
+ * Gets the file of a song whose file is missing ([Song.State.NotDownloaded]) with yt-dlp.
+ */
 object SongDownloader {
-    enum class Status { Running, Failed }
+    sealed interface Status {
+        data object Running : Status
+
+        class Failed(val reason: String) : Status
+    }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val _status = MutableStateFlow(emptyMap<String, Status>())
 
-    /** By the path of the song; a song that isn't listed was never downloaded or succeeded. */
+    /**
+     * By the path of the song, or by [linkKey] for a download from a link; what isn't listed never ran or succeeded.
+     */
     val status: StateFlow<Map<String, Status>> = _status.asStateFlow()
 
     fun download(song: Song) {
@@ -76,12 +89,87 @@ object SongDownloader {
                 if (result.isSuccess) {
                     it - song.path
                 } else {
-                    it + (song.path to Status.Failed)
+                    it + (song.path to Status.Failed(result.exceptionOrNull()?.message.orEmpty()))
                 }
             }
             MainViewModel.loadSongs()
         }
     }
+
+    /**
+     * Identifies a download of a track of [album] in [status].
+     */
+    fun linkKey(
+        album: CatalogAlbum,
+        title: String,
+    ) = "${album.id}|${Catalog.key(title)}"
+
+    /**
+     * Whether yt-dlp may be given [text]: a YouTube page, never an option or a file.
+     */
+    fun isYouTubeLink(text: String): Boolean {
+        val url = parseUrl(text.trim()) ?: return false
+        return url.protocol.isSecure() && url.host.removePrefix("www.").removePrefix("m.") in YOUTUBE_HOSTS
+    }
+
+    /**
+     * Gets a track of [album] that the library lacks from a YouTube [link] the user found, and adds it as a sorted
+     * song with the album's tags and cover.
+     */
+    fun downloadFromLink(
+        link: String,
+        artist: String,
+        album: CatalogAlbum,
+        title: String,
+    ) {
+        val key = linkKey(
+            album = album,
+            title = title
+        )
+        if (!isYouTubeLink(link) || _status.value[key] == Status.Running) {
+            return
+        }
+        _status.update { it + (key to Status.Running) }
+        scope.launch {
+            val result = runCatching {
+                val path = downloadAudio(
+                    query = link.trim(),
+                    fileName = "$artist - $title".replace(
+                        regex = UNSAFE_IN_FILE_NAME,
+                        replacement = "_"
+                    )
+                )
+                val song = inLibrarySpelling(
+                    song = Song(
+                        path = path,
+                        title = title,
+                        album = album.title,
+                        artist = artist,
+                        artwork = Catalog.cover(album),
+                        duration = getDurationFromMetadata(path),
+                        state = Song.State.Sorted
+                    ),
+                    library = SongRepository.getAllSongs()
+                )
+                // Tagged and filed in its Artist / Album folder like any sorted song
+                MainViewModel.saveSong(song)
+            }.onFailure { Logger.e(it) { "Downloading $artist - $title from $link failed" } }
+            _status.update {
+                if (result.isSuccess) {
+                    it - key
+                } else {
+                    it + (key to Status.Failed(result.exceptionOrNull()?.message.orEmpty()))
+                }
+            }
+            MainViewModel.loadSongs()
+        }
+    }
+
+    private val YOUTUBE_HOSTS = setOf(
+        "youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+    )
 
     private val UNSAFE_IN_FILE_NAME = Regex("""[/\\:*?"<>|%]""")
 }

@@ -154,6 +154,17 @@ object SongRepository : KoinComponent {
         }
     }
 
+    /** The entry follows its file to [newPath]; playlists follow through ON UPDATE CASCADE. */
+    suspend fun move(
+        oldPath: String,
+        newPath: String,
+    ) = sharedDatabase { db ->
+        db.songQueries.updatePath(
+            newPath = newPath,
+            oldPath = oldPath
+        )
+    }
+
     /** Removes the entry at [oldPath], a copy of the song at [keepPath], which takes its place in playlists. */
     suspend fun mergeInto(
         oldPath: String,
