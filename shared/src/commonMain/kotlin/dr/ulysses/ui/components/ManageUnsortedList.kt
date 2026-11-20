@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dr.ulysses.entities.Song
+import dr.ulysses.ui.views.OrganizeFoldersItem
 
 /** Also the title of the duplicates screen. */
 const val RESOLVE_DUPLICATES = "Resolve duplicates"
@@ -37,6 +38,7 @@ fun ManageUnsortedList(
             },
             modifier = Modifier.clickable(onClick = onDuplicatesClick)
         )
+        OrganizeFoldersItem()
         HorizontalDivider()
         SongsList(
             songs = unsortedSongs,

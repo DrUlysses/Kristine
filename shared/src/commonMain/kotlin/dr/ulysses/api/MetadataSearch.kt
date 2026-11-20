@@ -16,6 +16,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 data class MetadataCandidate(
     val title: String,
@@ -109,6 +110,17 @@ object MetadataSearch {
                     )
                 )
             }
+            // With a title to go by, a candidate must have that title: the album's other tracks share artist, album
+            // and often length, and would win for a track the catalog doesn't have, like a bonus track.
+            // AcoustID knows the recording by its sound, so its answers count whatever their title
+            .filter { candidate ->
+                guesses.isEmpty() || candidate.soundMatch != null || guesses.any { guess ->
+                    similarity(
+                        a = candidate.title,
+                        b = guess.title
+                    ) >= MIN_TITLE_SIMILARITY
+                }
+            }
             .sortedByDescending { it.score }
             .distinctBy { normalize(it.title) to normalize(it.artist) }
             .take(3)
@@ -170,11 +182,14 @@ object MetadataSearch {
     // "(6).mp3", "06 - Title.mp3", "6. Title.mp3": the position on the album
     private val leadingNumber = Regex("""^\(?(\d{1,3})\)?(?:[\s.\-_]|$)""")
 
+    // Half the words in common, e.g. "Heroes of Our Time" and "Heroes of Our Time (Live)"
+    private const val MIN_TITLE_SIMILARITY = 0.5
+
     private fun trackNumberHint(song: Song) =
         leadingNumber.find(fileName(song).trim())?.groupValues?.get(1)?.toIntOrNull()
 
     private val noiseInBrackets = Regex(
-        pattern = """\s*[(\[][^)\]]*(official|video|audio|lyric|remaster|feat|ft\.|\bhd\b|\bhq\b|\d{3,4}p)[^)\]]*[)\]]""",
+        pattern = """\s*[(\[][^)\]]*(official|video|audio|lyric|remaster|feat|ft\.|\bhd\b|\bhq\b|\d{3,4}p|edition|bonus|deluxe)[^)\]]*[)\]]""",
         option = RegexOption.IGNORE_CASE
     )
     private val numberOnly = Regex("""^\(?\d+\)?$""") // "(6)": no title at all
@@ -389,9 +404,30 @@ object MetadataSearch {
         }.results.mapNotNull { it.toCandidate() }
     }
 
+    /**
+     * Why identifying [song] by its sound gave nothing, for when no match was found at all: the setup that is
+     * missing, AcoustID's error, or that AcoustID doesn't know the recording.
+     */
+    suspend fun whyNoSoundMatch(song: Song): String {
+        if (acoustIdKey() == null) {
+            return "To identify songs by their sound, set AcoustIdApiKey in Settings: a free application key " +
+                    "from acoustid.org."
+        }
+        if (audioFingerprint(song.path) == null) {
+            return "Couldn't fingerprint this file. On a computer this needs Chromaprint's fpcalc on the PATH."
+        }
+        return runCatching { bySound(song) }.fold(
+            onSuccess = { "AcoustID doesn't know this recording." },
+            // E.g. "invalid API key" when the key is a user key: lookups need an application key
+            onFailure = { "AcoustID refused the lookup: ${it.message}" }
+        )
+    }
+
+    private suspend fun acoustIdKey() =
+        SettingsRepository.get(SettingKey.AcoustIdApiKey)?.value?.trim()?.takeIf { it.isNotEmpty() }
+
     private suspend fun bySound(song: Song): List<MetadataCandidate> {
-        val key =
-            SettingsRepository.get(SettingKey.AcoustIdApiKey)?.value?.takeIf { it.isNotBlank() } ?: return emptyList()
+        val key = acoustIdKey() ?: return emptyList()
         val print = audioFingerprint(song.path) ?: return emptyList()
         // POST, because a fingerprint is a few kilobytes
         val response = client.submitForm(
@@ -425,7 +461,7 @@ object MetadataSearch {
                     album = group?.title,
                     // Cover Art Archive serves the MusicBrainz release group's front cover, if it has one
                     artworkUrl = group?.let { "https://coverartarchive.org/release-group/${it.id}/front-500" },
-                    durationSeconds = recording.duration,
+                    durationSeconds = recording.duration?.roundToInt(),
                     source = "AcoustID",
                     soundMatch = result.score,
                 )
@@ -523,7 +559,8 @@ object MetadataSearch {
     @Serializable
     private class AcoustIdRecording(
         val title: String? = null,
-        val duration: Int? = null,
+        // Seconds with a fraction, e.g. 444.346
+        val duration: Double? = null,
         val artists: List<AcoustIdName> = emptyList(),
         val releasegroups: List<AcoustIdReleaseGroup> = emptyList(),
     )

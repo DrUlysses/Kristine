@@ -51,6 +51,7 @@ fun ManageUnsortedSong(
     var searching by remember { mutableStateOf(false) }
     var matches by remember(song.path) { mutableStateOf(emptyList<MetadataCandidate>()) }
     var searchRun by remember(song.path) { mutableStateOf(0) }
+    var noMatchReason by remember(song.path) { mutableStateOf<String?>(null) }
     val position = unsortedSongs.indexOfFirst { it.path == song.path }
 
     val songsPath by produceState(
@@ -65,7 +66,12 @@ fun ManageUnsortedSong(
         key2 = searchRun
     ) {
         searching = true
+        noMatchReason = null
         matches = MetadataSearch.find(song)
+        // Only asked when nothing matched: it repeats the sound lookup to tell what went wrong
+        if (matches.isEmpty()) {
+            noMatchReason = MetadataSearch.whyNoSoundMatch(song)
+        }
         searching = false
     }
 
@@ -144,6 +150,7 @@ fun ManageUnsortedSong(
                 MatchesCard(
                     matches = matches,
                     searching = searching,
+                    noMatchReason = noMatchReason,
                     onApply = ::apply,
                     onRetry = { searchRun++ },
                     modifier = modifier,
@@ -353,6 +360,7 @@ private fun SongCard(
 private fun MatchesCard(
     matches: List<MetadataCandidate>,
     searching: Boolean,
+    noMatchReason: String?,
     onApply: (MetadataCandidate) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier,
@@ -396,8 +404,10 @@ private fun MatchesCard(
                 )
 
                 matches.isEmpty() -> Text(
-                    text = "No matches found. To identify songs by their sound, set AcoustIdApiKey in Settings " +
-                            "(free at acoustid.org) and install Chromaprint's fpcalc.",
+                    text = listOfNotNull(
+                        "No matches found.",
+                        noMatchReason
+                    ).joinToString(" "),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
