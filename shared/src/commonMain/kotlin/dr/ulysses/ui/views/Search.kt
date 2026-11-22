@@ -63,8 +63,10 @@ fun Search(
                 entries = entries,
                 onPlaylistClicked = onPlaylistClicked,
                 onSongClicked = { song ->
-                    Player.onSongsChanged(entries.filterIsInstance<Song>())
-                    Player.onPlaySongCommand(song)
+                    Player.startQueue(
+                        songs = entries.filterIsInstance<Song>(),
+                        first = song
+                    )
                 }
             )
         }

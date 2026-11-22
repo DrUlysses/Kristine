@@ -1,7 +1,10 @@
 package dr.ulysses.entities
 
+import dr.ulysses.api.internal.LibraryClient
+import dr.ulysses.api.internal.isRemote
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 
 /**
  * The folder sorted songs are filed in; null where song files can't be moved (the browser).
@@ -19,7 +22,8 @@ expect suspend fun moveSongFile(
 /**
  * A sorted song whose file goes to [target], in the same path form as the song's own path.
  */
-class Move(
+@Serializable
+data class Move(
     val song: Song,
     val target: String,
 )
@@ -27,7 +31,8 @@ class Move(
 /**
  * What organizing would do: the moves into [root], and the songs it leaves where they are, with why.
  */
-class OrganizePlan(
+@Serializable
+data class OrganizePlan(
     val root: String,
     val moves: List<Move>,
     val skipped: List<Pair<Song, String>>,
@@ -38,6 +43,9 @@ class OrganizePlan(
  * is unknown). A song stays where it is when its target is taken, by a file or by another song moving there.
  */
 suspend fun planOrganize(): OrganizePlan? {
+    if (isRemote) {
+        return LibraryClient.organizePlan()
+    }
     val root = musicFolder() ?: return null
     val moves = SongRepository.getAllSongs()
         .filter { it.state == Song.State.Sorted }
@@ -72,18 +80,23 @@ suspend fun planOrganize(): OrganizePlan? {
 /**
  * Moves the files and their entries; returns the moves that failed, whose files and entries stay as they were.
  */
-suspend fun organize(moves: List<Move>): List<Move> = moves.filter { move ->
-    val moved = moveSongFile(
-        from = move.song.path,
-        to = move.target
-    )
-    if (moved) {
-        SongRepository.move(
-            oldPath = move.song.path,
-            newPath = move.target
-        )
+suspend fun organize(moves: List<Move>): List<Move> {
+    if (isRemote) {
+        return LibraryClient.organize(moves)
     }
-    !moved
+    return moves.filter { move ->
+        val moved = moveSongFile(
+            from = move.song.path,
+            to = move.target
+        )
+        if (moved) {
+            SongRepository.move(
+                oldPath = move.song.path,
+                newPath = move.target
+            )
+        }
+        !moved
+    }
 }
 
 /**

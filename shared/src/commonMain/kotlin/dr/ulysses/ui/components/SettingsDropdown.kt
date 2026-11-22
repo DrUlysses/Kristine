@@ -22,10 +22,11 @@ fun SettingsDropdown(
         onDismissRequest = { menuExpanded.value = false },
         modifier = Modifier.fillMaxWidth(0.5f)
     ) {
-        for (menuEntry in menuEntries) {
+        for ((icon, text, onClick, enabled) in menuEntries) {
             DropdownMenuItem(
+                enabled = enabled,
                 onClick = {
-                    menuEntry.onClick?.let { onClick ->
+                    onClick?.let { onClick ->
                         scope.launch {
                             onClick()
                         }
@@ -33,7 +34,7 @@ fun SettingsDropdown(
                     menuExpanded.value = false
                 },
                 leadingIcon = {
-                    menuEntry.icon?.let {
+                    icon?.let {
                         Icon(
                             imageVector = it,
                             contentDescription = null,
@@ -42,7 +43,7 @@ fun SettingsDropdown(
                 },
                 text = {
                     Text(
-                        text = menuEntry.text.orEmpty(),
+                        text = text.orEmpty(),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 },

@@ -27,6 +27,12 @@ data object AlbumSongs : NavKey
 @Serializable
 data object PlaylistSongs : NavKey
 
+/**
+ * The player's queue, shown like a playlist while the app runs.
+ */
+@Serializable
+data object CurrentQueue : NavKey
+
 @Serializable
 data object Search : NavKey
 
@@ -84,6 +90,10 @@ val config = SavedStateConfiguration {
             subclass(
                 subclass = PlaylistSongs::class,
                 serializer = PlaylistSongs.serializer()
+            )
+            subclass(
+                subclass = CurrentQueue::class,
+                serializer = CurrentQueue.serializer()
             )
             subclass(
                 subclass = Search::class,

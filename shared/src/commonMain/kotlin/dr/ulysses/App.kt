@@ -11,11 +11,19 @@ import dr.ulysses.ui.views.Main
 
 object Logger : Logger(
     config = loggerConfigInit(
-        platformLogWriter(NoTagFormatter),
+        *listOfNotNull(
+            platformLogWriter(NoTagFormatter),
+            logFileWriter()
+        ).toTypedArray(),
         minSeverity = Severity.Info,
     ),
     tag = "Kristine"
 )
+
+/**
+ * Writes the log to kristine.log in Kristine's own folder too; null where there are no files (the browser).
+ */
+internal expect fun logFileWriter(): LogWriter?
 
 @Composable
 fun App() = AppTheme {

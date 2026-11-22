@@ -1,28 +1,35 @@
-package dr.ulysses.api
+package dr.ulysses.api.external
 
 import io.ktor.client.request.*
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /**
  * An album as Deezer lists it. [type] is album, ep, single or compile.
  */
 @Serializable
-class CatalogAlbum(
+data class CatalogAlbum(
     val id: Long,
     val title: String,
-    @SerialName("cover_medium") val coverUrl: String? = null,
-    @SerialName("release_date") val releaseDate: String? = null,
-    @SerialName("record_type") val type: String? = null,
+    @SerialName("cover_medium")
+    val coverUrl: String? = null,
+    @SerialName("release_date")
+    val releaseDate: String? = null,
+    @SerialName("record_type")
+    val type: String? = null,
 ) {
-    val year
-        get() = releaseDate?.take(4)
+    @Transient
+    val year = releaseDate?.take(4)
 }
 
 @Serializable
-class CatalogTrack(
+data class CatalogTrack(
     val title: String,
-    @SerialName("track_position") val position: Int? = null,
+    @SerialName("track_position")
+    val position: Int? = null,
 )
 
 /**
@@ -92,7 +99,9 @@ object Catalog {
     }
 
     suspend fun cover(album: CatalogAlbum): ByteArray? = album.coverUrl?.let {
-        runCatching { MetadataSearch.downloadArtwork(it) }.getOrNull()
+        runCatching { MetadataSearch.downloadArtwork(it) }
+            .onFailure { currentCoroutineContext().ensureActive() }
+            .getOrNull()
     }
 
     /**
@@ -110,10 +119,10 @@ object Catalog {
     fun key(name: String) = MetadataSearch.normalize(MetadataSearch.clean(name))
 
     @Serializable
-    private class Page<T>(val data: List<T> = emptyList())
+    private data class Page<T>(val data: List<T> = emptyList())
 
     @Serializable
-    private class DeezerArtist(
+    private data class DeezerArtist(
         val id: Long,
         val name: String,
     )

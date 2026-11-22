@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import dr.ulysses.api.internal.isRemote
 import dr.ulysses.entities.*
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.player.Player
@@ -28,7 +29,8 @@ fun OrganizeFoldersChip() {
     var isAvailable by remember { mutableStateOf(false) }
     var isOpen by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        isAvailable = musicFolder() != null
+        // A connected server has its music folder
+        isAvailable = isRemote || musicFolder() != null
     }
     if (!isAvailable) {
         return

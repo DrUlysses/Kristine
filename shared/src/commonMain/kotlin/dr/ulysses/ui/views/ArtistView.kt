@@ -14,12 +14,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dr.ulysses.api.Catalog
-import dr.ulysses.api.CatalogAlbum
-import dr.ulysses.api.CatalogTrack
+import dr.ulysses.api.external.Catalog
+import dr.ulysses.api.external.CatalogAlbum
+import dr.ulysses.api.external.CatalogTrack
 import dr.ulysses.entities.*
 import dr.ulysses.models.MainViewModel
+import dr.ulysses.player.Player
 import dr.ulysses.ui.elements.*
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /**
  * The artist's albums in the library, to play or open, then the albums of their discography the library lacks.
@@ -43,10 +46,12 @@ fun ArtistView(
     var discography by remember(artist) { mutableStateOf<List<CatalogAlbum>?>(null) }
     var lookupFailed by remember(artist) { mutableStateOf(false) }
     LaunchedEffect(artist) {
-        discography = runCatching { Catalog.albums(artist) }.getOrElse {
-            lookupFailed = true
-            emptyList()
-        }
+        discography = runCatching { Catalog.albums(artist) }
+            .onFailure { currentCoroutineContext().ensureActive() }
+            .getOrElse {
+                lookupFailed = true
+                emptyList()
+            }
     }
     val missing = discography.orEmpty().filter { release ->
         release.type in FULL_RELEASES && libraryAlbums.none {
@@ -107,7 +112,7 @@ fun ArtistView(
                         supportingContent = { Text(songs(withoutAlbum.size)) },
                         modifier = Modifier.clickable {
                             withoutAlbum.firstOrNull { it.state != Song.State.NotDownloaded }?.let { first ->
-                                play(
+                                Player.startQueue(
                                     songs = withoutAlbum.filter { it.state != Song.State.NotDownloaded },
                                     first = first
                                 )
@@ -197,7 +202,11 @@ private fun LibraryAlbumRow(
     // Null until the catalog tells
     var tracks by remember(release) { mutableStateOf<List<CatalogTrack>?>(null) }
     LaunchedEffect(release) {
-        tracks = release?.let { runCatching { Catalog.tracks(it) }.getOrNull() }
+        tracks = release?.let {
+            runCatching { Catalog.tracks(it) }
+                .onFailure { currentCoroutineContext().ensureActive() }
+                .getOrNull()
+        }
     }
     val playable = inLibrary.filter { it.state != Song.State.NotDownloaded }
     ListItem(

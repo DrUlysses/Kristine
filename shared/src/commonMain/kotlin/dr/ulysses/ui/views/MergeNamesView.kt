@@ -5,18 +5,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MergeType
+import androidx.compose.material.icons.automirrored.outlined.MergeType
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dr.ulysses.api.Catalog
+import dr.ulysses.api.external.Catalog
 import dr.ulysses.entities.*
 import dr.ulysses.ui.elements.ListScrollbar
 import dr.ulysses.ui.elements.RadioRow
 import dr.ulysses.ui.elements.songs
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /**
  * Also the title of the screen.
@@ -149,7 +151,7 @@ fun MergeNamesView() {
             onDismissRequest = { isConfirmingAuto = false },
             icon = {
                 Icon(
-                    imageVector = Icons.Outlined.MergeType,
+                    imageVector = Icons.AutoMirrored.Outlined.MergeType,
                     contentDescription = null
                 )
             },
@@ -301,4 +303,6 @@ private suspend fun deezerSpelling(group: NameGroup) = runCatching {
     } else {
         Catalog.artistName(group.artist)
     }
-}.getOrNull()
+}
+    .onFailure { currentCoroutineContext().ensureActive() }
+    .getOrNull()

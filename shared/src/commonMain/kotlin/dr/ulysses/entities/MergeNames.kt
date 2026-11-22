@@ -1,20 +1,20 @@
 package dr.ulysses.entities
 
 import dr.ulysses.Logger
+import dr.ulysses.api.internal.LibraryTasks
+import dr.ulysses.api.internal.MergeIntoCommand
+import dr.ulysses.api.internal.MergeNamesCommand
+import dr.ulysses.api.internal.isRemote
 import dr.ulysses.models.MainViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
 /**
  * One artist or album whose songs spell it differently, to be written one way: "A & B" and "A And B", or "Artist"
  * and "Artist, Guest", whose featured artist goes to the title.
  */
-class NameGroup(
+data class NameGroup(
     val isAlbum: Boolean,
     /**
      * The main artist, of the album too.
@@ -26,7 +26,7 @@ class NameGroup(
      */
     val spellings: List<Pair<String, Int>>,
 ) {
-    val suggestion get() = spellings.first().first
+    val suggestion = spellings.first().first
 
     /**
      * The same for the group after other merges, which change spellings and paths but not what is grouped.
@@ -83,12 +83,15 @@ fun findNameGroups(library: List<Song>): List<NameGroup> {
  */
 object NameMerger {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val _progress = MutableStateFlow<Pair<Int, Int>?>(null)
+    private val localProgress = MutableStateFlow<Pair<Int, Int>?>(null)
 
     /**
      * Steps done and to do while merging, null otherwise.
      */
-    val progress: StateFlow<Pair<Int, Int>?> = _progress.asStateFlow()
+    val progress: StateFlow<Pair<Int, Int>?> = LibraryTasks.localOrRemote(
+        local = localProgress,
+        remote = LibraryTasks.merging
+    )
 
     /**
      * Merges each group with [ids] into its chosen name, or its [NameGroup.suggestion] when [names] has none. Each
@@ -97,20 +100,31 @@ object NameMerger {
     fun merge(
         ids: List<String>,
         names: Map<String, String> = emptyMap(),
-    ) = run(ids) { id ->
-        val group = findNameGroups(SongRepository.getAllSongs()).find { it.id == id } ?: return@run
-        val name = names[id] ?: group.suggestion
-        group.songs.forEach { song ->
-            retag(song) {
-                if (group.isAlbum) {
-                    copy(
-                        album = name
-                    )
-                } else {
-                    copy(
-                        artist = name,
-                        title = titleWithFeatured(song)
-                    )
+    ) {
+        if (isRemote) {
+            LibraryTasks.send(
+                MergeNamesCommand(
+                    ids = ids,
+                    names = names
+                )
+            )
+            return
+        }
+        run(ids) { id ->
+            val group = findNameGroups(SongRepository.getAllSongs()).find { it.id == id } ?: return@run
+            val name = names[id] ?: group.suggestion
+            group.songs.forEach { song ->
+                retag(song) {
+                    if (group.isAlbum) {
+                        copy(
+                            album = name
+                        )
+                    } else {
+                        copy(
+                            artist = name,
+                            title = titleWithFeatured(song)
+                        )
+                    }
                 }
             }
         }
@@ -122,12 +136,23 @@ object NameMerger {
     fun mergeInto(
         songs: List<Song>,
         album: String,
-    ) = run(listOf(album)) {
-        songs.forEach { song ->
-            retag(song) {
-                copy(
+    ) {
+        if (isRemote) {
+            LibraryTasks.send(
+                MergeIntoCommand(
+                    songs = songs,
                     album = album
                 )
+            )
+            return
+        }
+        run(listOf(album)) {
+            songs.forEach { song ->
+                retag(song) {
+                    copy(
+                        album = album
+                    )
+                }
             }
         }
     }
@@ -139,16 +164,18 @@ object NameMerger {
         items: List<T>,
         step: suspend (T) -> Unit,
     ) {
-        if (_progress.value != null) {
+        if (localProgress.value != null) {
             return
         }
-        _progress.value = 0 to items.size
+        localProgress.value = 0 to items.size
         scope.launch {
             items.forEachIndexed { index, item ->
-                runCatching { step(item) }.onFailure { Logger.e(it) { "Merging $item failed" } }
-                _progress.value = index + 1 to items.size
+                runCatching { step(item) }
+                    .onFailure { currentCoroutineContext().ensureActive() }
+                    .onFailure { Logger.e(it) { "Merging $item failed" } }
+                localProgress.value = index + 1 to items.size
             }
-            _progress.value = null
+            localProgress.value = null
             MainViewModel.loadSongs()
         }
     }

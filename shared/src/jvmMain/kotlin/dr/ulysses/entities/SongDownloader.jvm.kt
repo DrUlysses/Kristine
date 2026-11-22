@@ -12,7 +12,7 @@ actual suspend fun downloadAudio(
     query: String,
     fileName: String,
 ): String = withContext(Dispatchers.IO) {
-    val folder = SettingsRepository.get(SettingKey.SongsPath)?.value?.let(::File) ?: File("music").absoluteFile
+    val folder = File(songsFolder())
     val ytDlp = SettingsRepository.get(SettingKey.YtDlpPath)?.value?.takeIf { it.isNotBlank() } ?: "yt-dlp"
     // Usually another copy of the same song, which then already has its own entry
     folder.listFiles()?.find { it.nameWithoutExtension == fileName }?.let {

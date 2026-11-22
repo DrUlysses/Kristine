@@ -6,7 +6,11 @@ import androidx.compose.runtime.setValue
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 import dr.ulysses.network.*
+import dr.ulysses.ui.views.getCurrentPosition
+import dr.ulysses.ui.views.getVolume
+import dr.ulysses.ui.views.setVolume
 import kotlin.concurrent.Volatile
+import kotlin.time.TimeSource
 
 enum class RepeatMode {
     None,
@@ -34,13 +38,20 @@ object Player {
     // The local queue survives a session as a remote control
     private var localState: PlayerState? = null
 
-    // As a remote control: the list the next picked song is played in, sent to the server along with it
-    private var remoteQueue: List<Song> = emptyList()
-
     // The server song this device plays along with, as a local file path
     private var followedPath: String? = null
 
     private val remote get() = state.isRemotePlaying
+
+    /**
+     * As a remote control: the server's volume, 0 to 1.
+     */
+    var remoteVolume by mutableStateOf(1f)
+        private set
+
+    // As a remote control: the server's position and when it came, counted on while the server plays
+    private var remotePosition = 0
+    private var remotePositionAt = TimeSource.Monotonic.markNow()
 
     // The track the app last asked the device for. Device reports lag behind fast clicking, so until the device
     // confirms this track, reports about other tracks are stale and must not move the UI back
@@ -78,6 +89,19 @@ object Player {
         }
     }
 
+    /**
+     * The current song's position in seconds, on this device or on the connected server.
+     */
+    fun position(): Int = if (remote) {
+        remotePosition + if (state.isPlaying) {
+            remotePositionAt.elapsedNow().inWholeSeconds.toInt()
+        } else {
+            0
+        }
+    } else {
+        getCurrentPosition()
+    }
+
     private fun playTrack(trackNum: Int) {
         requestedTrack = trackNum
         playTrackOnDevice(trackNum)
@@ -97,7 +121,6 @@ object Player {
         } else {
             state = localState ?: PlayerState()
             localState = null
-            remoteQueue = emptyList()
             // The device played the server's songs; it gets the local queue back, paused
             if (followedPath != null) {
                 followedPath = null
@@ -112,18 +135,23 @@ object Player {
         if (!remote) {
             return
         }
+        window.volume?.let { remoteVolume = it }
+        remotePosition = window.position ?: 0
+        remotePositionAt = TimeSource.Monotonic.markNow()
         setState {
             copy(
                 currentSong = window.current,
                 isPlaying = window.isPlaying,
                 currentPlaylist = Playlist(
                     name = "Server",
-                    songs = listOfNotNull(window.previous, window.current, window.next)
+                    songs = window.queue ?: listOfNotNull(window.previous, window.current, window.next)
                 ),
-                currentTrackNum = if (window.previous != null) {
-                    1
-                } else {
-                    0
+                currentTrackNum = when {
+                    window.queue != null -> window.queue.indexOfFirst { it.path == window.current?.path }
+                        .coerceAtLeast(0)
+
+                    window.previous != null -> 1
+                    else -> 0
                 }
             )
         }
@@ -171,17 +199,13 @@ object Player {
                     return NetworkManager.send(PreviousCommand)
                 }
             }
-            // The server answers with its new window; the songs go without artwork to keep the message small
-            val queue = remoteQueue.takeIf { song in it } ?: listOf(song)
-            NetworkManager.send(
-                SetPlaylistCommand(
-                    songs = queue.map {
-                        it.copy(
-                            artwork = null
-                        )
-                    },
-                    currentSongIndex = queue.indexOf(song)
-                )
+            // A song of the server's queue: the server jumps to it; any other plays on its own
+            if (state.currentPlaylist.songs.any { it.path == song.path }) {
+                return NetworkManager.send(PlaySongCommand(song.copy(artwork = null)))
+            }
+            startQueue(
+                songs = listOf(song),
+                first = song
             )
             return
         }
@@ -309,10 +333,38 @@ object Player {
         }
     }
 
-    fun onSeekCommand(position: Int) {
-        if (!remote) {
-            seekToOnDevice(position)
+    /**
+     * Sets this device's volume, or the connected server's.
+     */
+    fun onVolumeCommand(volume: Float) {
+        if (remote) {
+            remoteVolume = volume
+            return NetworkManager.send(SetVolumeCommand(volume))
         }
+        setVolume(volume)
+        // Other clients show the new volume too
+        NetworkManager.sendPlayerUpdate(
+            state.window().copy(
+                position = getCurrentPosition(),
+                volume = volume
+            )
+        )
+    }
+
+    fun onSeekCommand(position: Int) {
+        if (remote) {
+            remotePosition = position
+            remotePositionAt = TimeSource.Monotonic.markNow()
+            return NetworkManager.send(SeekCommand(position))
+        }
+        seekToOnDevice(position)
+        // Clients count on from the position they were told, which a seek changes
+        NetworkManager.sendPlayerUpdate(
+            state.window().copy(
+                position = position,
+                volume = getVolume()
+            )
+        )
     }
 
     fun onNextCommand() {
@@ -395,27 +447,36 @@ object Player {
         playTrack(state.currentTrackNum)
     }
 
-    fun onPlaylistChanged(playlist: Playlist) {
-        val songs = playlist.songs.filter { it.isPlayable() }
-        if (remote) {
-            remoteQueue = songs
+    /**
+     * Starts a new queue of [songs] at [first], as a click in a song list or a playlist does; moving within the
+     * queue (next, previous, a click in the queue) is [onPlaySongCommand].
+     */
+    fun startQueue(
+        songs: List<Song>,
+        first: Song,
+    ) {
+        if (!remote) {
+            onSongsChanged(songs)
+            onPlaySongCommand(first)
             return
         }
-        setState {
-            copy(
-                currentPlaylist = playlist.copy(
-                    songs = songs
-                ),
-                currentTrackNum = 0
+        // The server answers with its new window; the songs go without artwork to keep the message small
+        val queue = songs.filter { it.isPlayable() }
+        NetworkManager.send(
+            SetPlaylistCommand(
+                songs = queue.map {
+                    it.copy(
+                        artwork = null
+                    )
+                },
+                currentSongIndex = queue.indexOf(first)
             )
-        }
-        setPlayListOnDevice(songs)
+        )
     }
 
     fun onSongsChanged(songs: List<Song>) {
         val playable = songs.filter { it.isPlayable() }
         if (remote) {
-            remoteQueue = playable
             return
         }
         setState {
@@ -492,7 +553,12 @@ object Player {
         }
         val window = state.window()
         if (window != old.window()) {
-            NetworkManager.sendPlayerUpdate(window)
+            NetworkManager.sendPlayerUpdate(
+                window.copy(
+                    position = getCurrentPosition(),
+                    volume = getVolume()
+                )
+            )
         }
     }
 }

@@ -8,18 +8,22 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import dr.ulysses.network.NetworkManager
 import dr.ulysses.network.SERVER_PORT
 import dr.ulysses.network.ServerInfo
+import dr.ulysses.network.ServerType
 import dr.ulysses.ui.elements.toClipEntry
 import kotlinx.coroutines.launch
 
@@ -29,6 +33,7 @@ fun Connections() {
     val discoveredServers by NetworkManager.discoveredServers.collectAsState()
     val currentServer by NetworkManager.currentServer.collectAsState()
     val isConnected by NetworkManager.isConnected.collectAsState()
+    val serverType by NetworkManager.serverType.collectAsState()
     val playHere by NetworkManager.playHere.collectAsState()
     val certificateChange by NetworkManager.certificateChange.collectAsState()
     val clipboard = LocalClipboard.current
@@ -65,10 +70,14 @@ fun Connections() {
                     port = port
                 ),
                 isConnected = isConnected,
+                type = serverType,
                 playHere = playHere
             )
         }
         ConnectField()
+        RecentServers(
+            currentServer = currentServer
+        )
         // Only a device with a server hears announcements; a browser can't
         if (ownServer != null) {
             NearbyServers(
@@ -93,9 +102,12 @@ private fun serverText(
     "$address:$port"
 }
 
-/** Reads [serverText]'s format back; an https:// prefix, as from the browser's address bar, is fine too. */
+/** Reads [serverText]'s format back; a https:// prefix, as from the browser's address bar, is fine too. */
 // shortcut: IPv6 addresses aren't understood, fine while servers announce IPv4 only
-private fun parseServer(text: String): Pair<String, Int>? {
+private fun parseServer(
+    text: String,
+    defaultPort: Int,
+): Pair<String, Int>? {
     val server = text.trim().removePrefix("https://").removeSuffix("/")
     val address = server.substringBefore(':')
     val portText = server.substringAfter(
@@ -106,7 +118,7 @@ private fun parseServer(text: String): Pair<String, Int>? {
         return null
     }
     val port = if (portText.isEmpty()) {
-        SERVER_PORT
+        defaultPort
     } else {
         portText.toIntOrNull()?.takeIf { it in 1..65535 } ?: return null
     }
@@ -116,19 +128,52 @@ private fun parseServer(text: String): Pair<String, Int>? {
 @Composable
 private fun ConnectField() {
     var text by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf(ServerType.Kristine) }
+    var password by remember { mutableStateOf("") }
     var isInvalid by remember { mutableStateOf(false) }
     fun connect() {
-        val server = parseServer(text)
+        val server = parseServer(
+            text = text,
+            defaultPort = when (type) {
+                ServerType.Kristine -> SERVER_PORT
+                ServerType.Mpd -> MPD_PORT
+            }
+        )
         isInvalid = server == null
-        if (server != null) {
-            NetworkManager.connectToCustomServer(
+        if (server == null) {
+            return
+        }
+        when (type) {
+            ServerType.Kristine -> NetworkManager.connectToCustomServer(
                 address = server.first,
                 port = server.second
             )
-            text = ""
+
+            ServerType.Mpd -> NetworkManager.connectToMpd(
+                address = server.first,
+                port = server.second,
+                password = password
+            )
         }
+        text = ""
     }
 
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        ServerType.entries.forEachIndexed { index, entry ->
+            SegmentedButton(
+                selected = type == entry,
+                onClick = { type = entry },
+                shape = SegmentedButtonDefaults.itemShape(
+                    index = index,
+                    count = ServerType.entries.size
+                )
+            ) {
+                Text(entry.label)
+            }
+        }
+    }
     OutlinedTextField(
         value = text,
         onValueChange = {
@@ -136,11 +181,18 @@ private fun ConnectField() {
             isInvalid = false
         },
         label = { Text("Server address") },
-        placeholder = { Text("Paste the address copied on the server") },
+        placeholder = {
+            Text(
+                when (type) {
+                    ServerType.Kristine -> "Paste the address copied on the server"
+                    ServerType.Mpd -> "The MPD server's address, e.g. 127.0.0.1 (port $MPD_PORT)"
+                }
+            )
+        },
         singleLine = true,
         isError = isInvalid,
         supportingText = if (isInvalid) {
-            { Text("Expected an address like 192.168.1.5, optionally with :port") }
+            { Text("Expected an address like 127.0.0.1, optionally with :port") }
         } else {
             null
         },
@@ -162,6 +214,90 @@ private fun ConnectField() {
         ),
         modifier = Modifier.fillMaxWidth()
     )
+    if (type == ServerType.Mpd) {
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password (optional)") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+private val ServerType.label
+    get() = when (this) {
+        ServerType.Kristine -> "Kristine"
+        ServerType.Mpd -> "MPD"
+    }
+
+private const val MPD_PORT = 6600
+
+@Composable
+private fun RecentServers(currentServer: Pair<String, Int>?) {
+    val servers by NetworkManager.recentServers.collectAsState()
+    if (servers.isEmpty()) {
+        return
+    }
+    Column {
+        Text(
+            text = "Recent servers",
+            style = MaterialTheme.typography.titleMedium
+        )
+        servers.forEach { server ->
+            val isCurrent = (server.address to server.port) == currentServer
+            ListItem(
+                headlineContent = {
+                    Text(
+                        serverText(
+                            address = server.address,
+                            port = server.port
+                        )
+                    )
+                },
+                supportingContent = { Text(server.type.label) },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Filled.History,
+                        contentDescription = null
+                    )
+                },
+                trailingContent = {
+                    IconButton(
+                        onClick = {
+                            NetworkManager.rememberServer(
+                                server = server,
+                                keep = false
+                            )
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Forget this server"
+                        )
+                    }
+                },
+                modifier = Modifier.clickable(
+                    enabled = !isCurrent
+                ) {
+                    when (server.type) {
+                        ServerType.Kristine -> NetworkManager.connect(
+                            address = server.address,
+                            port = server.port
+                        )
+
+                        // A password isn't kept: a server that needs one is connected from the field above
+                        ServerType.Mpd -> NetworkManager.connectToMpd(
+                            address = server.address,
+                            port = server.port,
+                            password = null
+                        )
+                    }
+                }
+            )
+        }
+    }
 }
 
 @Composable
@@ -227,6 +363,7 @@ private fun NearbyServers(
 private fun CurrentServerCard(
     server: String,
     isConnected: Boolean,
+    type: ServerType,
     playHere: Boolean,
 ) {
     Card(
@@ -253,7 +390,7 @@ private fun CurrentServerCard(
                         style = MaterialTheme.typography.labelMedium
                     )
                     Text(
-                        text = server,
+                        text = "$server · ${type.label}",
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
@@ -280,13 +417,18 @@ private fun CurrentServerCard(
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
-                        text = "Off: only control the server. On: also play its songs here",
+                        text = if (type.canPlayHere) {
+                            "Off: only control the server. On: also play its songs here"
+                        } else {
+                            "This server only plays on its own speakers"
+                        },
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
                 Switch(
-                    checked = playHere,
-                    onCheckedChange = NetworkManager::setPlayHere
+                    checked = playHere && type.canPlayHere,
+                    onCheckedChange = NetworkManager::setPlayHere,
+                    enabled = type.canPlayHere
                 )
             }
         }

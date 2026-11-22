@@ -4,6 +4,8 @@ package dr.ulysses.entities
 
 import app.cash.sqldelight.async.coroutines.awaitAsList
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
+import dr.ulysses.api.internal.LibraryClient
+import dr.ulysses.api.internal.isRemote
 import dr.ulysses.database.SharedDatabase
 import dr.ulysses.entities.base.Searchable
 import kotlinx.serialization.Serializable
@@ -90,63 +92,34 @@ object PlaylistRepository : KoinComponent {
         }
     }
 
-    suspend fun insert(playlist: Playlist) = sharedDatabase { appDatabase ->
-        appDatabase.playlistQueries.transactionWithResult {
-            appDatabase.playlistQueries.insert(
-                name = playlist.name,
-                created_at = playlist.createdAt.toString(),
-                updated_at = playlist.updatedAt.toString(),
-            )
-            playlist.songs.forEach { song ->
-                appDatabase.playlistSongQueries.insert(
-                    playlist_name = playlist.name,
-                    song_path = song.path,
+    suspend fun insert(playlist: Playlist) {
+        if (isRemote) {
+            LibraryClient.insertPlaylist(playlist)
+            return
+        }
+        return sharedDatabase { appDatabase ->
+            appDatabase.playlistQueries.transactionWithResult {
+                appDatabase.playlistQueries.insert(
+                    name = playlist.name,
+                    created_at = playlist.createdAt.toString(),
+                    updated_at = playlist.updatedAt.toString(),
                 )
+                playlist.songs.forEach { song ->
+                    appDatabase.playlistSongQueries.insert(
+                        playlist_name = playlist.name,
+                        song_path = song.path,
+                    )
+                }
             }
         }
     }
 
-    suspend fun getAllPlaylists(): List<Playlist> = sharedDatabase { appDatabase ->
-        appDatabase.playlistQueries.selectAll().awaitAsList().map {
-            Playlist(
-                name = it.name,
-                songs = emptyList(),
-                artwork = it.artwork,
-                state = Playlist.State.fromString(it.state),
-                createdAt = Instant.parse(it.created_at),
-                updatedAt = Instant.parse(it.updated_at),
-            )
+    suspend fun getAllPlaylists(): List<Playlist> {
+        if (isRemote) {
+            return LibraryClient.playlists()
         }
-    }
-
-    suspend fun getPlaylistSongs(playlistName: String): List<Song> = sharedDatabase { appDatabase ->
-        appDatabase.playlistSongQueries.selectSongsByPlaylist(playlistName).awaitAsList().map {
-            Song(
-                path = it.path,
-                title = it.title,
-                album = it.album,
-                artist = it.artist,
-                state = Song.State.fromString(it.state),
-            )
-        }
-    }
-
-    suspend fun getArtwork(playlistName: String) = sharedDatabase { appDatabase ->
-        appDatabase.playlistQueries.selectArtworkByName(playlistName).awaitAsOneOrNull()?.artwork
-    }
-
-    suspend fun search(input: String): List<Playlist> = sharedDatabase { appDatabase ->
-        appDatabase.playlistQueries.search(input).awaitAsList().map {
-            Playlist(
-                name = it.name,
-                songs = emptyList(),
-                artwork = it.artwork,
-                state = Playlist.State.fromString(it.state),
-                createdAt = Instant.parse(it.created_at),
-                updatedAt = Instant.parse(it.updated_at),
-            )
-        } + appDatabase.playlistSongQueries.search(input).awaitAsList().flatMap { playlistSong ->
-            appDatabase.playlistQueries.selectByName(playlistSong.playlist_name).awaitAsList().map {
+        return sharedDatabase { appDatabase ->
+            appDatabase.playlistQueries.selectAll().awaitAsList().map {
                 Playlist(
                     name = it.name,
                     songs = emptyList(),
@@ -157,5 +130,60 @@ object PlaylistRepository : KoinComponent {
                 )
             }
         }
-    }.distinct()
+    }
+
+    suspend fun getPlaylistSongs(playlistName: String): List<Song> {
+        if (isRemote) {
+            return LibraryClient.playlistSongs(playlistName)
+        }
+        return sharedDatabase { appDatabase ->
+            appDatabase.playlistSongQueries.selectSongsByPlaylist(playlistName).awaitAsList().map {
+                Song(
+                    path = it.path,
+                    title = it.title,
+                    album = it.album,
+                    artist = it.artist,
+                    state = Song.State.fromString(it.state),
+                )
+            }
+        }
+    }
+
+    suspend fun getArtwork(playlistName: String): ByteArray? {
+        if (isRemote) {
+            return LibraryClient.playlistArtwork(playlistName)
+        }
+        return sharedDatabase { appDatabase ->
+            appDatabase.playlistQueries.selectArtworkByName(playlistName).awaitAsOneOrNull()?.artwork
+        }
+    }
+
+    suspend fun search(input: String): List<Playlist> {
+        if (isRemote) {
+            return LibraryClient.searchPlaylists(input)
+        }
+        return sharedDatabase { appDatabase ->
+            appDatabase.playlistQueries.search(input).awaitAsList().map {
+                Playlist(
+                    name = it.name,
+                    songs = emptyList(),
+                    artwork = it.artwork,
+                    state = Playlist.State.fromString(it.state),
+                    createdAt = Instant.parse(it.created_at),
+                    updatedAt = Instant.parse(it.updated_at),
+                )
+            } + appDatabase.playlistSongQueries.search(input).awaitAsList().flatMap { playlistSong ->
+                appDatabase.playlistQueries.selectByName(playlistSong.playlist_name).awaitAsList().map {
+                    Playlist(
+                        name = it.name,
+                        songs = emptyList(),
+                        artwork = it.artwork,
+                        state = Playlist.State.fromString(it.state),
+                        createdAt = Instant.parse(it.created_at),
+                        updatedAt = Instant.parse(it.updated_at),
+                    )
+                }
+            }
+        }.distinct()
+    }
 }

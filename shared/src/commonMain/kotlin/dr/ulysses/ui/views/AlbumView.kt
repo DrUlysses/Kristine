@@ -8,20 +8,23 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.MergeType
 import androidx.compose.material.icons.outlined.AddLink
-import androidx.compose.material.icons.outlined.MergeType
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dr.ulysses.api.Catalog
-import dr.ulysses.api.CatalogAlbum
-import dr.ulysses.api.CatalogTrack
+import dr.ulysses.api.external.Catalog
+import dr.ulysses.api.external.CatalogAlbum
+import dr.ulysses.api.external.CatalogTrack
 import dr.ulysses.entities.*
 import dr.ulysses.models.MainViewModel
+import dr.ulysses.player.Player
 import dr.ulysses.ui.elements.*
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /**
  * An album of the library, or of the artist's discography ([catalog] known) when the library lacks it.
@@ -36,7 +39,7 @@ data class AlbumRef(
  * A track of the album: [song] is null for a catalog track the library lacks, [track] null for a song the catalog
  * doesn't list.
  */
-private class AlbumRow(
+private data class AlbumRow(
     val track: CatalogTrack?,
     val song: Song?,
 )
@@ -84,10 +87,12 @@ fun AlbumView(
             )
             catalog = found
             tracks = found?.let { Catalog.tracks(it) }.orEmpty()
-        }.onFailure {
-            lookupFailed = true
-            tracks = emptyList()
         }
+            .onFailure { currentCoroutineContext().ensureActive() }
+            .onFailure {
+                lookupFailed = true
+                tracks = emptyList()
+            }
     }
     val rows = remember(
         inLibrary,
@@ -138,9 +143,8 @@ fun AlbumView(
                         }
                     },
                     playable = playable,
-                    // A server's songs are tagged on the server
                     onMergeInto = { isMergingInto = true }.takeIf {
-                        otherAlbums.isNotEmpty() && inLibrary.isNotEmpty() && !MainViewModel.isRemote
+                        otherAlbums.isNotEmpty() && inLibrary.isNotEmpty()
                     }
                 )
             }
@@ -158,7 +162,7 @@ fun AlbumView(
                     row = row,
                     catalog = catalog,
                     onPlay = { song ->
-                        play(
+                        Player.startQueue(
                             songs = playable,
                             first = song
                         )
@@ -262,10 +266,11 @@ private fun AlbumHeader(
                 }
                 if (onMergeInto != null) {
                     IconButton(
-                        onClick = onMergeInto
+                        onClick = onMergeInto,
+                        enabled = canManageLibrary()
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.MergeType,
+                            imageVector = Icons.AutoMirrored.Outlined.MergeType,
                             contentDescription = "Merge into another album"
                         )
                     }
@@ -320,6 +325,11 @@ private fun TrackRow(
         },
         trailingContent = {
             when {
+                song != null && isPlayable -> SongPlayButton(
+                    song = song,
+                    onPlay = { onPlay(song) }
+                )
+
                 song != null -> SongDownloadButton(song)
                 track != null && catalog != null -> DownloadButton(
                     key = SongDownloader.linkKey(
@@ -437,7 +447,7 @@ private fun MergeIntoDialog(
         onDismissRequest = onDismiss,
         icon = {
             Icon(
-                imageVector = Icons.Outlined.MergeType,
+                imageVector = Icons.AutoMirrored.Outlined.MergeType,
                 contentDescription = null
             )
         },

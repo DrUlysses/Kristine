@@ -335,7 +335,7 @@ private fun KeptFileItem(group: DuplicateGroup) {
 /**
  * What resolving one group did.
  */
-private class Resolution(
+private data class Resolution(
     val removedPaths: Set<String>,
     val notDeleted: List<Song>,
 )

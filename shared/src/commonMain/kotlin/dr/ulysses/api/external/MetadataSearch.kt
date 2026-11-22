@@ -1,6 +1,8 @@
-package dr.ulysses.api
+package dr.ulysses.api.external
 
 import dr.ulysses.Logger
+import dr.ulysses.api.internal.LibraryClient
+import dr.ulysses.api.internal.isRemote
 import dr.ulysses.entities.SettingKey
 import dr.ulysses.entities.SettingsRepository
 import dr.ulysses.entities.Song
@@ -8,14 +10,14 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+@Serializable
 data class MetadataCandidate(
     val title: String,
     val artist: String,
@@ -34,12 +36,22 @@ data class MetadataCandidate(
 /**
  * Audio fingerprint from Chromaprint, or null where `fpcalc` isn't available.
  */
-class AudioFingerprint(
+@Serializable
+data class AudioFingerprint(
     val durationSeconds: Int,
     val fingerprint: String,
 )
 
 expect suspend fun audioFingerprint(path: String): AudioFingerprint?
+
+/**
+ * [audioFingerprint] of a song of the connected server's library, which has the file, or of this device's.
+ */
+private suspend fun fingerprintOf(path: String): AudioFingerprint? = if (isRemote) {
+    LibraryClient.fingerprint(path)
+} else {
+    audioFingerprint(path)
+}
 
 /**
  * Chromaprint's uncompressed fingerprint, one 32-bit value per ~0.12 s of sound; null where `fpcalc` isn't available.
@@ -54,16 +66,42 @@ expect suspend fun rawFingerprint(path: String): IntArray?
  * Every result is ranked by title/artist similarity, sound match, track number and duration.
  */
 object MetadataSearch {
-    private class Guess(
+    private data class Guess(
         val title: String,
         val artist: String,
+    )
+
+    // "(6).mp3", "06 - Title.mp3", "6. Title.mp3": the position on the album
+    private val leadingNumber = Regex("""^\(?(\d{1,3})\)?(?:[\s.\-_]|$)""")
+
+    // Half the words in common, e.g. "Some Title" and "Some Title (Live)"
+    private const val MIN_TITLE_SIMILARITY = 0.5
+
+    private val noiseInBrackets = Regex(
+        pattern = """\s*[(\[][^)\]]*(official|video|audio|lyric|remaster|feat|ft\.|\bhd\b|\bhq\b|\d{3,4}p|edition|bonus|deluxe)[^)\]]*[)\]]""",
+        option = RegexOption.IGNORE_CASE
+    )
+    private val numberOnly = Regex("""^\(?\d+\)?$""") // "(6)": no title at all
+    private val copyMarker = Regex("""\s*\(\d+\)$""") // "Song (1)" from duplicate downloads
+    private val trackNumber = Regex("""^\d{1,3}[\s.\-_]+""")
+    private val featuring = Regex(
+        pattern = """\s+(feat\.?|ft\.?|featuring)\s.*$""",
+        option = RegexOption.IGNORE_CASE
+    )
+
+    private val NOT_THE_SONGS_ALBUM = setOf(
+        "Compilation",
+        "Live",
+        "DJ-mix",
+        "Mixtape/Street",
+        "Remix"
     )
 
     /**
      * Best match first, at most 3.
      */
     suspend fun find(song: Song): List<MetadataCandidate> = coroutineScope {
-        val guesses = guesses(song)
+        val guesses = song.guesses()
         val trackHint = trackNumberHint(song)
         val queries = guesses.map { "${it.artist} ${it.title}".trim() }.filter { it.isNotBlank() }.distinct().take(3)
         val artist = knownArtist(song)
@@ -95,6 +133,7 @@ object MetadataSearch {
         lookups.map { lookup ->
             async {
                 runCatching { lookup() }
+                    .onFailure { currentCoroutineContext().ensureActive() }
                     .onFailure { error ->
                         Logger.d(error) { "Metadata lookup failed for ${song.path}" }
                     }
@@ -130,31 +169,32 @@ object MetadataSearch {
             .toList()
     }
 
-    suspend fun downloadArtwork(url: String): ByteArray = http.get(url).also {
+    suspend fun downloadArtwork(
+        url: String,
+    ): ByteArray = http.get(url).also {
         check(it.status.isSuccess()) { "Artwork download failed: ${it.status}" }
     }.bodyAsBytes()
 
-    private fun knownArtist(song: Song) =
-        song.artist.takeUnless {
-            it.isBlank() || it.equals(
-                other = "Unknown artist",
-                ignoreCase = true
-            )
-        }
+    private fun knownArtist(
+        song: Song,
+    ) = song.artist.takeUnless {
+        it.isBlank() || it.equals(
+            other = "Unknown artist",
+            ignoreCase = true
+        )
+    }
 
-    private fun fileName(song: Song) = song.path.substringAfterLast('/').substringBeforeLast('.')
-
-    private fun guesses(song: Song): List<Guess> = buildList {
-        val tagArtist = knownArtist(song)?.let(::clean).orEmpty()
-        if (song.title.isNotBlank()) {
+    private fun Song.guesses(): List<Guess> = buildList {
+        val tagArtist = knownArtist(this@guesses)?.let(::clean).orEmpty()
+        if (title.isNotBlank()) {
             add(
                 Guess(
-                    title = clean(song.title),
+                    title = clean(title),
                     artist = tagArtist
                 )
             )
         }
-        val name = clean(fileName(song))
+        val name = clean(fileName)
         val parts = name.split(
             " - ",
             limit = 2
@@ -182,26 +222,8 @@ object MetadataSearch {
         }
     }.filter { it.title.isNotBlank() }
 
-    // "(6).mp3", "06 - Title.mp3", "6. Title.mp3": the position on the album
-    private val leadingNumber = Regex("""^\(?(\d{1,3})\)?(?:[\s.\-_]|$)""")
-
-    // Half the words in common, e.g. "Some Title" and "Some Title (Live)"
-    private const val MIN_TITLE_SIMILARITY = 0.5
-
     private fun trackNumberHint(song: Song) =
-        leadingNumber.find(fileName(song).trim())?.groupValues?.get(1)?.toIntOrNull()
-
-    private val noiseInBrackets = Regex(
-        pattern = """\s*[(\[][^)\]]*(official|video|audio|lyric|remaster|feat|ft\.|\bhd\b|\bhq\b|\d{3,4}p|edition|bonus|deluxe)[^)\]]*[)\]]""",
-        option = RegexOption.IGNORE_CASE
-    )
-    private val numberOnly = Regex("""^\(?\d+\)?$""") // "(6)": no title at all
-    private val copyMarker = Regex("""\s*\(\d+\)$""") // "Song (1)" from duplicate downloads
-    private val trackNumber = Regex("""^\d{1,3}[\s.\-_]+""")
-    private val featuring = Regex(
-        pattern = """\s+(feat\.?|ft\.?|featuring)\s.*$""",
-        option = RegexOption.IGNORE_CASE
-    )
+        leadingNumber.find(song.fileName.trim())?.groupValues?.get(1)?.toIntOrNull()
 
     /**
      * [text] without what search engines stumble on: track numbers, "(Official Video)", "feat. …", underscores.
@@ -209,43 +231,39 @@ object MetadataSearch {
     internal fun clean(text: String) = text.replace(
         oldChar = '_',
         newChar = ' '
-    )
-        .replace(
-            regex = noiseInBrackets,
-            replacement = ""
-        )
-        .replace(
-            regex = numberOnly,
-            replacement = ""
-        )
-        .replace(
-            regex = copyMarker,
-            replacement = ""
-        )
-        .replace(
-            regex = trackNumber,
-            replacement = ""
-        )
-        .replace(
-            regex = featuring,
-            replacement = ""
-        )
-        .replace(
-            regex = Regex("\\s+"),
-            replacement = " "
-        )
-        .trim()
+    ).replace(
+        regex = noiseInBrackets,
+        replacement = ""
+    ).replace(
+        regex = numberOnly,
+        replacement = ""
+    ).replace(
+        regex = copyMarker,
+        replacement = ""
+    ).replace(
+        regex = trackNumber,
+        replacement = ""
+    ).replace(
+        regex = featuring,
+        replacement = ""
+    ).replace(
+        regex = Regex("\\s+"),
+        replacement = " "
+    ).trim()
 
     /**
      * Lower case letters, digits and single spaces only, for comparing names written differently.
      */
-    internal fun normalize(text: String?) =
-        text.orEmpty().lowercase().filter { it.isLetterOrDigit() || it == ' ' }.replace(
-            regex = Regex("\\s+"),
-            replacement = " "
-        ).trim()
+    internal fun normalize(
+        text: String?,
+    ) = text.orEmpty().lowercase().filter { it.isLetterOrDigit() || it == ' ' }.replace(
+        regex = Regex("\\s+"),
+        replacement = " "
+    ).trim()
 
-    private fun tokens(text: String?) = normalize(text).split(' ').filter { it.isNotEmpty() }.toSet()
+    private fun tokens(
+        text: String?,
+    ) = normalize(text).split(' ').filter { it.isNotEmpty() }.toSet()
 
     // Dice coefficient over words: 1 for the same words, 0 for none in common
     private fun similarity(
@@ -286,12 +304,11 @@ object MetadataSearch {
         val albumMatch = 0.2 * similarity(
             a = candidate.album,
             b = song.album
-        ) +
-                if (trackHint != null && candidate.trackNumber == trackHint) {
-                    0.4
-                } else {
-                    0.0
-                }
+        ) + if (trackHint != null && candidate.trackNumber == trackHint) {
+            0.4
+        } else {
+            0.0
+        }
         // The file's length is the one fact the tags can't get wrong
         val duration = song.duration
         val lengthMatch = if (duration != null && duration > 0 && candidate.durationSeconds != null) {
@@ -308,22 +325,23 @@ object MetadataSearch {
         return text + albumMatch + lengthMatch + sound
     }
 
-    private suspend fun deezer(query: String): List<MetadataCandidate> =
-        getJson<DeezerTracks>("https://api.deezer.com/search") {
-            parameter(
-                key = "q",
-                value = query
-            )
-            parameter(
-                key = "limit",
-                value = 10
-            )
-        }.data.map {
-            it.toCandidate(
-                album = it.album?.title,
-                artworkUrl = it.album?.coverXl
-            )
-        }
+    private suspend fun deezer(
+        query: String,
+    ): List<MetadataCandidate> = getJson<DeezerTracks>("https://api.deezer.com/search") {
+        parameter(
+            key = "q",
+            value = query
+        )
+        parameter(
+            key = "limit",
+            value = 10
+        )
+    }.data.map {
+        it.toCandidate(
+            album = it.album?.title,
+            artworkUrl = it.album?.coverXl
+        )
+    }
 
     private suspend fun deezerAlbumTracks(
         artist: String,
@@ -347,30 +365,32 @@ object MetadataSearch {
                 b = artist
             )
         } ?: return emptyList()
-        return getJson<DeezerTracks>("https://api.deezer.com/album/${found.id}/tracks").data
-            .map {
-                it.toCandidate(
-                    album = found.title,
-                    artworkUrl = found.coverXl
-                )
-            }
+        return getJson<DeezerTracks>(
+            "https://api.deezer.com/album/${found.id}/tracks"
+        ).data.map {
+            it.toCandidate(
+                album = found.title,
+                artworkUrl = found.coverXl
+            )
+        }
     }
 
-    private suspend fun itunes(query: String): List<MetadataCandidate> =
-        getJson<ItunesResults>("https://itunes.apple.com/search") {
-            parameter(
-                key = "term",
-                value = query
-            )
-            parameter(
-                key = "entity",
-                value = "song"
-            )
-            parameter(
-                key = "limit",
-                value = 10
-            )
-        }.results.mapNotNull { it.toCandidate() }
+    private suspend fun itunes(
+        query: String,
+    ): List<MetadataCandidate> = getJson<ItunesResults>("https://itunes.apple.com/search") {
+        parameter(
+            key = "term",
+            value = query
+        )
+        parameter(
+            key = "entity",
+            value = "song"
+        )
+        parameter(
+            key = "limit",
+            value = 10
+        )
+    }.results.mapNotNull { it.toCandidate() }
 
     private suspend fun itunesAlbumTracks(
         artist: String,
@@ -397,8 +417,7 @@ object MetadataSearch {
                 a = it.artistName,
                 b = artist
             )
-        }
-            ?.collectionId ?: return emptyList()
+        }?.collectionId ?: return emptyList()
         return getJson<ItunesResults>("https://itunes.apple.com/lookup") {
             parameter(
                 key = "id",
@@ -420,14 +439,16 @@ object MetadataSearch {
             return "To identify songs by their sound, set AcoustIdApiKey in Settings: a free application key " +
                     "from acoustid.org."
         }
-        if (audioFingerprint(song.path) == null) {
+        if (fingerprintOf(song.path) == null) {
             return "Couldn't fingerprint this file. On a computer this needs Chromaprint's fpcalc on the PATH."
         }
-        return runCatching { bySound(song) }.fold(
-            onSuccess = { "AcoustID doesn't know this recording." },
-            // E.g. "invalid API key" when the key is a user key: lookups need an application key
-            onFailure = { "AcoustID refused the lookup: ${it.message}" }
-        )
+        return runCatching { bySound(song) }
+            .onFailure { currentCoroutineContext().ensureActive() }
+            .fold(
+                onSuccess = { "AcoustID doesn't know this recording." },
+                // E.g. "invalid API key" when the key is a user key: lookups need an application key
+                onFailure = { "AcoustID refused the lookup: ${it.message}" }
+            )
     }
 
     private suspend fun acoustIdKey() =
@@ -435,7 +456,7 @@ object MetadataSearch {
 
     private suspend fun bySound(song: Song): List<MetadataCandidate> {
         val key = acoustIdKey() ?: return emptyList()
-        val print = audioFingerprint(song.path) ?: return emptyList()
+        val print = fingerprintOf(song.path) ?: return emptyList()
         // POST, because a fingerprint is a few kilobytes
         ACOUSTID_LIMIT.acquire()
         val response = http.submitForm(
@@ -504,10 +525,10 @@ object MetadataSearch {
     }
 
     @Serializable
-    private class DeezerTracks(val data: List<DeezerTrack> = emptyList())
+    private data class DeezerTracks(val data: List<DeezerTrack> = emptyList())
 
     @Serializable
-    private class DeezerTrack(
+    private data class DeezerTrack(
         val title: String,
         val duration: Int? = null,
         @SerialName("track_position") val trackPosition: Int? = null,
@@ -517,26 +538,25 @@ object MetadataSearch {
         fun toCandidate(
             album: String?,
             artworkUrl: String?,
-        ) =
-            MetadataCandidate(
-                title = title,
-                artist = artist.name,
-                album = album,
-                artworkUrl = artworkUrl,
-                durationSeconds = duration,
-                source = "Deezer",
-                trackNumber = trackPosition
-            )
+        ) = MetadataCandidate(
+            title = title,
+            artist = artist.name,
+            album = album,
+            artworkUrl = artworkUrl,
+            durationSeconds = duration,
+            source = "Deezer",
+            trackNumber = trackPosition
+        )
     }
 
     @Serializable
-    private class DeezerAlbums(val data: List<DeezerAlbum> = emptyList())
+    private data class DeezerAlbums(val data: List<DeezerAlbum> = emptyList())
 
     @Serializable
-    private class DeezerName(val name: String)
+    private data class DeezerName(val name: String)
 
     @Serializable
-    private class DeezerAlbum(
+    private data class DeezerAlbum(
         val id: Long = 0,
         val title: String? = null,
         @SerialName("cover_xl") val coverXl: String? = null,
@@ -544,10 +564,10 @@ object MetadataSearch {
     )
 
     @Serializable
-    private class ItunesResults(val results: List<ItunesItem> = emptyList())
+    private data class ItunesResults(val results: List<ItunesItem> = emptyList())
 
     @Serializable
-    private class ItunesItem(
+    private data class ItunesItem(
         val trackName: String? = null,
         val artistName: String? = null,
         val collectionName: String? = null,
@@ -573,16 +593,16 @@ object MetadataSearch {
     }
 
     @Serializable
-    private class AcoustIdResponse(val results: List<AcoustIdResult> = emptyList())
+    private data class AcoustIdResponse(val results: List<AcoustIdResult> = emptyList())
 
     @Serializable
-    private class AcoustIdResult(
+    private data class AcoustIdResult(
         val score: Double,
         val recordings: List<AcoustIdRecording> = emptyList(),
     )
 
     @Serializable
-    private class AcoustIdRecording(
+    private data class AcoustIdRecording(
         val title: String? = null,
         // Seconds with a fraction, e.g. 444.346
         val duration: Double? = null,
@@ -591,31 +611,23 @@ object MetadataSearch {
     )
 
     @Serializable
-    private class AcoustIdName(val name: String)
+    private data class AcoustIdName(val name: String)
 
     @Serializable
-    private class AcoustIdReleaseGroup(
+    private data class AcoustIdReleaseGroup(
         val id: String,
         val title: String? = null,
         val type: String? = null,
         val secondarytypes: List<String> = emptyList(),
         val artists: List<AcoustIdName> = emptyList(),
     ) {
-        val rank
-            get() = when {
-                // Some compilations are typed Album; their artist gives them away
-                secondarytypes.any { it in NOT_THE_SONGS_ALBUM } || artists.any { it.name == "Various Artists" } -> 2
-                type == "Album" && secondarytypes.isEmpty() -> 0
-                // Singles, EPs, and soundtracks by the artist, like a game's music by its composer
-                else -> 1
-            }
+        @Transient
+        val rank = when {
+            // Some compilations are typed Album; their artist gives them away
+            secondarytypes.any { it in NOT_THE_SONGS_ALBUM } || artists.any { it.name == "Various Artists" } -> 2
+            type == "Album" && secondarytypes.isEmpty() -> 0
+            // Singles, EPs, and soundtracks by the artist, like a game's music by its composer
+            else -> 1
+        }
     }
-
-    private val NOT_THE_SONGS_ALBUM = setOf(
-        "Compilation",
-        "Live",
-        "DJ-mix",
-        "Mixtape/Street",
-        "Remix"
-    )
 }

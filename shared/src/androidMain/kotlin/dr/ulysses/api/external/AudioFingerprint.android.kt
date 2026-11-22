@@ -1,4 +1,4 @@
-package dr.ulysses.api
+package dr.ulysses.api.external
 
 // shortcut: no Chromaprint build for Android yet, so songs are only matched by text there
 actual suspend fun audioFingerprint(path: String): AudioFingerprint? = null

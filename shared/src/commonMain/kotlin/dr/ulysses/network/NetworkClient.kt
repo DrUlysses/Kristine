@@ -1,6 +1,10 @@
 package dr.ulysses.network
 
 import dr.ulysses.Logger
+import dr.ulysses.api.internal.LibraryRoutes
+import dr.ulysses.api.internal.LibraryTasks
+import dr.ulysses.api.internal.TaskCommand
+import dr.ulysses.api.internal.TaskUpdate
 import io.ktor.client.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
@@ -24,12 +28,13 @@ class NetworkClient {
 
     private var connectionJob: Job? = null
     private var session: DefaultClientWebSocketSession? = null
+    private var tasksSession: DefaultClientWebSocketSession? = null
 
     // Each connection has its own client, because the client holds that server's pinned certificate
     private var connectionClient: HttpClient? = null
     private var serverUrl = ""
 
-    private class Seen(
+    private data class Seen(
         val port: Int,
         val at: Long,
     )
@@ -95,6 +100,7 @@ class NetworkClient {
         onConnectionChanged: (Boolean) -> Unit,
         onCertificate: suspend (String) -> Unit,
         onCertificateChanged: (String) -> Unit,
+        onFailed: (String) -> Unit,
     ) {
         if (connectionJob?.isActive == true) {
             return
@@ -120,6 +126,31 @@ class NetworkClient {
                     session = this
                     presented?.let { onCertificate(it) }
                     onConnectionChanged(true)
+                    // Long library tasks have their own socket; it closes with this one
+                    launch {
+                        try {
+                            client.wss(
+                                host = address,
+                                port = port,
+                                path = LibraryRoutes.TASKS_ROUTE
+                            ) {
+                                tasksSession = this
+                                for (frame in incoming) {
+                                    if (frame !is Frame.Text) {
+                                        continue
+                                    }
+                                    runCatching { Json.decodeFromString<TaskUpdate>(frame.readText()) }
+                                        .onSuccess(LibraryTasks::onUpdate)
+                                        .onFailure { Logger.e(it) { "Ignoring malformed task update" } }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            currentCoroutineContext().ensureActive()
+                            Logger.e(e) { "Task connection to $address:$port failed" }
+                        } finally {
+                            tasksSession = null
+                        }
+                    }
                     for (frame in incoming) {
                         if (frame !is Frame.Text) {
                             continue
@@ -136,6 +167,7 @@ class NetworkClient {
                     onCertificateChanged(changed)
                 } else {
                     Logger.e(e) { "WebSocket connection to $address:$port failed" }
+                    onFailed(e.message ?: e::class.simpleName.orEmpty())
                 }
             } finally {
                 // Also runs when the server closes the socket, so the app falls back to local playback
@@ -152,6 +184,12 @@ class NetworkClient {
         connectionJob = null
     }
 
+    /** [disconnect], returning once the connection has ended. */
+    suspend fun disconnectAndWait() {
+        connectionJob?.cancelAndJoin()
+        connectionJob = null
+    }
+
     fun send(command: WebSocketCommand) {
         val session = session ?: return
         scope.launch {
@@ -164,10 +202,32 @@ class NetworkClient {
         }
     }
 
-    suspend fun fetchLibrary(): Library {
-        val response = get(LIBRARY_ROUTE)
-        check(response.status.isSuccess()) { "Library: ${response.status}" }
-        return Json.decodeFromString(response.bodyAsText())
+    internal fun sendTask(command: TaskCommand) {
+        val session = tasksSession ?: return
+        scope.launch {
+            try {
+                session.send(Frame.Text(Json.encodeToString(command)))
+            } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
+                Logger.e(e) { "Sending ${command::class.simpleName} failed" }
+            }
+        }
+    }
+
+    /**
+     * A call to the connected server's library API: JSON [body] in, JSON out.
+     */
+    internal suspend fun callLibrary(
+        route: String,
+        body: String,
+    ): String {
+        val client = checkNotNull(connectionClient) { "Not connected" }
+        val response = client.post("$serverUrl$route") {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+        check(response.status.isSuccess()) { "$route: ${response.status} ${response.bodyAsText()}" }
+        return response.bodyAsText()
     }
 
     /** Null when the server has no artwork for [path]. */

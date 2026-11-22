@@ -1,7 +1,7 @@
 package dr.ulysses.network
 
 import dr.ulysses.Logger
-import dr.ulysses.entities.PlaylistRepository
+import dr.ulysses.api.internal.libraryApi
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.localFilePath
 import dr.ulysses.player.Player
@@ -26,6 +26,10 @@ import kotlinx.io.readByteArray
 import kotlinx.serialization.json.Json
 import java.net.NetworkInterface
 import kotlin.use
+
+// A container sets these when the usual ports are taken; clients must use the same discovery port
+private val serverPort = System.getenv("KRISTINE_PORT")?.toIntOrNull() ?: SERVER_PORT
+private val discoveryPort = System.getenv("KRISTINE_DISCOVERY_PORT")?.toIntOrNull() ?: DISCOVERY_PORT
 
 actual class NetworkServer {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -76,7 +80,7 @@ actual class NetworkServer {
                                     packet = ByteReadPacket(announcement),
                                     address = InetSocketAddress(
                                         hostname = address,
-                                        port = DISCOVERY_PORT
+                                        port = discoveryPort
                                     )
                                 )
                             )
@@ -119,6 +123,7 @@ actual class NetworkServer {
                 }
             )
             routing {
+                libraryApi()
                 webSocket("/player") {
                     sessions.update { it + this }
                     try {
@@ -135,21 +140,6 @@ actual class NetworkServer {
                     } finally {
                         sessions.update { it - this }
                     }
-                }
-                get(LIBRARY_ROUTE) {
-                    // Neither query loads artwork; it comes per song from ARTWORK_ROUTE
-                    val library = Library(
-                        songs = SongRepository.getAllSongs(),
-                        playlists = PlaylistRepository.getAllPlaylists().map { playlist ->
-                            playlist.copy(
-                                songs = PlaylistRepository.getPlaylistSongs(playlist.name)
-                            )
-                        }
-                    )
-                    call.respondText(
-                        text = Json.encodeToString(library),
-                        contentType = ContentType.Application.Json
-                    )
                 }
                 get(ARTWORK_ROUTE) {
                     // shortcut: only artwork already stored in the DB; an Android server stores it once a list showed the song
@@ -190,7 +180,7 @@ actual class NetworkServer {
             backendPort = backendPort
         )
         // A fixed port, so a browser keeps the certificate exception it was given; any free one when it's taken
-        val front = runCatching { front(SERVER_PORT) }.getOrElse { front(0) }
+        val front = runCatching { front(serverPort) }.getOrElse { front(0) }
         front.start(scope)
         tlsFront = front
         return front.port
@@ -209,6 +199,8 @@ actual class NetworkServer {
             }
 
             PauseCommand -> Player.onPauseCommand()
+            is SeekCommand -> Player.onSeekCommand(command.position)
+            is SetVolumeCommand -> Player.onVolumeCommand(command.volume)
             ResumeCommand -> Player.onResumeCommand()
             NextCommand -> Player.onNextCommand()
             PreviousCommand -> Player.onPreviousCommand()
@@ -273,7 +265,9 @@ actual class NetworkServer {
                 )
             ).use { (it.localAddress as InetSocketAddress).resolveAddress()?.toIpv4() }
         }
-    }.getOrNull()
+    }
+        .onFailure { currentCoroutineContext().ensureActive() }
+        .getOrNull()
 }
 
 // Docker, VM and container bridges only reach this machine's own containers and VMs
@@ -287,7 +281,7 @@ internal actual fun serverAnnouncements(): Flow<Pair<String, Int>> = flow {
     val socket = aSocket(selectorManager).udp().bind(
         InetSocketAddress(
             hostname = "0.0.0.0",
-            port = DISCOVERY_PORT
+            port = discoveryPort
         )
     )
     try {

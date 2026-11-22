@@ -3,6 +3,7 @@ package dr.ulysses.entities
 import app.cash.sqldelight.async.coroutines.awaitAsList
 import app.cash.sqldelight.async.coroutines.awaitAsOne
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
+import dr.ulysses.api.internal.*
 import dr.ulysses.database.Database
 import dr.ulysses.database.SharedDatabase
 import dr.ulysses.database.SongQueries
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import dr.ulysses.database.Song as SongRow
@@ -33,6 +35,12 @@ data class Song(
     val state: State = State.Downloaded,
     val playlists: List<Playlist> = emptyList(),
 ) : Searchable {
+    /**
+     * The file's name without its folder and extension.
+     */
+    @Transient
+    val fileName = path.substringAfterLast('/').substringBeforeLast('.')
+
     enum class State {
         Downloaded,
         Sorted,
@@ -55,7 +63,7 @@ data class Song(
     override fun hashCode(): Int {
         var result = path.hashCode()
         result = 31 * result + title.hashCode()
-        result = 31 * result + (album?.hashCode() ?: 0)
+        result = 31 * result + album.hashCode()
         result = 31 * result + artist.hashCode()
         return result
     }
@@ -223,6 +231,7 @@ object SongRepository : KoinComponent {
         }
     }
 
+    @Serializable
     data class Progress(
         val processed: Int = 0,
         val total: Int = 0,
@@ -230,25 +239,35 @@ object SongRepository : KoinComponent {
         val isComplete: Boolean = false,
     )
 
-    fun removeNonExistingSongs(): Flow<Progress> = forEachSong { db, song ->
-        val missing = isLocalFile(song.path) && !fileExists(song.path)
-        if (missing) {
-            db.songQueries.deleteByPath(song.path)
+    fun removeNonExistingSongs(): Flow<Progress> {
+        if (isRemote) {
+            return LibraryTasks.maintenance(RemoveMissingSongsCommand)
         }
-        missing
+        return forEachSong { db, song ->
+            val missing = isLocalFile(song.path) && !fileExists(song.path)
+            if (missing) {
+                db.songQueries.deleteByPath(song.path)
+            }
+            missing
+        }
     }
 
-    fun updateSongDurations(): Flow<Progress> = forEachSong { db, song ->
-        if ((song.duration ?: 0L) != 0L || !isLocalFile(song.path) || !fileExists(song.path)) {
-            return@forEachSong false
+    fun updateSongDurations(): Flow<Progress> {
+        if (isRemote) {
+            return LibraryTasks.maintenance(UpdateDurationsCommand)
         }
-        val duration = getDurationFromMetadata(song.path) ?: return@forEachSong false
-        db.songQueries.update(
-            song.toSong().copy(
-                duration = duration
+        return forEachSong { db, song ->
+            if ((song.duration ?: 0L) != 0L || !isLocalFile(song.path) || !fileExists(song.path)) {
+                return@forEachSong false
+            }
+            val duration = getDurationFromMetadata(song.path) ?: return@forEachSong false
+            db.songQueries.update(
+                song.toSong().copy(
+                    duration = duration
+                )
             )
-        )
-        true
+            true
+        }
     }
 
     private fun forEachSong(action: suspend (Database, SongRow) -> Boolean): Flow<Progress> = flow {
@@ -283,16 +302,21 @@ object SongRepository : KoinComponent {
         }
     }.flowOn(Dispatchers.Default)
 
-    suspend fun getAllSongs(): List<Song> = sharedDatabase { db ->
-        db.songQueries.selectAllSongs().awaitAsList().map {
-            Song(
-                path = it.path,
-                title = it.title,
-                artist = it.artist,
-                album = it.album,
-                duration = it.duration?.toInt(),
-                state = Song.State.fromString(it.state),
-            )
+    suspend fun getAllSongs(): List<Song> {
+        if (isRemote) {
+            return LibraryClient.allSongs()
+        }
+        return sharedDatabase { db ->
+            db.songQueries.selectAllSongs().awaitAsList().map {
+                Song(
+                    path = it.path,
+                    title = it.title,
+                    artist = it.artist,
+                    album = it.album,
+                    duration = it.duration?.toInt(),
+                    state = Song.State.fromString(it.state),
+                )
+            }
         }
     }
 
@@ -306,33 +330,48 @@ object SongRepository : KoinComponent {
         db.songQueries.selectArtworkByPath(path).awaitAsOneOrNull()?.artwork
     }
 
-    suspend fun search(query: String): List<Song> = sharedDatabase { db ->
-        val bySong = db.songQueries.search(query).awaitAsList().map {
-            Song(
-                path = it.path,
-                title = it.title,
-                artist = it.artist,
-                album = it.album,
-                duration = it.duration?.toInt(),
-                state = Song.State.fromString(it.state),
-            )
+    suspend fun search(query: String): List<Song> {
+        if (isRemote) {
+            return LibraryClient.searchSongs(query)
         }
-        val byPlaylist = db.playlistSongQueries.search(query).awaitAsList().flatMap {
-            db.songQueries.selectByPath(it.song_path).awaitAsList().map { row ->
-                row.toSong().copy(
-                    artwork = null
+        return sharedDatabase { db ->
+            val bySong = db.songQueries.search(query).awaitAsList().map {
+                Song(
+                    path = it.path,
+                    title = it.title,
+                    artist = it.artist,
+                    album = it.album,
+                    duration = it.duration?.toInt(),
+                    state = Song.State.fromString(it.state),
                 )
             }
+            val byPlaylist = db.playlistSongQueries.search(query).awaitAsList().flatMap {
+                db.songQueries.selectByPath(it.song_path).awaitAsList().map { row ->
+                    row.toSong().copy(
+                        artwork = null
+                    )
+                }
+            }
+            (bySong + byPlaylist).distinct()
         }
-        (bySong + byPlaylist).distinct()
     }
 
-    suspend fun getByNotState(notState: Song.State): List<Song> = sharedDatabase { db ->
-        db.songQueries.selectByNotState(notState.name).awaitAsList().map { it.toSong() }
+    suspend fun getByNotState(notState: Song.State): List<Song> {
+        if (isRemote) {
+            return LibraryClient.songsByNotState(notState)
+        }
+        return sharedDatabase { db ->
+            db.songQueries.selectByNotState(notState.name).awaitAsList().map { it.toSong() }
+        }
     }
 
-    suspend fun getByPathOrNull(path: String): Song? = sharedDatabase { db ->
-        db.songQueries.getOrNull(path).awaitAsOneOrNull()?.toSong()
+    suspend fun getByPathOrNull(path: String): Song? {
+        if (isRemote) {
+            return LibraryClient.songByPath(path)
+        }
+        return sharedDatabase { db ->
+            db.songQueries.getOrNull(path).awaitAsOneOrNull()?.toSong()
+        }
     }
 
     private fun SongRow.toSong() = Song(

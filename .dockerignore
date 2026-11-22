@@ -1,0 +1,3 @@
+# The image needs only the packaged app; this also keeps a local kristine.db out of it
+*
+!desktopApp/build/compose/binaries/main/app/Kristine

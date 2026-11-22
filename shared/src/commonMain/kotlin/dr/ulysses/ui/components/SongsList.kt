@@ -11,4 +11,8 @@ expect fun SongsList(
     onSongsChanged: (List<Song>) -> Unit = {},
     onClick: (Song) -> Unit = {},
     rearrangeable: Boolean = false,
+    /**
+     * Shown at the end of each song instead of its download button.
+     */
+    action: (@Composable (Song) -> Unit)? = null,
 )

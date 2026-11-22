@@ -23,8 +23,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import dr.ulysses.Logger
 import dr.ulysses.SUPPORTED_EXTENSIONS
-import dr.ulysses.api.MetadataCandidate
-import dr.ulysses.api.MetadataSearch
+import dr.ulysses.api.external.MetadataCandidate
+import dr.ulysses.api.external.MetadataSearch
 import dr.ulysses.entities.SettingKey
 import dr.ulysses.entities.SettingsRepository
 import dr.ulysses.entities.Song

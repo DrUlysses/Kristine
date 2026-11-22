@@ -5,6 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.setValue
 import dr.ulysses.Logger
+import dr.ulysses.api.internal.LibraryClient
+import dr.ulysses.api.internal.isRemote
 import dr.ulysses.entities.*
 import dr.ulysses.network.NetworkManager
 import dr.ulysses.player.Player
@@ -12,6 +14,7 @@ import dr.ulysses.ui.views.AlbumRef
 import dr.ulysses.ui.views.forgetArtwork
 import dr.ulysses.ui.views.onSongSave
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.drop
 
 /**
  * The single source of the Main screen's state; it outlives navigation.
@@ -28,6 +31,14 @@ object MainViewModel {
 
     init {
         loadSongs()
+        // Connecting and disconnecting switch between the server's library and this device's, also while the
+        // window isn't drawn
+        scope.launch {
+            NetworkManager.isConnected.drop(1).collect {
+                loadSongs()
+                loadPlaylists()
+            }
+        }
     }
 
     /**
@@ -38,7 +49,7 @@ object MainViewModel {
             state = state.copy(
                 isLoadingSongs = true
             )
-            val songs = remoteLibrary?.songs ?: SongRepository.getAllSongs()
+            val songs = SongRepository.getAllSongs()
             state = state.copy(
                 allSongs = songs,
                 isLoadingSongs = false
@@ -47,11 +58,15 @@ object MainViewModel {
     }
 
     /**
-     * Scans the music folder for new files, then reloads.
+     * Scans the music folder for new files, the connected server's when [onServer], then reloads.
      */
-    fun scanLibrary() {
+    fun scanLibrary(onServer: Boolean = isRemote) {
         scope.launch {
-            withContext(Dispatchers.Default) { refreshSongs() }
+            if (onServer) {
+                LibraryClient.scan()
+            } else {
+                withContext(Dispatchers.Default) { refreshSongs() }
+            }
             loadSongs()
         }
     }
@@ -62,7 +77,7 @@ object MainViewModel {
                 isLoadingPlaylists = true
             )
             state = state.copy(
-                currentPlaylists = remoteLibrary?.playlists ?: PlaylistRepository.getAllPlaylists(),
+                currentPlaylists = PlaylistRepository.getAllPlaylists(),
                 isLoadingPlaylists = false
             )
         }
@@ -77,15 +92,7 @@ object MainViewModel {
         SongRepository.getArtwork(path)
     }
 
-    /**
-     * The lists show the connected server's library.
-     */
-    val isRemote get() = remoteLibrary != null
-
-    suspend fun playlistSongs(name: String): List<Song> =
-        remoteLibrary?.playlists?.find { it.name == name }?.songs ?: PlaylistRepository.getPlaylistSongs(name)
-
-    private val remoteLibrary get() = NetworkManager.remoteLibrary.value
+    suspend fun playlistSongs(name: String): List<Song> = PlaylistRepository.getPlaylistSongs(name)
 
     /**
      * The DB keeps the edit even when the file can't be written, e.g. without storage permission.
@@ -96,6 +103,13 @@ object MainViewModel {
         song: Song,
         sort: Boolean = true,
     ): Song = withContext(Dispatchers.Default) {
+        if (isRemote) {
+            withContext(Dispatchers.Main) { forgetArtwork(song.path) }
+            return@withContext LibraryClient.saveSong(
+                song = song,
+                sort = sort
+            )
+        }
         val sorted = if (sort) {
             song.copy(
                 state = Song.State.Sorted
@@ -180,12 +194,6 @@ object MainViewModel {
         )
     }
 
-    fun setSongsPathChanged(changed: Boolean) {
-        state = state.copy(
-            songsPathChanged = changed
-        )
-    }
-
     data class MainState(
         val allSongs: List<Song> = emptyList(),
         val selectedSong: Song? = null,
@@ -202,6 +210,5 @@ object MainViewModel {
         val previousTabIndex: Int = 1, // Songs tab
         val returningFromDetail: Boolean = false,
         val pendingSaveJobs: List<Job> = emptyList(),
-        val songsPathChanged: Boolean = false,
     )
 }

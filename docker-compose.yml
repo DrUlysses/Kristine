@@ -1,0 +1,19 @@
+# Kristine as a server on a machine without a display.
+# Set MUSIC_FOLDER (and optionally the others) in the environment or an .env file next to this file.
+services:
+  kristine:
+    image: ghcr.io/drulysses/kristine:latest
+    # UDP discovery reaches the LAN only from the host's network
+    network_mode: host
+    # The owner of the sound socket and of the folders below
+    user: "1000:1000"
+    environment:
+      KRISTINE_PORT: ${KRISTINE_PORT:-45679}
+      KRISTINE_DISCOVERY_PORT: ${KRISTINE_DISCOVERY_PORT:-45678}
+      PULSE_SERVER: unix:/run/pulse/native
+    volumes:
+      - ${KRISTINE_DATA:-./kristine-data}:/data
+      - ${MUSIC_FOLDER:?set MUSIC_FOLDER to the music folder}:/data/music
+      # PipeWire's (or PulseAudio's) socket of the user 1000 session
+      - /run/user/1000/pulse/native:/run/pulse/native
+    restart: unless-stopped
