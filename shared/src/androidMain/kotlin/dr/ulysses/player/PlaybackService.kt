@@ -10,6 +10,7 @@ import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.media3.common.*
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
@@ -64,9 +65,9 @@ class PlaybackService : MediaLibraryService() {
             })
         }
 
-        mediaSession = MediaLibrarySession.Builder(this, exo, callback).build().apply {
-            player.shuffleModeEnabled = Player.state.shuffle
-        }
+        // The app shuffles the queue itself; ExoPlayer only repeats as told
+        exo.repeatMode = androidx.media3.common.Player.REPEAT_MODE_ALL
+        mediaSession = MediaLibrarySession.Builder(this, exo, callback).build()
 
         setListener(MediaSessionServiceListener())
     }

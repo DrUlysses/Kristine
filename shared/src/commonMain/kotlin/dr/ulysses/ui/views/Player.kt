@@ -5,23 +5,28 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
+import dr.ulysses.entities.LyricLine
+import dr.ulysses.entities.Lyrics
 import dr.ulysses.entities.Song
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.player.Player
@@ -153,6 +158,7 @@ private fun NowPlaying(
     )
     val duration = song?.duration ?: 0
     val upNext = state.currentPlaylist.songs.drop(state.currentTrackNum + 1)
+    var showLyrics by rememberSaveable { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -170,12 +176,21 @@ private fun NowPlaying(
             modifier = Modifier.fillMaxWidth()
         ) {
             item {
-                SongArtwork(
-                    song = song,
-                    modifier = Modifier.widthIn(
-                        max = 360.dp
-                    ).fillMaxWidth().aspectRatio(1f)
-                )
+                val square = Modifier.widthIn(
+                    max = 360.dp
+                ).fillMaxWidth().aspectRatio(1f)
+                if (showLyrics && song != null) {
+                    LyricsView(
+                        song = song,
+                        position = position,
+                        modifier = square
+                    )
+                } else {
+                    SongArtwork(
+                        song = song,
+                        modifier = square
+                    )
+                }
                 Spacer(Modifier.height(24.dp))
                 Text(
                     text = song?.title ?: "Nothing playing",
@@ -193,18 +208,41 @@ private fun NowPlaying(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    // A connected Kristine server's songs are edited on the server; an MPD server's can't be
-                    TextButton(
-                        onClick = { onManageSong(song) },
-                        enabled = canManageLibrary()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Edit,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(Res.string.edit))
+                    Row {
+                        // A connected Kristine server's songs are edited on the server; an MPD server's can't be
+                        TextButton(
+                            onClick = { onManageSong(song) },
+                            enabled = canManageLibrary()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(Res.string.edit))
+                        }
+                        TextButton(
+                            onClick = { showLyrics = !showLyrics }
+                        ) {
+                            Icon(
+                                imageVector = if (showLyrics) {
+                                    Icons.Rounded.Image
+                                } else {
+                                    Icons.Rounded.Lyrics
+                                },
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                if (showLyrics) {
+                                    "Artwork"
+                                } else {
+                                    "Lyrics"
+                                }
+                            )
+                        }
                     }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -493,6 +531,95 @@ private fun rememberArtwork(
 /** Call when a song's artwork was edited. */
 internal fun forgetArtwork(path: String) {
     artworkCache.remove(path)
+}
+
+/**
+ * [song]'s lyrics; synced ones keep the line at [position] (seconds) highlighted near the middle, and a tap on a line
+ * seeks there.
+ */
+@Composable
+private fun LyricsView(
+    song: Song,
+    position: Int,
+    modifier: Modifier,
+) {
+    // Null while looking
+    var lines by remember(song.path) { mutableStateOf<List<LyricLine>?>(null) }
+    var isLooking by remember(song.path) { mutableStateOf(true) }
+    LaunchedEffect(song.path) {
+        lines = Lyrics.of(song)
+        isLooking = false
+    }
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .clip(MaterialTheme.shapes.large)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+    ) {
+        val found = lines
+        when {
+            isLooking -> CircularProgressIndicator()
+            found == null -> Text(
+                text = "No lyrics found",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            else -> {
+                val listState = rememberLazyListState()
+                val isSynced = found.first().time != null
+                // shortcut: the position comes in whole seconds, so a line lights up up to a second late
+                val current = if (isSynced) {
+                    found.indexOfLast { (it.time ?: 0) <= position * 1000L }
+                } else {
+                    -1
+                }
+                LaunchedEffect(current) {
+                    if (current >= 0) {
+                        listState.animateScrollToItem(
+                            index = current,
+                            scrollOffset = -listState.layoutInfo.viewportSize.height / 3
+                        )
+                    }
+                }
+                LazyColumn(
+                    state = listState,
+                    contentPadding = PaddingValues(
+                        horizontal = 16.dp,
+                        vertical = 24.dp
+                    ),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    itemsIndexed(found) { index, line ->
+                        Text(
+                            // An empty line is an instrumental part
+                            text = line.text.ifEmpty { "♪" },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = if (index == current) {
+                                FontWeight.Bold
+                            } else {
+                                FontWeight.Normal
+                            },
+                            color = if (index == current) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = line.time != null) {
+                                    line.time?.let { Player.onSeekCommand((it / 1000).toInt()) }
+                                }
+                                .padding(
+                                    vertical = 6.dp
+                                )
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 /** Playback position in seconds, polled while playing and read once when paused. */

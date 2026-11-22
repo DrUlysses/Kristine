@@ -15,6 +15,8 @@ internal object LibraryRoutes {
     const val SONGS_SEARCH = "/api/songs/search"
     const val SONG_SAVE = "/api/songs/save"
     const val FINGERPRINT = "/api/songs/fingerprint"
+    const val SAME_SOUND = "/api/songs/same-sound"
+    const val RAW_FINGERPRINT = "/api/songs/raw-fingerprint"
     const val SCAN = "/api/scan"
 
     const val PLAYLISTS = "/api/playlists"

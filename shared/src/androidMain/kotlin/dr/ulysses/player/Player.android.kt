@@ -81,3 +81,26 @@ internal fun playNextOnDevice() = onMain {
     seekToNextMediaItem()
     resumeCurrentSongOnDevice()
 }
+
+@UnstableApi
+actual fun setUpcomingOnDevice(
+    currentIndex: Int,
+    upcoming: List<Song>,
+) = onMain {
+    if (mediaItemCount > currentIndex + 1) {
+        removeMediaItems(
+            currentIndex + 1,
+            mediaItemCount
+        )
+    }
+    addMediaItems(upcoming.map { it.toMediaItem() })
+}
+
+@UnstableApi
+actual fun setRepeatOnDevice(mode: RepeatMode) = onMain {
+    repeatMode = when (mode) {
+        RepeatMode.None -> androidx.media3.common.Player.REPEAT_MODE_OFF
+        RepeatMode.All -> androidx.media3.common.Player.REPEAT_MODE_ALL
+        RepeatMode.One -> androidx.media3.common.Player.REPEAT_MODE_ONE
+    }
+}

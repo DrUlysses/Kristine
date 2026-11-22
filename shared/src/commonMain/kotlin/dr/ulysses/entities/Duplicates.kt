@@ -378,7 +378,7 @@ private fun soundTheSame(
  * The share of equal bits at the best alignment of the two fingerprints, shifted by up to [MAX_SHIFT] frames
  * (copies may start a little apart): about 0.5 for unrelated sound, near 1 for the same recording.
  */
-private fun similarity(
+internal fun similarity(
     a: IntArray,
     b: IntArray,
 ): Double {
@@ -407,7 +407,7 @@ private fun similarity(
 private const val PARALLEL_FINGERPRINTS = 4
 private const val PARALLEL_LOOKUPS = 2
 private const val MIN_MATCH_SCORE = 0.6 // a title and artist that mostly agree, see MetadataSearch.score
-private const val SAME_RECORDING = 0.85
+internal const val SAME_RECORDING = 0.85
 private const val MAX_SHIFT = 10
 private const val MIN_OVERLAP = 50 // frames, about 6 seconds
 private const val MAX_DURATION_DIFFERENCE = 2 // seconds

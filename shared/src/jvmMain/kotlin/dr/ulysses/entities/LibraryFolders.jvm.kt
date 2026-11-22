@@ -60,3 +60,13 @@ private fun removeEmptyFolders(
         folder = folder.parent
     }
 }
+
+actual suspend fun writeSongFile(
+    file: String,
+    bytes: ByteArray,
+): String? = "file:///$file".takeIf {
+    writeNewFile(
+        file = file,
+        bytes = bytes
+    )
+}

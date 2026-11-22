@@ -317,7 +317,8 @@ private fun TrackRow(
                 { Text("Not in library") }
             }
 
-            track == null -> {
+            // Without the album there is no track list to be missing from
+            track == null && catalog != null -> {
                 { Text("Not on the album's track list") }
             }
 

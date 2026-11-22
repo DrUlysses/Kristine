@@ -7,6 +7,7 @@ import org.w3c.dom.HTMLAudioElement
 private var audioElement: HTMLAudioElement? = null
 private var playlist: List<String> = emptyList()
 private var currentTrackIndex: Int = 0
+private var repeat = RepeatMode.All
 private var isPlayingCallback: ((Boolean) -> Unit)? = null
 private var currentPlayingCallback: ((String?) -> Unit)? = null
 
@@ -31,8 +32,10 @@ private fun initAudioElement() {
             addEventListener(
                 type = "ended",
                 callback = {
-                    if (currentTrackIndex < playlist.size - 1) {
-                        playNextOnDevice()
+                    when {
+                        repeat == RepeatMode.One -> playTrackOnDevice(currentTrackIndex)
+                        currentTrackIndex < playlist.size - 1 -> playNextOnDevice()
+                        repeat == RepeatMode.All -> playTrackOnDevice(0)
                     }
                 }
             )
@@ -103,4 +106,15 @@ private fun playNextOnDevice() {
     if (playlist.isNotEmpty() && currentTrackIndex < playlist.size - 1) {
         playTrackOnDevice(currentTrackIndex + 1)
     }
+}
+
+actual fun setUpcomingOnDevice(
+    currentIndex: Int,
+    upcoming: List<Song>,
+) {
+    playlist = playlist.take(currentIndex + 1) + upcoming.map { it.path }
+}
+
+actual fun setRepeatOnDevice(mode: RepeatMode) {
+    repeat = mode
 }

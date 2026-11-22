@@ -25,10 +25,7 @@ import dr.ulysses.Logger
 import dr.ulysses.SUPPORTED_EXTENSIONS
 import dr.ulysses.api.external.MetadataCandidate
 import dr.ulysses.api.external.MetadataSearch
-import dr.ulysses.entities.SettingKey
-import dr.ulysses.entities.SettingsRepository
-import dr.ulysses.entities.Song
-import dr.ulysses.entities.SongRepository
+import dr.ulysses.entities.*
 import dr.ulysses.player.Player
 import io.github.vinceglb.filekit.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.core.PickerType
@@ -68,11 +65,16 @@ fun ManageUnsortedSong(
     ) {
         searching = true
         noMatchReason = null
+        val ownSorted = SongRepository.ownSortedSongs()
         matches = MetadataSearch.find(
             song = song,
             library = MetadataSearch.candidates(
-                songs = SongRepository.ownSortedSongs(),
-                source = "Your library"
+                songs = ownSorted,
+                source = "Your library",
+                soundMatches = SongFingerprints.ownSameSound(
+                    song = song,
+                    songs = ownSorted
+                )
             )
         )
         // Only asked when nothing matched: it repeats the sound lookup to tell what went wrong

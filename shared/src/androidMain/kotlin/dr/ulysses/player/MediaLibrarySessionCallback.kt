@@ -83,7 +83,7 @@ open class MediaLibrarySessionCallback(context: Context) :
             session.isAutoCompanionController(controller)
         ) {
             // The button shows the action that toggles the current mode
-            val customLayout = customLayoutCommandButtons[if (session.player.shuffleModeEnabled) {
+            val customLayout = customLayoutCommandButtons[if (Player.state.shuffle) {
                 1
             } else {
                 0
@@ -94,7 +94,6 @@ open class MediaLibrarySessionCallback(context: Context) :
                 .setCustomLayout(ImmutableList.of(customLayout))
                 .build()
         }
-        session.player.shuffleModeEnabled = Player.state.shuffle
         return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller).build()
     }
 
@@ -106,8 +105,8 @@ open class MediaLibrarySessionCallback(context: Context) :
         args: Bundle,
     ): ListenableFuture<SessionResult> {
         if (CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON == customCommand.customAction) {
+            // The app orders the queue itself; ExoPlayer's own shuffle stays off
             Player.setShuffle(true)
-            session.player.shuffleModeEnabled = Player.state.shuffle
             session.setCustomLayout(
                 session.mediaNotificationControllerInfo!!,
                 ImmutableList.of(customLayoutCommandButtons[1])
@@ -115,7 +114,6 @@ open class MediaLibrarySessionCallback(context: Context) :
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         } else if (CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF == customCommand.customAction) {
             Player.setShuffle(false)
-            session.player.shuffleModeEnabled = Player.state.shuffle
             session.setCustomLayout(
                 session.mediaNotificationControllerInfo!!,
                 ImmutableList.of(customLayoutCommandButtons[0])

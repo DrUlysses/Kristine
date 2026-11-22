@@ -7,3 +7,8 @@ actual suspend fun moveSongFile(
     from: String,
     to: String,
 ): Boolean = false
+
+actual suspend fun writeSongFile(
+    file: String,
+    bytes: ByteArray,
+): String? = null

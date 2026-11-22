@@ -64,6 +64,24 @@ internal object LibraryClient {
         fallback = null
     )
 
+    /**
+     * The server's stored print of its song at [path], computed there first when it has none.
+     */
+    suspend fun rawFingerprint(path: String): IntArray? = call(
+        route = LibraryRoutes.RAW_FINGERPRINT,
+        body = path,
+        fallback = null
+    )
+
+    /**
+     * The server's sorted song that sounds like each print, or null.
+     */
+    suspend fun sameSound(prints: List<IntArray>): List<Song?> = call(
+        route = LibraryRoutes.SAME_SOUND,
+        body = prints,
+        fallback = prints.map { null }
+    )
+
     suspend fun scan(): Unit = call(
         route = LibraryRoutes.SCAN,
         body = Unit,
