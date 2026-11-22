@@ -11,8 +11,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 internal sealed interface TaskCommand
 
+/**
+ * The client's sorted songs, a source next to the catalogs.
+ */
 @Serializable
-internal data object StartAutoSortCommand : TaskCommand
+internal data class StartAutoSortCommand(
+    val clientLibrary: List<Song>,
+) : TaskCommand
 
 /**
  * Sorts the server's own proposals for these songs, which still have their artwork.

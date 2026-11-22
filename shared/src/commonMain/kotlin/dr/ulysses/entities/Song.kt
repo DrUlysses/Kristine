@@ -306,17 +306,24 @@ object SongRepository : KoinComponent {
         if (isRemote) {
             return LibraryClient.allSongs()
         }
-        return sharedDatabase { db ->
-            db.songQueries.selectAllSongs().awaitAsList().map {
-                Song(
-                    path = it.path,
-                    title = it.title,
-                    artist = it.artist,
-                    album = it.album,
-                    duration = it.duration?.toInt(),
-                    state = Song.State.fromString(it.state),
-                )
-            }
+        return ownSongs()
+    }
+
+    /**
+     * This device's sorted songs without artwork, also while connected to a server: a source for sorting others.
+     */
+    suspend fun ownSortedSongs(): List<Song> = ownSongs().filter { it.state == Song.State.Sorted }
+
+    private suspend fun ownSongs(): List<Song> = sharedDatabase { db ->
+        db.songQueries.selectAllSongs().awaitAsList().map {
+            Song(
+                path = it.path,
+                title = it.title,
+                artist = it.artist,
+                album = it.album,
+                duration = it.duration?.toInt(),
+                state = Song.State.fromString(it.state),
+            )
         }
     }
 
