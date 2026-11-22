@@ -1,0 +1,28 @@
+[package]
+name = "kristine-fingerprint"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "kristine_fingerprint"
+crate-type = ["lib", "cdylib"]
+path = "src/commonMain/rust/lib.rs"
+
+[dependencies]
+base64 = "0.22"
+rusty-chromaprint = "0.3"
+# The formats of SUPPORTED_EXTENSIONS that Symphonia decodes; WMA and Opus have no decoder
+symphonia = { version = "0.5", default-features = false, features = ["mp3", "aac", "isomp4", "flac", "vorbis", "ogg", "wav", "pcm", "alac"] }
+uniffi = "0.32.0"
+
+# The FFT and the decoders are slow unoptimized, also in debug builds of the app; without symbols the library is
+# a few MB instead of 40 (all symbols can't go: the bindings are generated from them)
+[profile.dev]
+opt-level = 3
+debug = false
+strip = "debuginfo"
+
+[profile.release]
+strip = "debuginfo"
+lto = true

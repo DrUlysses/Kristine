@@ -34,7 +34,7 @@ data class MetadataCandidate(
 )
 
 /**
- * Audio fingerprint from Chromaprint, or null where `fpcalc` isn't available.
+ * Audio fingerprint from Chromaprint, or null where the file can't be decoded (WMA, Opus) and in the browser.
  */
 @Serializable
 data class AudioFingerprint(
@@ -54,7 +54,8 @@ private suspend fun fingerprintOf(path: String): AudioFingerprint? = if (isRemot
 }
 
 /**
- * Chromaprint's uncompressed fingerprint, one 32-bit value per ~0.12 s of sound; null where `fpcalc` isn't available.
+ * Chromaprint's uncompressed fingerprint, one 32-bit value per ~0.12 s of sound, of the first two minutes; null where
+ * [audioFingerprint] is.
  */
 expect suspend fun rawFingerprint(path: String): IntArray?
 
@@ -465,7 +466,7 @@ object MetadataSearch {
                     "from acoustid.org."
         }
         if (fingerprintOf(song.path) == null) {
-            return "Couldn't fingerprint this file. On a computer this needs Chromaprint's fpcalc on the PATH."
+            return "Couldn't fingerprint this file: its format can't be decoded for that (WMA, Opus), or it can't be read."
         }
         return runCatching { bySound(song) }
             .onFailure { currentCoroutineContext().ensureActive() }
