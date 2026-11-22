@@ -26,6 +26,10 @@ fun PlaylistsList(
     onPlaylistClicked: (Playlist) -> Unit,
     listState: LazyListState = rememberLazyListState(),
     initialLoad: Boolean = true,
+    /**
+     * Opens the player's queue, listed first; null hides it, e.g. while nothing is queued.
+     */
+    onQueueClicked: (() -> Unit)? = null,
 ) {
     Box(
         modifier = modifier.fillMaxSize()
@@ -44,6 +48,15 @@ fun PlaylistsList(
                 .fillMaxSize()
                 .overscroll(rememberOverscrollEffect()),
             content = {
+                onQueueClicked?.let { onClick ->
+                    item {
+                        PlaylistListEntry(
+                            image = null,
+                            name = CURRENT_QUEUE,
+                            onClick = onClick
+                        )
+                    }
+                }
                 items(
                     items = playlists
                 ) { playlist ->
@@ -61,3 +74,5 @@ fun PlaylistsList(
         )
     }
 }
+
+const val CURRENT_QUEUE = "Current queue"

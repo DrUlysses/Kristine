@@ -15,10 +15,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import dr.ulysses.api.internal.isRemote
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongDownloader
 import dr.ulysses.entities.canDownloadSongs
-import dr.ulysses.models.MainViewModel
 
 /**
  * For a song whose file is missing: downloads it, shows that it's downloading, and offers a retry after a failure.
@@ -46,8 +46,8 @@ fun DownloadButton(
     description: String,
     onClick: () -> Unit,
 ) {
-    // A server's library is changed on the server, not here
-    if (!canDownloadSongs || MainViewModel.isRemote) {
+    // A connected server downloads into its own library
+    if (!canDownloadSongs && !isRemote) {
         return
     }
     val status by SongDownloader.status.collectAsState()
@@ -60,7 +60,8 @@ fun DownloadButton(
         )
 
         is SongDownloader.Status.Failed -> IconButton(
-            onClick = onClick
+            onClick = onClick,
+            enabled = canManageLibrary()
         ) {
             Icon(
                 imageVector = Icons.Filled.ErrorOutline,
@@ -70,7 +71,8 @@ fun DownloadButton(
         }
 
         null -> IconButton(
-            onClick = onClick
+            onClick = onClick,
+            enabled = canManageLibrary()
         ) {
             Icon(
                 imageVector = icon,

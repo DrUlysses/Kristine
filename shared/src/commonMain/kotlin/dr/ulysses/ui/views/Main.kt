@@ -10,9 +10,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -32,7 +31,10 @@ import dr.ulysses.player.Player
 import dr.ulysses.ui.components.*
 import dr.ulysses.ui.elements.LoadingIndicator
 import dr.ulysses.ui.elements.SettingsDropdownEntry
+import dr.ulysses.ui.elements.canManageLibrary
 import dr.ulysses.ui.permissions.PermissionsAlert
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kristine.shared.generated.resources.*
@@ -68,13 +70,6 @@ fun Main() {
 
     val navStack = rememberNavBackStack(config, Songs)
     var pendingRoute by remember { mutableStateOf<NavKey?>(null) }
-    val remoteLibrary by NetworkManager.remoteLibrary.collectAsState()
-
-    // Connecting and disconnecting switch between the server's library and this device's
-    LaunchedEffect(remoteLibrary) {
-        MainViewModel.loadSongs()
-        MainViewModel.loadPlaylists()
-    }
 
     PermissionsAlert(
         permissionsGranted = permissionsGranted.value,
@@ -147,6 +142,23 @@ fun Main() {
         )
     }
 
+    val canManage = canManageLibrary()
+
+    NetworkManager.connectionError.collectAsState().value?.let { error ->
+        AlertDialog(
+            onDismissRequest = NetworkManager::dismissConnectionError,
+            title = { Text("Disconnected") },
+            text = { Text(error) },
+            confirmButton = {
+                TextButton(
+                    onClick = NetworkManager::dismissConnectionError
+                ) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TabMenu(
@@ -163,6 +175,7 @@ fun Main() {
                     SettingsDropdownEntry(
                         text = manageUnsortedText,
                         icon = Icons.Default.EditNote,
+                        enabled = canManage,
                         onClick = {
                             open(
                                 title = manageUnsortedText,
@@ -183,6 +196,7 @@ fun Main() {
                     SettingsDropdownEntry(
                         text = refreshSongsText,
                         icon = Icons.Default.Refresh,
+                        enabled = canManage,
                         onClick = MainViewModel::scanLibrary
                     ),
                     SettingsDropdownEntry(
@@ -243,8 +257,32 @@ fun Main() {
                                 SongsList(
                                     songs = songs,
                                     onClick = { song ->
-                                        Player.onSongsChanged(songs)
-                                        Player.onPlaySongCommand(song)
+                                        Player.startQueue(
+                                            songs = songs,
+                                            first = song
+                                        )
+                                    }
+                                )
+                            }
+                            entry<CurrentQueue> {
+                                SongsList(
+                                    songs = Player.state.currentPlaylist.songs,
+                                    // A song of the queue: the player jumps to it instead of starting a new queue
+                                    onClick = Player::onPlaySongCommand,
+                                    // A server's queue is changed on the server
+                                    action = if (Player.state.isRemotePlaying) {
+                                        null
+                                    } else {
+                                        { song ->
+                                            IconButton(
+                                                onClick = { Player.onRemoveFromQueueCommand(song) }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.RemoveCircleOutline,
+                                                    contentDescription = "Remove from queue"
+                                                )
+                                            }
+                                        }
                                     }
                                 )
                             }
@@ -376,8 +414,7 @@ fun Main() {
                             }
                             entry<Settings> {
                                 Settings(
-                                    onPendingSaveJobsChanged = MainViewModel::setPendingSaveJobs,
-                                    onSongsPathChanged = MainViewModel::setSongsPathChanged
+                                    onPendingSaveJobsChanged = MainViewModel::setPendingSaveJobs
                                 )
                             }
                         }
@@ -411,8 +448,10 @@ fun Main() {
                                 SongsList(
                                     songs = state.allSongs,
                                     onClick = { song ->
-                                        Player.onSongsChanged(state.allSongs)
-                                        Player.onPlaySongCommand(song)
+                                        Player.startQueue(
+                                            songs = state.allSongs,
+                                            first = song
+                                        )
                                     }
                                 )
                             }
@@ -439,6 +478,12 @@ fun Main() {
                                         listState = playlistsListState,
                                         initialLoad = !state.returningFromDetail,
                                         onPlaylistsChanged = { MainViewModel.loadPlaylists() },
+                                        onQueueClicked = {
+                                            open(
+                                                title = CURRENT_QUEUE,
+                                                route = CurrentQueue
+                                            )
+                                        }.takeIf { Player.state.currentPlaylist.songs.isNotEmpty() },
                                         onPlaylistClicked = { playlist ->
                                             MainViewModel.setCurrentPlaylist(playlist)
                                             open(
@@ -489,6 +534,7 @@ fun Main() {
                                 val playlist = MainViewModel.state.currentPlaylist
                                 // Fails when the name is taken; the user stays on the screen to change it
                                 runCatching { PlaylistRepository.insert(playlist) }
+                                    .onFailure { currentCoroutineContext().ensureActive() }
                                     .onSuccess {
                                         MainViewModel.loadPlaylists()
                                         close()
@@ -521,15 +567,33 @@ fun Main() {
 
                 route == ManageUnsortedList -> UnsortedFabMenu()
 
+                route == CurrentQueue ->
+                    FloatingActionButton(
+                        onClick = {
+                            // The new playlist screen, with the queue's songs already in it
+                            MainViewModel.setCurrentPlaylist(
+                                Playlist(
+                                    songs = Player.state.currentPlaylist.songs
+                                )
+                            )
+                            open(
+                                title = addPlaylistText,
+                                route = ManagePlaylist
+                            )
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                            contentDescription = "Save as playlist"
+                        )
+                    }
+
                 route == Settings ->
                     FloatingActionButton(
                         onClick = {
                             scope.launch {
                                 MainViewModel.state.pendingSaveJobs.joinAll()
                                 close()
-                                if (MainViewModel.state.songsPathChanged) {
-                                    MainViewModel.scanLibrary()
-                                }
                             }
                         }
                     ) {

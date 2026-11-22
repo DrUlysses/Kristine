@@ -38,7 +38,7 @@ internal class TlsFront(
     }.serverSocketFactory.createServerSocket(port)
 
     /** The port actually listened on; differs from the requested one when that was 0. */
-    val port: Int get() = serverSocket.localPort
+    val port: Int = serverSocket.localPort
 
     fun start(scope: CoroutineScope): Job = scope.launch(Dispatchers.IO) {
         try {
@@ -74,6 +74,7 @@ internal class TlsFront(
                 }
             }
         } catch (e: Exception) {
+            currentCoroutineContext().ensureActive()
             // A failed handshake (e.g. a browser that doesn't accept the certificate yet) only drops this client
             Logger.d(e) { "TLS connection dropped" }
         }

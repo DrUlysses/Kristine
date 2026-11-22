@@ -1,15 +1,17 @@
 package dr.ulysses.entities
 
 import app.cash.sqldelight.async.coroutines.awaitAsList
-import dr.ulysses.api.MetadataCandidate
-import dr.ulysses.api.MetadataSearch
-import dr.ulysses.api.rawFingerprint
+import dr.ulysses.api.external.MetadataCandidate
+import dr.ulysses.api.external.MetadataSearch
+import dr.ulysses.api.external.rawFingerprint
+import dr.ulysses.api.internal.LibraryClient
+import dr.ulysses.api.internal.LibraryTasks
+import dr.ulysses.api.internal.isRemote
 import dr.ulysses.database.SharedDatabase
 import dr.ulysses.ui.views.formatTime
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import kotlin.math.abs
@@ -22,10 +24,12 @@ expect suspend fun deleteSongFile(path: String): Boolean
  * Copies that sound the same; [best] is the one with the most complete tags and the cleanest file name.
  * [match] is what an online catalog says [best] is; only looked up where a group has several recordings.
  */
-class Recording(
+@Serializable
+data class Recording(
     val copies: List<Song>,
     val match: MetadataCandidate? = null,
 ) {
+    @Transient
     val best: Song = bestOf(copies)
 }
 
@@ -41,12 +45,14 @@ private val matches = HashMap<String, MetadataCandidate?>()
  * One song in the library more than once, split into [recordings]: a live version is not a copy of the studio one.
  * Its recordings are the same artist and title by an online catalog, or by their tags where it doesn't know them.
  */
-class DuplicateGroup(val recordings: List<Recording>) {
-    val songs get() = recordings.flatMap { it.copies }
+@Serializable
+data class DuplicateGroup(val recordings: List<Recording>) {
+    @Transient
+    val songs = recordings.flatMap { it.copies }
 }
 
 /** The recording to keep, and why it's suggested. */
-class Suggestion(
+data class Suggestion(
     val recording: Recording,
     val reason: String,
 )
@@ -57,6 +63,9 @@ class Suggestion(
  * two different "01. Intro.mp3" are not.
  */
 suspend fun findDuplicates(onProgress: (step: String, done: Int, total: Int) -> Unit): List<DuplicateGroup> {
+    if (isRemote) {
+        return LibraryTasks.findDuplicates(onProgress)
+    }
     val songs = SongRepository.getAllSongs().filter { it.state != Song.State.NotDownloaded }
     val candidates = sameNameOrTags(songs)
     val toCompare = candidates.flatten().filter { it.path !in fingerprints }
@@ -180,7 +189,9 @@ object KeptTogether : KoinComponent {
  * and length on Deezer and iTunes, if it's a good one.
  */
 private suspend fun identify(song: Song): MetadataCandidate? {
-    val matches = runCatching { MetadataSearch.find(song) }.getOrDefault(emptyList())
+    val matches = runCatching { MetadataSearch.find(song) }
+        .onFailure { currentCoroutineContext().ensureActive() }
+        .getOrDefault(emptyList())
     return matches.firstOrNull { it.soundMatch != null }
         ?: matches.firstOrNull()?.takeIf { it.score >= MIN_MATCH_SCORE }
 }
@@ -214,6 +225,12 @@ suspend fun resolveDuplicates(
     group: DuplicateGroup,
     keep: List<Recording>,
 ): List<Song> {
+    if (isRemote) {
+        return LibraryClient.resolveDuplicates(
+            group = group,
+            keep = keep
+        )
+    }
     val kept = keep.map { it.best }
     if (kept.size > 1) {
         KeptTogether.save(kept.map { it.path })
@@ -265,7 +282,6 @@ fun suggest(group: DuplicateGroup): Suggestion {
 
 /** How much a copy tells about itself: filled-in tags, being sorted, and a file name without noise like " (1)". */
 private fun completeness(song: Song): Int {
-    val fileName = song.path.substringAfterLast('/').substringBeforeLast('.')
     // The user checked a sorted song's tags
     val sortedBonus = if (song.state == Song.State.Sorted) {
         2
@@ -277,7 +293,7 @@ private fun completeness(song: Song): Int {
         !isPlaceholder(song.artist),
         !isPlaceholder(song.album.orEmpty()),
         song.duration != null,
-        MetadataSearch.clean(fileName) == fileName.trim(),
+        MetadataSearch.clean(song.fileName) == song.fileName.trim(),
     ).count { it }
 }
 
@@ -307,7 +323,7 @@ private fun sameNameOrTags(songs: List<Song>): List<List<Song>> {
 
 /** The file name without copy markers like " (1)", and artist with title: either one the same marks a candidate. */
 private fun keys(song: Song): List<String> {
-    val fileName = key(song.path.substringAfterLast('/').substringBeforeLast('.'))
+    val fileName = key(song.fileName)
     val title = key(song.title)
     val artist = key(song.artist)
     return listOfNotNull(

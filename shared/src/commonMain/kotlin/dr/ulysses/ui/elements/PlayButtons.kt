@@ -66,14 +66,33 @@ fun PlayIconButton(
 }
 
 /**
- * Queues [songs] and plays [first] of them.
+ * Pauses and resumes [song] while it's the player's song, otherwise starts it with [onPlay].
  */
-fun play(
-    songs: List<Song>,
-    first: Song,
+@Composable
+fun SongPlayButton(
+    song: Song,
+    onPlay: () -> Unit,
 ) {
-    Player.onSongsChanged(songs)
-    Player.onPlaySongCommand(first)
+    val isCurrent = song.path == Player.state.currentSong?.path
+    val isPlaying = isCurrent && Player.state.isPlaying
+    IconButton(
+        onClick = {
+            if (isCurrent) {
+                Player.onPlayOrPauseCommand()
+            } else {
+                onPlay()
+            }
+        }
+    ) {
+        Icon(
+            imageVector = playIcon(isPlaying),
+            contentDescription = if (isPlaying) {
+                "Pause"
+            } else {
+                "Play ${song.title}"
+            }
+        )
+    }
 }
 
 // By path: Song.equals compares tags, which copies share. Read in composition, so the button follows the player
@@ -84,7 +103,7 @@ private fun playOrPause(songs: List<Song>) {
     if (songs.any { it.path == Player.state.currentSong?.path }) {
         Player.onPlayOrPauseCommand()
     } else {
-        play(
+        Player.startQueue(
             songs = songs,
             first = songs.first()
         )

@@ -9,6 +9,8 @@ captures
 .cxx
 /.fleet/*
 /*.db
+# The log (kristine.log and its older kristine.log.1)
+/kristine.log*
 # The desktop server's private key (ServerCertificate)
 /*.keystore
 pebbleApp/src/nativeInterop/cinterop/*.def

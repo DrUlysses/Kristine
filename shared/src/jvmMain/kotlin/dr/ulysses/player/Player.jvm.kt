@@ -27,10 +27,6 @@ object PlayerObject {
     // The queue as the app gave it; VLC reports URL-encoded MRLs, which differ from these paths
     var paths: List<String> = emptyList()
 
-    // vlcj forbids calling libvlc on its event thread (it deadlocks, freezing the UI on the next call),
-    // so every handler hands its work to submit()
-    private fun onVlcThread(action: () -> Unit) = player.submit(action)
-
     private val playerListener = object : MediaPlayerEventAdapter() {
         override fun playing(mediaPlayer: MediaPlayer) {
             onVlcThread { onMediaStateChanged(true) }
@@ -78,6 +74,10 @@ object PlayerObject {
         mediaPlayer.events().addMediaPlayerEventListener(playerListener)
         player.events().addMediaListPlayerEventListener(listListener)
     }
+
+    // vlcj forbids calling libvlc on its event thread (it deadlocks, freezing the UI on the next call),
+    // so every handler hands its work to submit()
+    private fun onVlcThread(action: () -> Unit) = player.submit(action)
 }
 
 actual fun setPlayListOnDevice(songs: List<Song>) {

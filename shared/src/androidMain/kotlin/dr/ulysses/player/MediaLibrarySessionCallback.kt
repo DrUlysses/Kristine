@@ -331,10 +331,12 @@ open class MediaLibrarySessionCallback(context: Context) :
     // Callbacks run on the main thread; their database reads move off it
     private fun <T> future(block: suspend () -> T): ListenableFuture<T> = SettableFuture.create<T>().also { result ->
         scope.launch {
-            runCatching { block() }.fold(
-                onSuccess = { result.set(it) },
-                onFailure = { result.setException(it) }
-            )
+            runCatching { block() }
+                .onFailure { currentCoroutineContext().ensureActive() }
+                .fold(
+                    onSuccess = { result.set(it) },
+                    onFailure = { result.setException(it) }
+                )
         }
     }
 

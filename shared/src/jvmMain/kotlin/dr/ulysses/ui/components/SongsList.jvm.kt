@@ -16,11 +16,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import dr.ulysses.api.internal.isRemote
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.ui.elements.SongDownloadButton
 import dr.ulysses.ui.elements.SongListEntry
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import org.jaudiotagger.audio.AudioFileIO
 import kotlin.io.path.Path
 import kotlin.math.roundToInt
@@ -33,6 +36,7 @@ actual fun SongsList(
     onSongsChanged: (List<Song>) -> Unit,
     onClick: (Song) -> Unit,
     rearrangeable: Boolean,
+    action: (@Composable (Song) -> Unit)?,
 ) {
     val listState = rememberSaveable(
         saver = LazyListState.Saver
@@ -72,7 +76,7 @@ actual fun SongsList(
                             image = MainViewModel.artwork(song.path)
 
                             // A NotDownloaded song has no file to read, and a server's song no file here
-                            if (image == null && song.state != Song.State.NotDownloaded && !MainViewModel.isRemote) {
+                            if (image == null && song.state != Song.State.NotDownloaded && !isRemote) {
                                 runCatching {
                                     image = AudioFileIO
                                         .read(Path(song.path.substringAfter("file:///")).toFile())
@@ -86,7 +90,7 @@ actual fun SongsList(
                                             )
                                         )
                                     }
-                                }
+                                }.onFailure { currentCoroutineContext().ensureActive() }
                             }
                         }
                     }
@@ -95,7 +99,13 @@ actual fun SongsList(
                         title = song.title,
                         artist = song.artist,
                         isAvailable = song.state != Song.State.NotDownloaded,
-                        trailing = { SongDownloadButton(song) },
+                        trailing = {
+                            if (action == null) {
+                                SongDownloadButton(song)
+                            } else {
+                                action(song)
+                            }
+                        },
                         onClick = { onClick(song) },
                         modifier = if (!rearrangeable) {
                             Modifier

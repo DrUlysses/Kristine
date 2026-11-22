@@ -20,6 +20,14 @@ data class SetPlaylistCommand(
 @Serializable
 data object PauseCommand : WebSocketCommand
 
+/** Sets the volume, 0 to 1. */
+@Serializable
+data class SetVolumeCommand(val volume: Float) : WebSocketCommand
+
+/** Moves the current song to [position] seconds. */
+@Serializable
+data class SeekCommand(val position: Int) : WebSocketCommand
+
 @Serializable
 data object ResumeCommand : WebSocketCommand
 

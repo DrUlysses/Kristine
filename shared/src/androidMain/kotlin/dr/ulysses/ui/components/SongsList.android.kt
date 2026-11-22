@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import dr.ulysses.api.internal.isRemote
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import dr.ulysses.entities.loadArtworkFromFile
@@ -35,6 +36,7 @@ actual fun SongsList(
     onSongsChanged: (List<Song>) -> Unit,
     onClick: (Song) -> Unit,
     rearrangeable: Boolean,
+    action: (@Composable (Song) -> Unit)?,
 ) {
     val listState = rememberSaveable(
         saver = LazyListState.Saver
@@ -76,7 +78,7 @@ actual fun SongsList(
                             if (
                                 image == null &&
                                 song.state != Song.State.NotDownloaded &&
-                                !MainViewModel.isRemote &&
+                                !isRemote &&
                                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
                             ) {
                                 image = loadArtworkFromFile(song.path)
@@ -95,7 +97,13 @@ actual fun SongsList(
                         title = song.title,
                         artist = song.artist,
                         isAvailable = song.state != Song.State.NotDownloaded,
-                        trailing = { SongDownloadButton(song) },
+                        trailing = {
+                            if (action == null) {
+                                SongDownloadButton(song)
+                            } else {
+                                action(song)
+                            }
+                        },
                         onClick = { onClick(song) },
                         modifier = if (!rearrangeable) {
                             Modifier

@@ -25,7 +25,7 @@ internal actual class SongCache {
             val bytes = download()
             withContext(Dispatchers.IO) {
                 SystemFileSystem.createDirectories(directory)
-                // Written aside first, so a cancelled download never leaves a cut-off song behind
+                // Written aside first, so a canceled download never leaves a cut-off song behind
                 val partial = Path(
                     directory,
                     "${file.name}.part"

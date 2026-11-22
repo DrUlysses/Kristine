@@ -1,6 +1,9 @@
 package dr.ulysses.entities
 
+import dr.ulysses.network.appDataDirectory
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
@@ -34,12 +37,15 @@ actual suspend fun moveSongFile(
     moved
 }
 
-/** The music folder from the settings, or "music" next to the app; null when it doesn't exist (e.g. unmounted). */
-private suspend fun songsRoot(): Path? = runCatching {
-    SystemFileSystem.resolve(
-        Path(SettingsRepository.get(SettingKey.SongsPath)?.value?.takeIf { it.isNotBlank() } ?: "music")
-    )
-}.getOrNull()
+/** The music folder from the settings, or "music" in Kristine's own folder. */
+internal suspend fun songsFolder(): String =
+    SettingsRepository.get(SettingKey.SongsPath)?.value?.takeIf { it.isNotBlank() }
+        ?: Path(appDataDirectory(), "music").toString()
+
+/** [songsFolder], resolved; null when it doesn't exist (e.g. unmounted). */
+private suspend fun songsRoot(): Path? = runCatching { SystemFileSystem.resolve(Path(songsFolder())) }
+    .onFailure { currentCoroutineContext().ensureActive() }
+    .getOrNull()
 
 /** Folders a move left empty, up to [root] itself, which stays. */
 private fun removeEmptyFolders(

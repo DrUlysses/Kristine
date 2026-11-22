@@ -1,4 +1,4 @@
-package dr.ulysses.api
+package dr.ulysses.api.external
 
 import io.ktor.client.*
 import io.ktor.client.request.*

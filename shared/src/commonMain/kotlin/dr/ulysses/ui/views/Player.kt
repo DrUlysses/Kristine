@@ -26,6 +26,7 @@ import dr.ulysses.entities.Song
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.player.Player
 import dr.ulysses.player.RepeatMode
+import dr.ulysses.ui.elements.canManageLibrary
 import kotlinx.coroutines.delay
 import kristine.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -192,19 +193,18 @@ private fun NowPlaying(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    // A server's song isn't in this library, so only local songs can be edited
-                    if (!state.isRemotePlaying) {
-                        TextButton(
-                            onClick = { onManageSong(song) }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Edit,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(Res.string.edit))
-                        }
+                    // A connected Kristine server's songs are edited on the server; an MPD server's can't be
+                    TextButton(
+                        onClick = { onManageSong(song) },
+                        enabled = canManageLibrary()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(Res.string.edit))
                     }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -253,7 +253,13 @@ private fun NowPlaying(
                     ToggleIcon(
                         icon = Icons.Rounded.Shuffle,
                         active = state.shuffle,
-                        description = stringResource(Res.string.shuffle),
+                        description = stringResource(
+                            if (state.shuffle) {
+                                Res.string.shuffle_on
+                            } else {
+                                Res.string.shuffle_off
+                            }
+                        ),
                         onClick = Player::onToggleShuffleCommand,
                     )
                     IconButton(
@@ -297,14 +303,20 @@ private fun NowPlaying(
                             Icons.Rounded.Repeat
                         },
                         active = state.repeatMode != RepeatMode.None,
-                        description = stringResource(Res.string.repeat),
+                        description = stringResource(
+                            when (state.repeatMode) {
+                                RepeatMode.None -> Res.string.repeat_off
+                                RepeatMode.All -> Res.string.repeat_all
+                                RepeatMode.One -> Res.string.repeat_one
+                            }
+                        ),
                         onClick = Player::onSwitchRepeatCommand,
                     )
                 }
             }
 
-            // Android has hardware volume keys
-            if (isDesktopOrWasm()) {
+            // Android has hardware volume keys; a server's volume is set here
+            if (isDesktopOrWasm() || state.isRemotePlaying) {
                 item {
                     var volume by remember { mutableStateOf(getVolume()) }
                     Row(
@@ -316,10 +328,14 @@ private fun NowPlaying(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Slider(
-                            value = volume,
+                            value = if (state.isRemotePlaying) {
+                                Player.remoteVolume
+                            } else {
+                                volume
+                            },
                             onValueChange = {
                                 volume = it
-                                setVolume(it)
+                                Player.onVolumeCommand(it)
                             },
                             modifier = Modifier.padding(
                                 start = 12.dp
@@ -381,24 +397,32 @@ private fun NowPlaying(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun ToggleIcon(
     icon: ImageVector,
     active: Boolean,
     description: String,
     onClick: () -> Unit,
 ) {
-    IconButton(
-        onClick = onClick
+    // The mode it's in, shown on hover or a long press
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+        tooltip = { PlainTooltip { Text(description) } },
+        state = rememberTooltipState()
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = description,
-            tint = if (active) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-        )
+        IconButton(
+            onClick = onClick
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = description,
+                tint = if (active) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
     }
 }
 
@@ -486,7 +510,7 @@ private fun rememberPosition(
             return@LaunchedEffect
         }
         do {
-            position.value = getCurrentPosition()
+            position.value = Player.position()
             delay(500)
         } while (isPlaying)
     }

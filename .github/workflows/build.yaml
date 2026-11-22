@@ -43,6 +43,9 @@ jobs:
   build-linux-app:
     name: Build Linux app
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -61,11 +64,30 @@ jobs:
           chmod +x gradlew 
           ./gradlew packageDistributionForCurrentOS --no-daemon
 
+      # Compose's AppImage format is only the app folder; appimagetool packs it into one file
+      - name: Pack AppImage
+        run: |
+          APPDIR=desktopApp/build/compose/binaries/main/app/Kristine
+          cp shared/src/commonMain/composeResources/drawable/icon.png $APPDIR/kristine.png
+          ln -s bin/Kristine $APPDIR/AppRun
+          printf '[Desktop Entry]\nType=Application\nName=Kristine\nExec=Kristine\nIcon=kristine\nCategories=AudioVideo;Audio;Player;\n' > $APPDIR/kristine.desktop
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run $APPDIR Kristine-x86_64.AppImage
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Deb distribution
-          path: ./desktopApp/build/compose/binaries/main/deb/*
+          name: AppImage distribution
+          path: ./Kristine-x86_64.AppImage
+
+      # Only from main, so pull requests can't publish an image
+      - name: Push Docker image
+        if: github.event_name == 'push'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker build -t ghcr.io/drulysses/kristine:latest .
+          docker push ghcr.io/drulysses/kristine:latest
   build-windows-app:
     name: Build Windows app
     runs-on: windows-latest

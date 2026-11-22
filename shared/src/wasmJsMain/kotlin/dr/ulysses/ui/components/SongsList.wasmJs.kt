@@ -32,6 +32,7 @@ actual fun SongsList(
     onSongsChanged: (List<Song>) -> Unit,
     onClick: (Song) -> Unit,
     rearrangeable: Boolean,
+    action: (@Composable (Song) -> Unit)?,
 ) {
     val listState = rememberSaveable(
         saver = LazyListState.Saver
@@ -76,7 +77,13 @@ actual fun SongsList(
                         title = song.title,
                         artist = song.artist,
                         isAvailable = song.state != Song.State.NotDownloaded,
-                        trailing = { SongDownloadButton(song) },
+                        trailing = {
+                            if (action == null) {
+                                SongDownloadButton(song)
+                            } else {
+                                action(song)
+                            }
+                        },
                         onClick = { onClick(song) },
                         modifier = if (!rearrangeable) {
                             Modifier

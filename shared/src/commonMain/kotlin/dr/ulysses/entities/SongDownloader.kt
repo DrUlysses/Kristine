@@ -1,9 +1,13 @@
 package dr.ulysses.entities
 
 import dr.ulysses.Logger
-import dr.ulysses.api.Catalog
-import dr.ulysses.api.CatalogAlbum
-import dr.ulysses.api.MetadataSearch
+import dr.ulysses.api.external.Catalog
+import dr.ulysses.api.external.CatalogAlbum
+import dr.ulysses.api.external.MetadataSearch
+import dr.ulysses.api.internal.DownloadCommand
+import dr.ulysses.api.internal.DownloadFromLinkCommand
+import dr.ulysses.api.internal.LibraryTasks
+import dr.ulysses.api.internal.isRemote
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.ui.views.onSongSave
 import io.ktor.http.*
@@ -12,9 +16,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
 /**
  * Whether this platform can run yt-dlp.
@@ -35,40 +39,57 @@ expect suspend fun downloadAudio(
  * Gets the file of a song whose file is missing ([Song.State.NotDownloaded]) with yt-dlp.
  */
 object SongDownloader {
+    @Serializable
     sealed interface Status {
+        @Serializable
         data object Running : Status
 
-        class Failed(val reason: String) : Status
+        @Serializable
+        data class Failed(val reason: String) : Status
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private val _status = MutableStateFlow(emptyMap<String, Status>())
+    private val localStatus = MutableStateFlow(emptyMap<String, Status>())
 
     /**
      * By the path of the song, or by [linkKey] for a download from a link; what isn't listed never ran or succeeded.
      */
-    val status: StateFlow<Map<String, Status>> = _status.asStateFlow()
+    val status: StateFlow<Map<String, Status>> = LibraryTasks.localOrRemote(
+        local = localStatus,
+        remote = LibraryTasks.downloads
+    )
+
+    private val YOUTUBE_HOSTS = setOf(
+        "youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+    )
+
+    private val UNSAFE_IN_FILE_NAME = Regex("""[/\\:*?"<>|%]""")
 
     fun download(song: Song) {
-        // A song that has its file must never be replaced by a download
-        if (song.state != Song.State.NotDownloaded || _status.value[song.path] == Status.Running) {
+        if (isRemote) {
+            LibraryTasks.send(DownloadCommand(song))
             return
         }
-        _status.update { it + (song.path to Status.Running) }
+        // A song that has its file must never be replaced by a download
+        if (song.state != Song.State.NotDownloaded || localStatus.value[song.path] == Status.Running) {
+            return
+        }
+        localStatus.update { it + (song.path to Status.Running) }
         scope.launch {
             val result = runCatching {
-                // The old file's name, so a later scan recognizes the file; it often says more than a title like "3"
-                val oldName = song.path.substringAfterLast('/').substringBeforeLast('.')
                 val title = MetadataSearch.clean(song.title)
                 val query = if (title.isBlank()) {
-                    MetadataSearch.clean(oldName)
+                    MetadataSearch.clean(song.fileName)
                 } else {
                     "${MetadataSearch.clean(song.artist)} $title"
                 }
                 val path = downloadAudio(
                     query = "ytsearch1:$query",
-                    fileName = oldName.replace(
+                    // The old file's name, so a later scan recognizes the file; it often says more than a title like "3"
+                    fileName = song.fileName.replace(
                         regex = UNSAFE_IN_FILE_NAME,
                         replacement = "_"
                     )
@@ -85,7 +106,7 @@ object SongDownloader {
                     )
                 ).getOrThrow()
             }.onFailure { Logger.e(it) { "Downloading ${song.artist} - ${song.title} failed" } }
-            _status.update {
+            localStatus.update {
                 if (result.isSuccess) {
                     it - song.path
                 } else {
@@ -122,14 +143,25 @@ object SongDownloader {
         album: CatalogAlbum,
         title: String,
     ) {
+        if (isRemote) {
+            LibraryTasks.send(
+                DownloadFromLinkCommand(
+                    link = link,
+                    artist = artist,
+                    album = album,
+                    title = title
+                )
+            )
+            return
+        }
         val key = linkKey(
             album = album,
             title = title
         )
-        if (!isYouTubeLink(link) || _status.value[key] == Status.Running) {
+        if (!isYouTubeLink(link) || localStatus.value[key] == Status.Running) {
             return
         }
-        _status.update { it + (key to Status.Running) }
+        localStatus.update { it + (key to Status.Running) }
         scope.launch {
             val result = runCatching {
                 val path = downloadAudio(
@@ -154,7 +186,7 @@ object SongDownloader {
                 // Tagged and filed in its Artist / Album folder like any sorted song
                 MainViewModel.saveSong(song)
             }.onFailure { Logger.e(it) { "Downloading $artist - $title from $link failed" } }
-            _status.update {
+            localStatus.update {
                 if (result.isSuccess) {
                     it - key
                 } else {
@@ -164,12 +196,4 @@ object SongDownloader {
             MainViewModel.loadSongs()
         }
     }
-
-    private val YOUTUBE_HOSTS = setOf(
-        "youtube.com",
-        "music.youtube.com",
-        "youtu.be"
-    )
-
-    private val UNSAFE_IN_FILE_NAME = Regex("""[/\\:*?"<>|%]""")
 }

@@ -1,4 +1,4 @@
-package dr.ulysses.api
+package dr.ulysses.api.external
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
-private class FpcalcOutput(
+private data class FpcalcOutput(
     val duration: Double,
     val fingerprint: String,
 )

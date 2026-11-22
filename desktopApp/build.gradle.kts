@@ -19,17 +19,27 @@ dependencies {
     implementation(libs.logback.classic)
 }
 
+// Runs from the IDE keep using the database and certificate in the project folder
+tasks.withType<JavaExec>().configureEach {
+    environment("KRISTINE_HOME", System.getenv("KRISTINE_HOME") ?: rootDir.path)
+}
+
 compose.desktop {
     application {
         mainClass = "MainKt"
 
         nativeDistributions {
-            targetFormats(TargetFormat.Exe, TargetFormat.Deb)
+            targetFormats(TargetFormat.Exe, TargetFormat.AppImage)
             packageName = "Kristine"
             packageVersion = libs.versions.kristine.get()
-            linux {
-                modules("jdk.security.auth")
-            }
+            // From suggestRuntimeModules; without java.sql the packaged app can't open its database
+            modules(
+                "java.instrument",
+                "java.management",
+                "java.sql",
+                "jdk.security.auth",
+                "jdk.unsupported"
+            )
         }
     }
 }
