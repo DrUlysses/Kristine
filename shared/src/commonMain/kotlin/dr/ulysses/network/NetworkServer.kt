@@ -10,7 +10,7 @@ internal val BROADCAST_INTERVAL = 5.seconds
 /** The server's TLS port, unless another app holds it. */
 internal const val SERVER_PORT = 45679
 
-/** Serves the file of a song in the current window: `GET /song?path=<server path>`. */
+/** Serves the file of a library song: `GET /song?path=<server path>`. */
 internal const val SONG_ROUTE = "/song"
 
 /** Serves the stored artwork of a library song: `GET /artwork?path=<server path>`. */

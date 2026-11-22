@@ -20,6 +20,15 @@ expect suspend fun moveSongFile(
 ): Boolean
 
 /**
+ * Writes a new song file at [file], a plain file path, with its folders; returns the song's path, or null when a
+ * file is there already, or it can't be written.
+ */
+expect suspend fun writeSongFile(
+    file: String,
+    bytes: ByteArray,
+): String?
+
+/**
  * A sorted song whose file goes to [target], in the same path form as the song's own path.
  */
 @Serializable
@@ -84,23 +93,28 @@ suspend fun organize(moves: List<Move>): List<Move> {
     if (isRemote) {
         return LibraryClient.organize(moves)
     }
-    return moves.filter { move ->
-        val moved = moveSongFile(
-            from = move.song.path,
-            to = move.target
-        )
-        if (moved) {
-            SongRepository.move(
-                oldPath = move.song.path,
-                newPath = move.target
-            )
-        }
-        !moved
-    }
+    return moves.filterNot { moveHere(it) }
 }
 
 /**
- * Moves a song just sorted to where [planOrganize] would, and returns its path afterwards: the old one when it
+ * Moves the file and its entry on this device; false when the file can't be moved.
+ */
+private suspend fun moveHere(move: Move): Boolean {
+    val moved = moveSongFile(
+        from = move.song.path,
+        to = move.target
+    )
+    if (moved) {
+        SongRepository.move(
+            oldPath = move.song.path,
+            newPath = move.target
+        )
+    }
+    return moved
+}
+
+/**
+ * Moves a song just sorted to where [planOrganize] would, and returns its path afterward: the old one when it
  * stays, because files can't be moved here, it is there already, or its target is taken.
  */
 suspend fun fileSorted(song: Song): String {
@@ -112,15 +126,14 @@ suspend fun fileSorted(song: Song): String {
     if (target == song.path || withContext(Dispatchers.Default) { fileExists(target) }) {
         return song.path
     }
-    val failed = organize(
-        listOf(
-            Move(
-                song = song,
-                target = target
-            )
+    // On this device also while connected: Sync files songs here
+    val moved = moveHere(
+        Move(
+            song = song,
+            target = target
         )
     )
-    return if (failed.isEmpty()) {
+    return if (moved) {
         target
     } else {
         song.path
@@ -130,7 +143,7 @@ suspend fun fileSorted(song: Song): String {
 /**
  * Where [song] belongs, written like its own path: desktop paths start with file:///, Android paths don't.
  */
-private fun target(
+internal fun target(
     root: String,
     song: Song,
 ): String {

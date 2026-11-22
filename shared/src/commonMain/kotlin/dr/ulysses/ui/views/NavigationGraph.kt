@@ -60,6 +60,9 @@ data object Connections : NavKey
 @Serializable
 data object Settings : NavKey
 
+@Serializable
+data object SyncLibrary : NavKey
+
 val config = SavedStateConfiguration {
     serializersModule = SerializersModule {
         polymorphic(NavKey::class) {
@@ -130,6 +133,10 @@ val config = SavedStateConfiguration {
             subclass(
                 subclass = Settings::class,
                 serializer = Settings.serializer()
+            )
+            subclass(
+                subclass = SyncLibrary::class,
+                serializer = SyncLibrary.serializer()
             )
         }
     }

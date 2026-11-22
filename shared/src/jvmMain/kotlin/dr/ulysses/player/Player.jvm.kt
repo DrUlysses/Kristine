@@ -9,6 +9,7 @@ import uk.co.caprica.vlcj.player.component.AudioListPlayerComponent
 import uk.co.caprica.vlcj.player.list.ListApi
 import uk.co.caprica.vlcj.player.list.MediaListPlayer
 import uk.co.caprica.vlcj.player.list.MediaListPlayerEventAdapter
+import uk.co.caprica.vlcj.player.list.PlaybackMode
 
 object PlayerObject {
     lateinit var onMediaStateChanged: (Boolean) -> Unit
@@ -73,6 +74,8 @@ object PlayerObject {
     init {
         mediaPlayer.events().addMediaPlayerEventListener(playerListener)
         player.events().addMediaListPlayerEventListener(listListener)
+        // Like the app's default, Repeat all
+        player.controls().setMode(PlaybackMode.LOOP)
     }
 
     // vlcj forbids calling libvlc on its event thread (it deadlocks, freezing the UI on the next call),
@@ -128,4 +131,27 @@ actual fun playTrackOnDevice(trackNum: Int) {
 // The device skipping on its own (unplayable file); the app reacts to the resulting nextItem event
 internal fun playNextOnDevice() {
     PlayerObject.player.controls().playNext()
+}
+
+actual fun setUpcomingOnDevice(
+    currentIndex: Int,
+    upcoming: List<Song>,
+) {
+    val media = PlayerObject.playerList.media()
+    // Only entries after the current one change: VLC keeps its place in the list by index
+    while (media.count() > currentIndex + 1) {
+        media.remove(media.count() - 1)
+    }
+    upcoming.forEach { media.add(it.path) }
+    PlayerObject.paths = PlayerObject.paths.take(currentIndex + 1) + upcoming.map { it.path }
+}
+
+actual fun setRepeatOnDevice(mode: RepeatMode) {
+    PlayerObject.player.controls().setMode(
+        when (mode) {
+            RepeatMode.None -> PlaybackMode.DEFAULT
+            RepeatMode.All -> PlaybackMode.LOOP
+            RepeatMode.One -> PlaybackMode.REPEAT
+        }
+    )
 }

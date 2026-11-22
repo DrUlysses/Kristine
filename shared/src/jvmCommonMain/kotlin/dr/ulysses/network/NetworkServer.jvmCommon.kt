@@ -155,7 +155,8 @@ actual class NetworkServer {
                 }
                 get(SONG_ROUTE) {
                     val path = call.request.queryParameters["path"]
-                    if (path == null || path !in windowPaths) {
+                    // The window's songs, and any song of the library for Sync
+                    if (path == null || path !in windowPaths && SongRepository.getByPathOrNull(path) == null) {
                         return@get call.respond(HttpStatusCode.NotFound)
                     }
                     // shortcut: the whole file is read into memory, fine for one song at a time; stream it if many clients download at once
@@ -194,13 +195,23 @@ actual class NetworkServer {
 
             is SetPlaylistCommand -> {
                 val matches = SongRepository.findMatches(command.songs)
-                Player.onSongsChanged(matches.filterNotNull())
-                matches.getOrNull(command.currentSongIndex)?.let { Player.onPlaySongCommand(it) }
+                val first = matches.getOrNull(command.currentSongIndex)
+                if (first == null) {
+                    Player.onSongsChanged(matches.filterNotNull())
+                } else {
+                    // Like a click here: shuffled when shuffle is on
+                    Player.startQueue(
+                        songs = matches.filterNotNull(),
+                        first = first
+                    )
+                }
             }
 
             PauseCommand -> Player.onPauseCommand()
             is SeekCommand -> Player.onSeekCommand(command.position)
             is SetVolumeCommand -> Player.onVolumeCommand(command.volume)
+            is ShuffleCommand -> Player.setShuffle(command.shuffle)
+            is RepeatCommand -> Player.setRepeat(command.mode)
             ResumeCommand -> Player.onResumeCommand()
             NextCommand -> Player.onNextCommand()
             PreviousCommand -> Player.onPreviousCommand()

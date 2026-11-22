@@ -5,7 +5,9 @@ CREATE TABLE IF NOT EXISTS song(
     artist TEXT NOT NULL,
     duration INTEGER,
     artwork BLOB,
-    state TEXT
+    state TEXT,
+    -- Chromaprint's raw fingerprint, 4 bytes per value
+    fingerprint BLOB
 );
 
 selectAll:
@@ -53,6 +55,18 @@ UPDATE song SET state = :state WHERE path = :path;
 
 deleteByPath:
 DELETE FROM song WHERE path = ?;
+
+selectPathsWithoutFingerprint:
+SELECT path FROM song WHERE fingerprint IS NULL AND (state IS NULL OR state != 'NotDownloaded');
+
+selectFingerprint:
+SELECT fingerprint FROM song WHERE path = ?;
+
+selectFingerprints:
+SELECT path, fingerprint FROM song WHERE fingerprint IS NOT NULL;
+
+updateFingerprint:
+UPDATE song SET fingerprint = :fingerprint WHERE path = :path;
 
 search:
 SELECT path, title, artist, album, duration, state FROM song

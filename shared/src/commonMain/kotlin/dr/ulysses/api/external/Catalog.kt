@@ -50,12 +50,16 @@ object Catalog {
                 key = "q",
                 value = artist
             )
-        }.data.find {
+        }.data.filter {
             sameName(
                 a = it.name,
                 b = artist
             )
+        }.maxByOrNull {
+            // Several artists share a name; the one people listen to is the likely one
+            it.fans
         } ?: return@getOrPut emptyList()
+
         artistNames[artist.trim().lowercase()] = found.name
         getJson<Page<CatalogAlbum>>("https://api.deezer.com/artist/${found.id}/albums") {
             parameter(
@@ -125,5 +129,7 @@ object Catalog {
     private data class DeezerArtist(
         val id: Long,
         val name: String,
+        @SerialName("nb_fan")
+        val fans: Int = 0,
     )
 }

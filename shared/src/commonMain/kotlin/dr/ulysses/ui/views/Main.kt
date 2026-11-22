@@ -100,7 +100,12 @@ fun Main() {
     ) {
         MainViewModel.openDetail(
             title = title,
-            fromTab = pagerState.currentPage
+            // Under a detail the pager sits on Songs; an album opened from its artist goes back to the artist's tab
+            fromTab = if (MainViewModel.state.topBarText == null) {
+                pagerState.currentPage
+            } else {
+                MainViewModel.state.previousTabIndex
+            }
         )
         pendingRoute = route
     }
@@ -111,6 +116,10 @@ fun Main() {
         // These open from the unsorted list and go back to it
         if (leaving == ManageDuplicates || leaving == AutoSortSongs || leaving == MergeNames) {
             MainViewModel.setTopBarText(manageUnsortedText)
+            return
+        }
+        if (leaving == SyncLibrary) {
+            MainViewModel.setTopBarText(connectionsText)
             return
         }
         // An album opened from its artist goes back to the artist
@@ -222,7 +231,8 @@ fun Main() {
                     NavDisplay(
                         modifier = Modifier.fillMaxSize(),
                         backStack = navStack,
-                        onBack = { navStack.removeLastOrNull() },
+                        // The system back does what the top bar's back arrow does
+                        onBack = ::close,
                         entryProvider = entryProvider {
                             entry<Artists> {
                                 LaunchedEffect(Unit) { pagerState.scrollToPage(0) }
@@ -410,7 +420,15 @@ fun Main() {
                                 }
                             }
                             entry<Connections> {
-                                Connections()
+                                Connections(
+                                    onSync = {
+                                        MainViewModel.setTopBarText(SYNC)
+                                        navStack.add(SyncLibrary)
+                                    }
+                                )
+                            }
+                            entry<SyncLibrary> {
+                                SyncView()
                             }
                             entry<Settings> {
                                 Settings(

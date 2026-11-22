@@ -132,10 +132,8 @@ object MetadataSearch {
                 }
             }
             add { bySound(song) }
-            // Without a title the length alone would rank random songs
-            if (guesses.isNotEmpty()) {
-                add { library }
-            }
+            // Without a title the length alone would rank random songs; the same sound counts anyway
+            add { library.filter { guesses.isNotEmpty() || it.soundMatch != null } }
         }
         lookups.map { lookup ->
             async {
@@ -177,11 +175,13 @@ object MetadataSearch {
     }
 
     /**
-     * [songs] as candidates from [source]; they bring no artwork, so a sorted song keeps its own.
+     * [songs] as candidates from [source]; they bring no artwork, so a sorted song keeps its own. [soundMatches] are
+     * the songs that sound the same, by path, ranked like AcoustID's answers.
      */
     fun candidates(
         songs: List<Song>,
         source: String,
+        soundMatches: Map<String, Double> = emptyMap(),
     ) = songs.map {
         MetadataCandidate(
             title = it.title,
@@ -189,7 +189,8 @@ object MetadataSearch {
             album = it.album,
             artworkUrl = null,
             durationSeconds = it.duration,
-            source = source
+            source = source,
+            soundMatch = soundMatches[it.path]
         )
     }
 

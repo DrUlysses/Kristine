@@ -1,13 +1,13 @@
 [versions]
 # Main
-kristine = "1.4.0"
+kristine = "1.5.0"
 kotlin = "2.4.21"
 ktor = "3.6.1"
 koin = "4.2.2"
-agp = "9.5.1"
+agp = "9.5.2"
 
 # Logging
-logback = "1.6.7"
+logback = "1.6.8"
 
 # Platform
 android-compileSdk = "37"
@@ -27,7 +27,7 @@ multiplatformSettings = "1.3.0"
 # Misc
 kotlinx-serialization = "1.13.0"
 kotlinx-coroutines = "1.11.0"
-kotlinx-io = "0.9.1"
+kotlinx-io = "0.9.3"
 kotlinx-datetime = "0.8.0"
 accompanist = "0.37.3"
 

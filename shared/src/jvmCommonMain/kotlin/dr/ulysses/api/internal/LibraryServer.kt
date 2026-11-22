@@ -40,6 +40,21 @@ internal fun Route.libraryApi() {
         requireNotNull(SongRepository.getByPathOrNull(path)) { "Not in the library" }
         audioFingerprint(path)
     }
+    serve(LibraryRoutes.RAW_FINGERPRINT) { path: String ->
+        requireNotNull(SongRepository.getByPathOrNull(path)) { "Not in the library" }
+        SongFingerprints.of(path)
+    }
+    serve(LibraryRoutes.SAME_SOUND) { prints: List<IntArray> ->
+        val sorted = SongRepository.getAllSongs().filter { it.state == Song.State.Sorted }
+        val stored = SongRepository.fingerprints()
+        prints.map {
+            SongFingerprints.sameSound(
+                print = it,
+                songs = sorted,
+                stored = stored
+            )
+        }
+    }
     serve(LibraryRoutes.SCAN) { _: Unit ->
         refreshSongs()
         Unit

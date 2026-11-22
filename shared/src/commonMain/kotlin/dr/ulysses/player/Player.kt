@@ -38,6 +38,9 @@ object Player {
     // The local queue survives a session as a remote control
     private var localState: PlayerState? = null
 
+    // The queue's order before shuffling, restored when shuffle is turned off
+    private var originalOrder: List<Song>? = null
+
     // The server song this device plays along with, as a local file path
     private var followedPath: String? = null
 
@@ -142,6 +145,8 @@ object Player {
             copy(
                 currentSong = window.current,
                 isPlaying = window.isPlaying,
+                shuffle = window.shuffle ?: shuffle,
+                repeatMode = window.repeatMode ?: repeatMode,
                 currentPlaylist = Playlist(
                     name = "Server",
                     songs = window.queue ?: listOfNotNull(window.previous, window.current, window.next)
@@ -294,32 +299,72 @@ object Player {
         }
     }
 
-    fun onToggleShuffleCommand() {
-        setState {
-            copy(
-                shuffle = !shuffle
-            )
-        }
-    }
+    fun onToggleShuffleCommand() = setShuffle(!state.shuffle)
 
+    /**
+     * On: the songs after the current one play in random order. Off: they go back to the order the queue had,
+     * continuing after the current song. Songs already played stay where they are, and so does the current one.
+     */
     fun setShuffle(shuffle: Boolean) {
+        if (remote) {
+            // Shown right away; the server's next window confirms it
+            setState {
+                copy(
+                    shuffle = shuffle
+                )
+            }
+            return NetworkManager.send(ShuffleCommand(shuffle))
+        }
+        if (shuffle == state.shuffle) {
+            return
+        }
+        val songs = state.currentPlaylist.songs
+        val current = state.currentTrackNum
+        val played = songs.take(current + 1)
+        val upcoming = if (shuffle) {
+            originalOrder = songs
+            songs.drop(current + 1).shuffled()
+        } else {
+            val original = originalOrder ?: songs
+            originalOrder = null
+            val position = original.indexOf(songs.getOrNull(current)).coerceAtLeast(0)
+            (original.drop(position + 1) + original.take(position)).filter { it !in played }
+        }
         setState {
             copy(
-                shuffle = shuffle
+                shuffle = shuffle,
+                currentPlaylist = currentPlaylist.copy(
+                    songs = played + upcoming
+                )
             )
         }
+        setUpcomingOnDevice(
+            currentIndex = current,
+            upcoming = upcoming
+        )
     }
 
-    fun onSwitchRepeatCommand() {
+    fun onSwitchRepeatCommand() = setRepeat(
+        when (state.repeatMode) {
+            RepeatMode.None -> RepeatMode.All
+            RepeatMode.All -> RepeatMode.One
+            RepeatMode.One -> RepeatMode.None
+        }
+    )
+
+    /**
+     * Also what the device does when a song ends: play it again (One), start the queue over (All) or stop (None).
+     */
+    fun setRepeat(mode: RepeatMode) {
         setState {
             copy(
-                repeatMode = when (repeatMode) {
-                    RepeatMode.None -> RepeatMode.All
-                    RepeatMode.All -> RepeatMode.One
-                    RepeatMode.One -> RepeatMode.None
-                }
+                repeatMode = mode
             )
         }
+        if (remote) {
+            return NetworkManager.send(RepeatCommand(mode))
+        }
+        setRepeatOnDevice(mode)
     }
 
     fun onStopCommand() {
@@ -456,7 +501,15 @@ object Player {
         first: Song,
     ) {
         if (!remote) {
-            onSongsChanged(songs)
+            // Shuffled, the clicked song still comes first
+            originalOrder = songs.takeIf { state.shuffle }
+            onSongsChanged(
+                if (state.shuffle) {
+                    listOf(first) + (songs - first).shuffled()
+                } else {
+                    songs
+                }
+            )
             onPlaySongCommand(first)
             return
         }
@@ -540,7 +593,9 @@ object Player {
             ),
             next = at(currentTrackNum + 1),
             previous = at(currentTrackNum - 1),
-            isPlaying = isPlaying
+            isPlaying = isPlaying,
+            shuffle = shuffle,
+            repeatMode = repeatMode
         )
     }
 
@@ -564,6 +619,15 @@ object Player {
 }
 
 expect fun setPlayListOnDevice(songs: List<Song>)
+
+/** Replaces the queue entries after [currentIndex] with [upcoming] without interrupting the song that plays. */
+expect fun setUpcomingOnDevice(
+    currentIndex: Int,
+    upcoming: List<Song>,
+)
+
+/** What the device does when a song ends by itself. */
+expect fun setRepeatOnDevice(mode: RepeatMode)
 
 /** Removes the queue entry at [index] without interrupting the song that plays. */
 expect fun removeFromPlayListOnDevice(index: Int)

@@ -27,8 +27,11 @@ import dr.ulysses.network.ServerType
 import dr.ulysses.ui.elements.toClipEntry
 import kotlinx.coroutines.launch
 
+/**
+ * [onSync] opens Sync with the connected Kristine server.
+ */
 @Composable
-fun Connections() {
+fun Connections(onSync: () -> Unit) {
     val localServer by NetworkManager.localServer.collectAsState()
     val discoveredServers by NetworkManager.discoveredServers.collectAsState()
     val currentServer by NetworkManager.currentServer.collectAsState()
@@ -71,7 +74,8 @@ fun Connections() {
                 ),
                 isConnected = isConnected,
                 type = serverType,
-                playHere = playHere
+                playHere = playHere,
+                onSync = onSync
             )
         }
         ConnectField()
@@ -365,6 +369,7 @@ private fun CurrentServerCard(
     isConnected: Boolean,
     type: ServerType,
     playHere: Boolean,
+    onSync: () -> Unit,
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -430,6 +435,35 @@ private fun CurrentServerCard(
                     onCheckedChange = NetworkManager::setPlayHere,
                     enabled = type.canPlayHere
                 )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(
+                    top = 8.dp
+                )
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Sync from this server",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = if (type.canManageLibrary) {
+                            "Sort this device's songs like the server's, download what is missing here"
+                        } else {
+                            "Only with a Kristine server"
+                        },
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                FilledTonalButton(
+                    onClick = onSync,
+                    enabled = isConnected && type.canManageLibrary
+                ) {
+                    Text(SYNC)
+                }
             }
         }
     }

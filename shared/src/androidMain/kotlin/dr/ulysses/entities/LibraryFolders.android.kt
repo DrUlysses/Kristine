@@ -43,3 +43,25 @@ actual suspend fun moveSongFile(
     }
     moved
 }
+
+actual suspend fun writeSongFile(
+    file: String,
+    bytes: ByteArray,
+): String? {
+    val written = writeNewFile(
+        file = file,
+        bytes = bytes
+    )
+    if (!written) {
+        return null
+    }
+    // Otherwise MediaStore doesn't know the file, and a scan drops it
+    val context: Context by inject(Context::class.java)
+    MediaScannerConnection.scanFile(
+        context,
+        arrayOf(file),
+        null,
+        null
+    )
+    return file
+}

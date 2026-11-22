@@ -33,6 +33,7 @@ actual suspend fun refreshSongs(): List<Song> = withContext(Dispatchers.IO) {
         .toList()
 
     SongRepository.syncWithScan(songs)
+    SongFingerprints.fillInBackground()
     songs
 }
 

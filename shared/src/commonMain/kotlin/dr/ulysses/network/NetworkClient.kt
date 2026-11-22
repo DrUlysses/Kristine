@@ -236,7 +236,7 @@ class NetworkClient {
         path = path
     ).takeIf { it.status.isSuccess() }?.bodyAsBytes()
 
-    /** A whole song file of the server's current window. */
+    /** A whole song file of the server's library. */
     suspend fun downloadSong(path: String): ByteArray {
         val response = get(
             route = SONG_ROUTE,

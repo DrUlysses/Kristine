@@ -195,12 +195,15 @@ object SongRepository : KoinComponent {
      */
     suspend fun findMatch(song: Song): Song? = findMatches(listOf(song)).single()
 
-    /** [findMatch] for many songs at once, e.g. a whole queue, reading the library only once. */
-    suspend fun findMatches(songs: List<Song>): List<Song?> {
-        val library = getAllSongs().filter { it.state != Song.State.NotDownloaded }
-        val byPath = library.associateBy { it.path }
-        val byFileName = library.groupBy { fileName(it.path) }
-        val byTitleAndArtist = library.groupBy { it.title.lowercase() to it.artist.lowercase() }
+    /** [findMatch] for many songs at once, e.g. a whole queue, reading [library] (this one when null) only once. */
+    suspend fun findMatches(
+        songs: List<Song>,
+        library: List<Song>? = null,
+    ): List<Song?> {
+        val available = (library ?: ownSongs()).filter { it.state != Song.State.NotDownloaded }
+        val byPath = available.associateBy { it.path }
+        val byFileName = available.groupBy { fileName(it.path) }
+        val byTitleAndArtist = available.groupBy { it.title.lowercase() to it.artist.lowercase() }
         return songs.map { song ->
             byPath[song.path] ?: byFileName[fileName(song.path)]?.let { sameName ->
                 closestPath(
@@ -314,7 +317,10 @@ object SongRepository : KoinComponent {
      */
     suspend fun ownSortedSongs(): List<Song> = ownSongs().filter { it.state == Song.State.Sorted }
 
-    private suspend fun ownSongs(): List<Song> = sharedDatabase { db ->
+    /**
+     * This device's songs without artwork, also while connected to a server.
+     */
+    suspend fun ownSongs(): List<Song> = sharedDatabase { db ->
         db.songQueries.selectAllSongs().awaitAsList().map {
             Song(
                 path = it.path,
@@ -324,6 +330,30 @@ object SongRepository : KoinComponent {
                 duration = it.duration?.toInt(),
                 state = Song.State.fromString(it.state),
             )
+        }
+    }
+
+    suspend fun fingerprint(path: String): IntArray? = sharedDatabase { db ->
+        db.songQueries.selectFingerprint(path).awaitAsOneOrNull()?.fingerprint?.let(::printOf)
+    }
+
+    suspend fun saveFingerprint(
+        path: String,
+        fingerprint: IntArray,
+    ) = sharedDatabase { db ->
+        db.songQueries.updateFingerprint(
+            fingerprint = bytesOf(fingerprint),
+            path = path
+        )
+    }
+
+    suspend fun pathsWithoutFingerprint(): List<String> = sharedDatabase { db ->
+        db.songQueries.selectPathsWithoutFingerprint().awaitAsList()
+    }
+
+    suspend fun fingerprints(): Map<String, IntArray> = sharedDatabase { db ->
+        db.songQueries.selectFingerprints().awaitAsList().associate { row ->
+            row.fingerprint.let { row.path to printOf(it) }
         }
     }
 

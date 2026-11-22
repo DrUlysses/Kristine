@@ -369,6 +369,11 @@ object NetworkManager {
         }
     }
 
+    /**
+     * The file of the connected server's song at [path].
+     */
+    suspend fun downloadSong(path: String): ByteArray = client.downloadSong(path)
+
     private suspend fun localCopy(song: Song): Song? =
         SongRepository.findMatch(song) ?: songCache.pathFor(song.path) { client.downloadSong(song.path) }?.let {
             song.copy(

@@ -97,13 +97,15 @@ object MainViewModel {
     /**
      * The DB keeps the edit even when the file can't be written, e.g. without storage permission.
      * Saves the song's tags, marked sorted unless [sort] is false, and files a sorted song in <music folder>/Artist/
-     * Album/Title like Organize folders; returns the song at its new path.
+     * Album/Title like Organize folders; returns the song at its new path. [onThisDevice] saves to this device's
+     * library also while connected to a server, as Sync does.
      */
     suspend fun saveSong(
         song: Song,
         sort: Boolean = true,
+        onThisDevice: Boolean = false,
     ): Song = withContext(Dispatchers.Default) {
-        if (isRemote) {
+        if (isRemote && !onThisDevice) {
             withContext(Dispatchers.Main) { forgetArtwork(song.path) }
             return@withContext LibraryClient.saveSong(
                 song = song,
@@ -125,7 +127,8 @@ object MainViewModel {
         } else {
             song.path
         }
-        if (path != song.path) {
+        // While connected, the player's queue is the server's
+        if (path != song.path && !isRemote) {
             // Its old path is gone
             withContext(Dispatchers.Main) { Player.onRemoveFromQueueCommand(song) }
         }

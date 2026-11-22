@@ -5,6 +5,7 @@ import dr.ulysses.api.internal.LibraryRoutes
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 import dr.ulysses.network.*
+import dr.ulysses.player.RepeatMode
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -63,7 +64,8 @@ internal class MpdClient {
             onConnected()
             onWindow(window())
             while (true) {
-                val changed = idleSocket.idle("idle player playlist database mixer").mapTo(HashSet()) { it.second }
+                val changed =
+                    idleSocket.idle("idle player playlist database mixer options").mapTo(HashSet()) { it.second }
                 if ("database" in changed) {
                     library = null
                 }
@@ -118,6 +120,15 @@ internal class MpdClient {
             PauseCommand -> command("pause 1")
             is SeekCommand -> command("seekcur ${command.position}")
             is SetVolumeCommand -> command("setvol ${(command.volume * 100).roundToInt()}")
+            is ShuffleCommand -> command("random ${if (command.shuffle) 1 else 0}")
+            // MPD repeats one song with repeat and single both on
+            is RepeatCommand -> commandList(
+                listOf(
+                    "repeat ${if (command.mode == RepeatMode.None) 0 else 1}",
+                    "single ${if (command.mode == RepeatMode.One) 1 else 0}"
+                )
+            )
+
             ResumeCommand -> command(
                 if (playState == "stop") {
                     "play"
@@ -233,7 +244,13 @@ internal class MpdClient {
             queue = queue,
             position = status["elapsed"]?.toDoubleOrNull()?.toInt(),
             // -1 where MPD has no mixer to set
-            volume = status["volume"]?.toIntOrNull()?.takeIf { it >= 0 }?.let { it / 100f }
+            volume = status["volume"]?.toIntOrNull()?.takeIf { it >= 0 }?.let { it / 100f },
+            shuffle = status["random"] == "1",
+            repeatMode = when {
+                status["repeat"] != "1" -> RepeatMode.None
+                status["single"] == "1" -> RepeatMode.One
+                else -> RepeatMode.All
+            }
         )
     }
 

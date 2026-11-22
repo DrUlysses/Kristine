@@ -1,0 +1,2 @@
+-- Chromaprint fingerprints, so Sync compares sounds without decoding every file again
+ALTER TABLE song ADD COLUMN fingerprint BLOB;
