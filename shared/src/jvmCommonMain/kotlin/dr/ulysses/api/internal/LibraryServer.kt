@@ -110,7 +110,7 @@ internal fun Route.libraryApi() {
 
 private suspend fun WebSocketServerSession.handle(command: TaskCommand) {
     when (command) {
-        StartAutoSortCommand -> AutoSort.start()
+        is StartAutoSortCommand -> AutoSort.start(command.clientLibrary)
         is SortProposalsCommand -> AutoSort.sort(AutoSort.state.value.matches.filter { it.song.path in command.paths })
 
         FindDuplicatesCommand -> launch {

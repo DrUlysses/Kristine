@@ -28,6 +28,7 @@ import dr.ulysses.api.external.MetadataSearch
 import dr.ulysses.entities.SettingKey
 import dr.ulysses.entities.SettingsRepository
 import dr.ulysses.entities.Song
+import dr.ulysses.entities.SongRepository
 import dr.ulysses.player.Player
 import io.github.vinceglb.filekit.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.core.PickerType
@@ -67,7 +68,13 @@ fun ManageUnsortedSong(
     ) {
         searching = true
         noMatchReason = null
-        matches = MetadataSearch.find(song)
+        matches = MetadataSearch.find(
+            song = song,
+            library = MetadataSearch.candidates(
+                songs = SongRepository.ownSortedSongs(),
+                source = "Your library"
+            )
+        )
         // Only asked when nothing matched: it repeats the sound lookup to tell what went wrong
         if (matches.isEmpty()) {
             noMatchReason = MetadataSearch.whyNoSoundMatch(song)

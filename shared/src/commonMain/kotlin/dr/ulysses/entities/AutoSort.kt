@@ -86,10 +86,11 @@ object AutoSort {
 
     /**
      * Looks up the unsorted songs, unless a lookup is running; songs sorted since drop out of the proposals.
+     * A server also searches [clientLibrary], the sorted songs of the client that started it.
      */
-    fun start() {
+    fun start(clientLibrary: List<Song> = emptyList()) {
         if (isRemote) {
-            LibraryTasks.send(StartAutoSortCommand)
+            scope.launch { LibraryTasks.send(StartAutoSortCommand(SongRepository.ownSortedSongs())) }
             return
         }
         if (job?.isActive == true) {
@@ -99,6 +100,13 @@ object AutoSort {
             val songs = SongRepository.getByNotState(Song.State.Sorted).filter { it.state != Song.State.NotDownloaded }
             val known = localState.value.matches.filter { proposal -> songs.any { it.path == proposal.song.path } }
             val toCheck = songs.filter { song -> known.none { it.song.path == song.path } }
+            val library = MetadataSearch.candidates(
+                songs = SongRepository.ownSortedSongs(),
+                source = "Library"
+            ) + MetadataSearch.candidates(
+                songs = clientLibrary,
+                source = "Client library"
+            )
             localState.value = State(
                 checked = known.size,
                 total = songs.size,
@@ -110,7 +118,12 @@ object AutoSort {
             toCheck.map { song ->
                 launch {
                     limit.withPermit {
-                        val match = runCatching { MetadataSearch.find(song).firstOrNull() }
+                        val match = runCatching {
+                            MetadataSearch.find(
+                                song = song,
+                                library = library
+                            ).firstOrNull()
+                        }
                             .onFailure { currentCoroutineContext().ensureActive() }
                             .onFailure { Logger.d(it) { "Auto-sort lookup failed for ${song.path}" } }
                             .getOrNull()

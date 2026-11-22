@@ -98,9 +98,12 @@ object MetadataSearch {
     )
 
     /**
-     * Best match first, at most 3.
+     * Best match first, at most 3. [library] holds sorted songs, ranked like the catalogs' answers.
      */
-    suspend fun find(song: Song): List<MetadataCandidate> = coroutineScope {
+    suspend fun find(
+        song: Song,
+        library: List<MetadataCandidate> = emptyList(),
+    ): List<MetadataCandidate> = coroutineScope {
         val guesses = song.guesses()
         val trackHint = trackNumberHint(song)
         val queries = guesses.map { "${it.artist} ${it.title}".trim() }.filter { it.isNotBlank() }.distinct().take(3)
@@ -129,6 +132,10 @@ object MetadataSearch {
                 }
             }
             add { bySound(song) }
+            // Without a title the length alone would rank random songs
+            if (guesses.isNotEmpty()) {
+                add { library }
+            }
         }
         lookups.map { lookup ->
             async {
@@ -167,6 +174,23 @@ object MetadataSearch {
             .distinctBy { normalize(it.title) to normalize(it.artist) }
             .take(3)
             .toList()
+    }
+
+    /**
+     * [songs] as candidates from [source]; they bring no artwork, so a sorted song keeps its own.
+     */
+    fun candidates(
+        songs: List<Song>,
+        source: String,
+    ) = songs.map {
+        MetadataCandidate(
+            title = it.title,
+            artist = it.artist,
+            album = it.album,
+            artworkUrl = null,
+            durationSeconds = it.duration,
+            source = source
+        )
     }
 
     suspend fun downloadArtwork(
