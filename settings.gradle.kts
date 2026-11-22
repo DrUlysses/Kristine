@@ -39,6 +39,7 @@ plugins {
 
 include(
     ":shared",
+    ":fingerprint",
     ":androidApp",
     ":desktopApp",
     ":webApp"

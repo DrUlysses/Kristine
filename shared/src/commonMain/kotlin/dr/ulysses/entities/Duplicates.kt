@@ -70,7 +70,7 @@ suspend fun findDuplicates(onProgress: (step: String, done: Int, total: Int) -> 
     val candidates = sameNameOrTags(songs)
     val toCompare = candidates.flatten().filter { it.path !in fingerprints }
     coroutineScope {
-        // fpcalc decodes the whole file; a few at a time keep the machine responsive
+        // Each print decodes two minutes of audio; a few at a time keep the machine responsive
         toCompare.chunked(PARALLEL_FINGERPRINTS).forEachIndexed { index, chunk ->
             chunk.map { song -> async(Dispatchers.Default) { song.path to rawFingerprint(song.path) } }
                 .awaitAll()

@@ -17,3 +17,5 @@ pebbleApp/src/nativeInterop/cinterop/*.def
 graphify-out
 kotlin-js-store
 .kotlin
+# Cargo's build output of the Rust code
+/fingerprint/target/

@@ -31,7 +31,7 @@ object SongFingerprints {
             return
         }
         job = scope.launch {
-            // fpcalc decodes the whole file; two at a time keep the machine responsive
+            // Each print decodes two minutes of audio; two at a time keep the machine responsive
             SongRepository.pathsWithoutFingerprint().chunked(2).forEach { chunk ->
                 chunk.map { path -> async { runCatching { of(path) } } }.awaitAll()
             }
@@ -72,7 +72,7 @@ object SongFingerprints {
 
     /**
      * Which of this device's [songs] sound like [song], also when [song] is a connected server's: its print then
-     * comes from the server. Empty where `fpcalc` is missing.
+     * comes from the server. Empty where the file can't be decoded (WMA, Opus) and in the browser.
      */
     suspend fun ownSameSound(
         song: Song,

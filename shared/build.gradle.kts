@@ -85,6 +85,7 @@ kotlin {
             implementation(libs.androidx.material3.adaptive)
         }
         getByName("jvmCommonMain").dependencies {
+            implementation(projects.fingerprint)
             implementation(libs.jthink.jaudiotagger)
             implementation(libs.kotlinx.io.core)
             implementation(libs.ktor.client.okhttp)

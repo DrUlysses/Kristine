@@ -157,7 +157,7 @@ object Sync {
     }
 
     /**
-     * The server's sorted song for each of [songs] that sounds the same, by path; empty where `fpcalc` is missing.
+     * The server's sorted song for each of [songs] that sounds the same, by path; songs that can't be decoded (WMA, Opus) are left out.
      */
     private suspend fun bySound(songs: List<Song>): Map<String, Song> {
         val prints = songs.mapIndexedNotNull { index, song ->

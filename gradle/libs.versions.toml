@@ -5,6 +5,7 @@ kotlin = "2.4.21"
 ktor = "3.6.1"
 koin = "4.2.2"
 agp = "9.5.2"
+oxikt = "1.4.0"
 
 # Logging
 logback = "1.6.8"
@@ -133,6 +134,7 @@ sqlDelight = { id = "app.cash.sqldelight", version.ref = "sqlDelight" }
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
 androidKmpLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+oxikt = { id = "dev.oxikt.gradle.plugin", version.ref = "oxikt" }
 
 [bundles]
 ktor-client = ["ktor-client-core", "ktor-client-content-negotiation", "ktor-client-websockets"]

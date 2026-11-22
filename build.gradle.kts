@@ -9,4 +9,6 @@ plugins {
     alias(libs.plugins.kotlinJvm) apply false
     alias(libs.plugins.multiplatform) apply false
     alias(libs.plugins.sqlDelight) apply false
+    // Rust builds of all modules share one Cargo run
+    alias(libs.plugins.oxikt) apply false
 }
