@@ -5,6 +5,12 @@ on:
     branches:
       - main
   pull_request:
+  # The release workflow builds the main it just merged
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ''
 
 concurrency:
   group: build-${{ github.ref }}
@@ -17,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Validate Gradle Wrapper
         uses: gradle/wrapper-validation-action@v3
@@ -67,6 +75,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Setup Java JDK
         uses: actions/setup-java@v5
@@ -103,9 +113,9 @@ jobs:
           name: AppImage distribution
           path: ./Kristine-x86_64.AppImage
 
-      # Only from main, so pull requests can't publish an image
+      # Only from main (a push or a release), so pull requests can't publish an image
       - name: Push Docker image
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker build -t ghcr.io/drulysses/kristine:latest .
@@ -115,6 +125,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
