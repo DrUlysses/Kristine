@@ -34,11 +34,23 @@ jobs:
         with:
           targets: aarch64-linux-android,x86_64-linux-android,armv7-linux-androideabi
 
+      # Every APK is signed with the same key, so a new one installs as an update over the one before
+      - name: Restore the signing key
+        env:
+          DEBUG_KEYSTORE: ${{ secrets.ANDROID_DEBUG_KEYSTORE }}
+        run: |
+          if [ -z "$DEBUG_KEYSTORE" ]; then
+            echo "::error::The ANDROID_DEBUG_KEYSTORE secret is missing: the APK would get a new key and not install as an update"
+            exit 1
+          fi
+          mkdir -p ~/.android
+          echo "$DEBUG_KEYSTORE" | base64 -d > ~/.android/debug.keystore
+
       - name: Run gradle assemble task
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          chmod +x gradlew 
+          chmod +x gradlew
           ./gradlew assemble --stacktrace
 
       - name: Upload artifact
