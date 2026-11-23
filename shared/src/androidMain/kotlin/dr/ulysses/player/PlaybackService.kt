@@ -9,8 +9,10 @@ import android.os.Build
 import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.media3.common.*
-import androidx.media3.common.Player
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
@@ -19,6 +21,9 @@ import dr.ulysses.player.PlayerObject.onCurrentPlayingChangedOnDevice
 import dr.ulysses.player.PlayerObject.onIsPlayingChangedOnDevice
 import kristine.shared.generated.resources.Res
 import kristine.shared.generated.resources.play
+import androidx.media3.common.Player as MediaPlayer
+import androidx.media3.session.R as MediaSessionR
+import androidx.media3.ui.R as MediaUiR
 
 class PlaybackService : MediaLibraryService() {
 
@@ -41,7 +46,7 @@ class PlaybackService : MediaLibraryService() {
             skipSilenceEnabled = false
             setHandleAudioBecomingNoisy(false)
             setAudioAttributes(attributes, true)
-            addListener(object : Player.Listener {
+            addListener(object : MediaPlayer.Listener {
                 override fun onPlayerError(error: PlaybackException) {
                     super.onPlayerError(error)
                     if (error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED) {
@@ -66,8 +71,10 @@ class PlaybackService : MediaLibraryService() {
         }
 
         // The app shuffles the queue itself; ExoPlayer only repeats as told
-        exo.repeatMode = androidx.media3.common.Player.REPEAT_MODE_ALL
-        mediaSession = MediaLibrarySession.Builder(this, exo, callback).build()
+        exo.repeatMode = MediaPlayer.REPEAT_MODE_ALL
+        PlayerObject.player = exo
+        // Watches, headsets and the notification control a connected server through it
+        mediaSession = MediaLibrarySession.Builder(this, ServerMirroringPlayer(exo), callback).build()
 
         setListener(MediaSessionServiceListener())
     }
@@ -89,6 +96,8 @@ class PlaybackService : MediaLibraryService() {
 
     @UnstableApi
     override fun onDestroy() {
+        PlayerObject.player = null
+        Player.onStateChanged = {}
         mediaSession?.run {
             release()
             player.release()
@@ -115,7 +124,7 @@ class PlaybackService : MediaLibraryService() {
             ensureNotificationChannel(notificationManagerCompat)
             val builder =
                 NotificationCompat.Builder(this@PlaybackService, CHANNEL_ID)
-                    .setSmallIcon(androidx.media3.ui.R.drawable.exo_notification_small_icon)
+                    .setSmallIcon(MediaUiR.drawable.exo_notification_small_icon)
                     .setContentTitle(Res.string.play.toString())
                     .setStyle(
                         NotificationCompat.BigTextStyle().bigText(Res.string.play.toString())
@@ -137,7 +146,7 @@ class PlaybackService : MediaLibraryService() {
         val channel =
             NotificationChannel(
                 CHANNEL_ID,
-                getString(androidx.media3.session.R.string.default_notification_channel_name),
+                getString(MediaSessionR.string.default_notification_channel_name),
                 NotificationManager.IMPORTANCE_DEFAULT
             )
         notificationManagerCompat.createNotificationChannel(channel)

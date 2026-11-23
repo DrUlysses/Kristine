@@ -15,9 +15,9 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dr.ulysses.entities.Maintenance
 import dr.ulysses.entities.SongRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
 
 private data class UnsortedFabMenuState(
     val expanded: Boolean = false,
@@ -44,7 +44,6 @@ private enum class OperationType {
 @Composable
 fun UnsortedFabMenu() {
     var state by remember { mutableStateOf(UnsortedFabMenuState()) }
-    val coroutineScope = rememberCoroutineScope()
 
     val rotation by animateFloatAsState(
         targetValue = if (state.expanded) {
@@ -73,21 +72,27 @@ fun UnsortedFabMenu() {
             showProgressDialog = true,
             operationType = operation
         )
-        coroutineScope.launch {
-            progress.collect { p ->
-                state = state.copy(
-                    processedCount = p.processed,
-                    totalCount = p.total,
-                    changedCount = p.changed,
-                    progress = if (p.total > 0) {
-                        p.processed.toFloat() / p.total
-                    } else {
-                        0f
-                    },
-                    showProgressDialog = !p.isComplete,
-                    showResultDialog = p.isComplete,
-                )
-            }
+        // Runs on when this screen is left; the menu then shows its progress
+        Maintenance.run(
+            name = when (operation) {
+                OperationType.REMOVE_NON_EXISTING -> "Removing missing songs"
+                OperationType.UPDATE_DURATIONS -> "Updating durations"
+                OperationType.NONE -> "Processing"
+            },
+            progress = progress
+        ) { p ->
+            state = state.copy(
+                processedCount = p.processed,
+                totalCount = p.total,
+                changedCount = p.changed,
+                progress = if (p.total > 0) {
+                    p.processed.toFloat() / p.total
+                } else {
+                    0f
+                },
+                showProgressDialog = !p.isComplete,
+                showResultDialog = p.isComplete,
+            )
         }
     }
 

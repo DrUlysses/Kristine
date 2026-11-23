@@ -16,9 +16,10 @@ import java.awt.GraphicsEnvironment
 
 fun main() {
     initKoin {}
+    // The connections live as long as the app, not its window
+    NetworkManager.start()
     if (GraphicsEnvironment.isHeadless()) {
         // No display, e.g. in a container: only the server, which clients connect to
-        NetworkManager.start()
         runBlocking {
             refreshSongs()
             awaitCancellation()
@@ -28,7 +29,10 @@ fun main() {
         Window(
             title = "Kristine",
             icon = painterResource(Res.drawable.icon),
-            onCloseRequest = ::exitApplication,
+            onCloseRequest = {
+                NetworkManager.stop()
+                exitApplication()
+            },
             state = rememberWindowState(
                 width = 800.dp,
                 height = 800.dp

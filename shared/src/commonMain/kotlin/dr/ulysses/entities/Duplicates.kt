@@ -1,6 +1,7 @@
 package dr.ulysses.entities
 
 import app.cash.sqldelight.async.coroutines.awaitAsList
+import dr.ulysses.Logger
 import dr.ulysses.api.external.MetadataCandidate
 import dr.ulysses.api.external.MetadataSearch
 import dr.ulysses.api.external.rawFingerprint
@@ -10,6 +11,8 @@ import dr.ulysses.api.internal.isRemote
 import dr.ulysses.database.SharedDatabase
 import dr.ulysses.ui.views.formatTime
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import org.koin.core.component.KoinComponent
@@ -56,6 +59,58 @@ data class Suggestion(
     val recording: Recording,
     val reason: String,
 )
+
+/**
+ * The last search for duplicates, which runs on while its screen is closed.
+ */
+object DuplicateSearch {
+    data class State(
+        /**
+         * What the search does now; null when it doesn't run.
+         */
+        val step: String? = null,
+        val done: Int = 0,
+        val total: Int = 0,
+        /**
+         * Groups of one recording first: their copies are all the same, so there is nothing to choose.
+         */
+        val groups: List<DuplicateGroup>? = null,
+    )
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    val state: StateFlow<State>
+        field = MutableStateFlow(State())
+
+    /**
+     * Searches again, unless a search runs already.
+     */
+    fun start() {
+        if (state.value.step != null) {
+            return
+        }
+        state.value = State(
+            step = "Comparing the sound of"
+        )
+        scope.launch {
+            val groups = runCatching {
+                findDuplicates { step, done, total ->
+                    state.value = State(
+                        step = step,
+                        done = done,
+                        total = total
+                    )
+                }
+            }
+                .onFailure { currentCoroutineContext().ensureActive() }
+                .onFailure { Logger.e(it) { "Searching for duplicates failed" } }
+                .getOrDefault(emptyList())
+            state.value = State(
+                groups = groups.sortedBy { it.recordings.size > 1 }
+            )
+        }
+    }
+}
 
 /**
  * Groups of at least two songs in the library that are the same song. Candidates share a file name or tags; their
