@@ -21,10 +21,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import dr.ulysses.Logger
-import dr.ulysses.entities.Playlist
-import dr.ulysses.entities.PlaylistRepository
-import dr.ulysses.entities.Song
-import dr.ulysses.entities.SongRepository
+import dr.ulysses.entities.*
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.network.NetworkManager
 import dr.ulysses.player.Player
@@ -69,7 +66,7 @@ fun Main() {
     val playlistsListState = rememberLazyListState()
 
     val navStack = rememberNavBackStack(config, Songs)
-    var pendingRoute by remember { mutableStateOf<NavKey?>(null) }
+    var pendingRoutes by remember { mutableStateOf(emptyList<NavKey>()) }
 
     PermissionsAlert(
         permissionsGranted = permissionsGranted.value,
@@ -79,12 +76,11 @@ fun Main() {
     // The NavDisplay is only composed while a title is shown, so navigation waits for it
     LaunchedEffect(
         key1 = state.topBarText,
-        key2 = pendingRoute
+        key2 = pendingRoutes
     ) {
-        val route = pendingRoute
-        if (state.topBarText != null && route != null) {
-            navStack.add(route)
-            pendingRoute = null
+        if (state.topBarText != null && pendingRoutes.isNotEmpty()) {
+            navStack.addAll(pendingRoutes)
+            pendingRoutes = emptyList()
         }
     }
 
@@ -107,7 +103,31 @@ fun Main() {
                 MainViewModel.state.previousTabIndex
             }
         )
-        pendingRoute = route
+        pendingRoutes = listOf(route)
+    }
+
+    // Over the screen the task is started from, so back leads there as usual
+    fun openTask(screen: TaskScreen) {
+        if (screen == TaskScreen.Sync) {
+            open(
+                title = connectionsText,
+                route = Connections
+            )
+        } else {
+            open(
+                title = manageUnsortedText,
+                route = ManageUnsortedList
+            )
+        }
+        val (title, route) = when (screen) {
+            TaskScreen.Sync -> SYNC to SyncLibrary
+            TaskScreen.AutoSort -> AUTO_SORT to AutoSortSongs
+            TaskScreen.Duplicates -> RESOLVE_DUPLICATES to ManageDuplicates
+            TaskScreen.MergeNames -> MERGE_NAMES to MergeNames
+            TaskScreen.Unsorted -> return
+        }
+        MainViewModel.setTopBarText(title)
+        pendingRoutes = pendingRoutes + route
     }
 
     fun close() {
@@ -152,6 +172,8 @@ fun Main() {
     }
 
     val canManage = canManageLibrary()
+    // Below the menu's entries, each opening its screen
+    val runningTasks by BackgroundTasks.running.collectAsState()
 
     NetworkManager.connectionError.collectAsState().value?.let { error ->
         AlertDialog(
@@ -218,7 +240,13 @@ fun Main() {
                             )
                         }
                     )
-                )
+                ) + runningTasks.map { task ->
+                    SettingsDropdownEntry(
+                        text = task.text,
+                        icon = Icons.Default.Sync,
+                        onClick = { openTask(task.screen) }
+                    )
+                }
             )
         },
         content = { innerPadding ->

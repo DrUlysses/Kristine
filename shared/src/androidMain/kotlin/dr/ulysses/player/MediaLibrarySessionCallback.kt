@@ -16,6 +16,7 @@ import dr.ulysses.entities.PlaylistRepository
 import dr.ulysses.entities.Song
 import dr.ulysses.entities.SongRepository
 import kotlinx.coroutines.*
+import androidx.media3.ui.R as MediaUiR
 
 /** The queue item for [Song]; the media id carries the path because controllers strip the URI. */
 internal fun Song.toMediaItem(mediaId: String = path): MediaItem = MediaItem.Builder()
@@ -48,14 +49,14 @@ open class MediaLibrarySessionCallback(context: Context) :
     private val customLayoutCommandButtons: List<CommandButton> =
         listOf(
             CommandButton.Builder(CommandButton.ICON_SHUFFLE_OFF)
-                .setDisplayName(context.getString(androidx.media3.ui.R.string.exo_controls_shuffle_on_description))
+                .setDisplayName(context.getString(MediaUiR.string.exo_controls_shuffle_on_description))
                 .setSessionCommand(SessionCommand(CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON, Bundle.EMPTY))
-                .setCustomIconResId(androidx.media3.ui.R.drawable.exo_icon_shuffle_off)
+                .setCustomIconResId(MediaUiR.drawable.exo_icon_shuffle_off)
                 .build(),
             CommandButton.Builder(CommandButton.ICON_SHUFFLE_ON)
-                .setDisplayName(context.getString(androidx.media3.ui.R.string.exo_controls_shuffle_off_description))
+                .setDisplayName(context.getString(MediaUiR.string.exo_controls_shuffle_off_description))
                 .setSessionCommand(SessionCommand(CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF, Bundle.EMPTY))
-                .setCustomIconResId(androidx.media3.ui.R.drawable.exo_icon_shuffle_on)
+                .setCustomIconResId(MediaUiR.drawable.exo_icon_shuffle_on)
                 .build()
         )
 

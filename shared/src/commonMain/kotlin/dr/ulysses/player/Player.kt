@@ -32,8 +32,19 @@ data class PlayerState(
 )
 
 object Player {
-    var state: PlayerState by mutableStateOf(PlayerState())
-        private set
+    private var snapshotState by mutableStateOf(PlayerState())
+
+    var state: PlayerState
+        get() = snapshotState
+        private set(value) {
+            snapshotState = value
+            onStateChanged()
+        }
+
+    /**
+     * Called after each state change, on the thread that made it; the device's media session follows a server so.
+     */
+    var onStateChanged: () -> Unit = {}
 
     // The local queue survives a session as a remote control
     private var localState: PlayerState? = null

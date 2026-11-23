@@ -5,27 +5,29 @@ import android.content.Context
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import com.google.common.util.concurrent.MoreExecutors
 import dr.ulysses.entities.Song
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.koin.java.KoinJavaComponent
+import androidx.media3.common.Player as MediaPlayer
 
 @UnstableApi
 object PlayerObject {
     var onIsPlayingChangedOnDevice: (Boolean) -> Unit = {}
     var onCurrentPlayingChangedOnDevice: (String?) -> Unit = {}
     private val context: Context by KoinJavaComponent.inject(Context::class.java)
-    var player: MediaController? = null
 
+    // The service's own player, set while it runs. The app drives it directly: commands sent through the session
+    // would go to a connected server, which the session shows to watches and headsets
+    var player: MediaPlayer? = null
+
+    // Connecting starts the service
     val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-    val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync().apply {
-        addListener({ player = get() }, MoreExecutors.directExecutor())
-    }
+    val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
 }
 
-// MediaController must be called on the main thread
-private fun onMain(block: MediaController.() -> Unit) {
+// The player must be called on the main thread
+private fun onMain(block: MediaPlayer.() -> Unit) {
     MainScope().launch { PlayerObject.player?.block() }
 }
 
@@ -99,8 +101,8 @@ actual fun setUpcomingOnDevice(
 @UnstableApi
 actual fun setRepeatOnDevice(mode: RepeatMode) = onMain {
     repeatMode = when (mode) {
-        RepeatMode.None -> androidx.media3.common.Player.REPEAT_MODE_OFF
-        RepeatMode.All -> androidx.media3.common.Player.REPEAT_MODE_ALL
-        RepeatMode.One -> androidx.media3.common.Player.REPEAT_MODE_ONE
+        RepeatMode.None -> MediaPlayer.REPEAT_MODE_OFF
+        RepeatMode.All -> MediaPlayer.REPEAT_MODE_ALL
+        RepeatMode.One -> MediaPlayer.REPEAT_MODE_ONE
     }
 }

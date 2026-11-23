@@ -34,16 +34,14 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun ManageDuplicates() {
-    var groups by remember { mutableStateOf<List<DuplicateGroup>?>(null) }
-    var step by remember { mutableStateOf("Comparing the sound of") }
-    var progress by remember { mutableStateOf(0 to 0) }
+    val search by DuplicateSearch.state.collectAsState()
     LaunchedEffect(Unit) {
-        // Groups of one recording first: their copies are all the same, so there is nothing to choose
-        groups = findDuplicates { currentStep, done, total ->
-            step = currentStep
-            progress = done to total
-        }.sortedBy { it.recordings.size > 1 }
+        DuplicateSearch.start()
     }
+    // Resolved groups leave this copy of the found ones
+    var groups by remember(search.groups) { mutableStateOf(search.groups) }
+    val step = search.step.orEmpty()
+    val progress = search.done to search.total
 
     val found = groups
     when {
