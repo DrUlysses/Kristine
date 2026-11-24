@@ -2,10 +2,10 @@ package dr.ulysses.ui.views
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -28,8 +28,37 @@ fun ManagePlaylist(
     modifier: Modifier = Modifier,
     playlist: Playlist,
     onPlaylistChanged: (Playlist) -> Unit,
+    /**
+     * Deletes the stored playlist; null for a new one.
+     */
+    onDelete: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
+    var isDeleteDialogOpen by remember { mutableStateOf(false) }
+    if (isDeleteDialogOpen && onDelete != null) {
+        AlertDialog(
+            onDismissRequest = { isDeleteDialogOpen = false },
+            title = { Text("Delete ${playlist.name}?") },
+            text = { Text("The playlist goes; its songs stay in the library.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        isDeleteDialogOpen = false
+                        onDelete()
+                    }
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { isDeleteDialogOpen = false }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
     var updatedImage by remember { mutableStateOf(playlist.artwork) }
     val imagePicker = rememberFilePickerLauncher(
         type = PickerType.Image,
@@ -92,6 +121,24 @@ fun ManagePlaylist(
                     },
                     singleLine = true
                 )
+                if (onDelete != null) {
+                    TextButton(
+                        onClick = { isDeleteDialogOpen = true },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        modifier = Modifier.padding(start = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = null
+                        )
+                        Text(
+                            text = "Delete playlist",
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                }
             }
         }
 
@@ -122,6 +169,22 @@ fun ManagePlaylist(
                         )
                     },
                     rearrangeable = true,
+                    action = { song ->
+                        IconButton(
+                            onClick = {
+                                onPlaylistChanged(
+                                    playlist.copy(
+                                        songs = playlist.songs - song
+                                    )
+                                )
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.RemoveCircleOutline,
+                                contentDescription = "Remove from playlist"
+                            )
+                        }
+                    }
                 )
             }
         }

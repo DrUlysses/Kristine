@@ -5,6 +5,7 @@ package dr.ulysses.entities
 import app.cash.sqldelight.async.coroutines.awaitAsList
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import dr.ulysses.api.internal.LibraryClient
+import dr.ulysses.api.internal.PlaylistSaveRequest
 import dr.ulysses.api.internal.isRemote
 import dr.ulysses.database.SharedDatabase
 import dr.ulysses.entities.base.Searchable
@@ -79,37 +80,56 @@ data class Playlist(
 object PlaylistRepository : KoinComponent {
     private val sharedDatabase: SharedDatabase by inject()
 
-    suspend fun rename(
-        oldName: String,
-        newName: String,
-    ) = sharedDatabase { appDatabase ->
-        appDatabase.playlistQueries.transactionWithResult {
-            appDatabase.playlistQueries.rename(
-                name = newName,
-                updated_at = Clock.System.now().toString(),
-                name_ = oldName,
-            )
-        }
-    }
-
-    suspend fun insert(playlist: Playlist) {
+    /**
+     * Stores [playlist] with its songs in their order, in place of the playlist named [oldName], or as a new one when
+     * that's null. Fails, changing nothing, when another playlist has the name.
+     */
+    suspend fun save(
+        playlist: Playlist,
+        oldName: String?,
+    ) {
         if (isRemote) {
-            LibraryClient.insertPlaylist(playlist)
+            LibraryClient.savePlaylist(
+                PlaylistSaveRequest(
+                    playlist = playlist,
+                    oldName = oldName
+                )
+            )
             return
         }
-        return sharedDatabase { appDatabase ->
-            appDatabase.playlistQueries.transactionWithResult {
+        sharedDatabase { appDatabase ->
+            appDatabase.playlistQueries.transaction {
+                if (oldName != null) {
+                    appDatabase.playlistSongQueries.deleteByPlaylist(oldName)
+                    appDatabase.playlistQueries.deleteByName(oldName)
+                }
                 appDatabase.playlistQueries.insert(
                     name = playlist.name,
+                    artwork = playlist.artwork,
+                    state = playlist.state.toString(),
                     created_at = playlist.createdAt.toString(),
-                    updated_at = playlist.updatedAt.toString(),
+                    updated_at = Clock.System.now().toString(),
                 )
-                playlist.songs.forEach { song ->
+                playlist.songs.forEachIndexed { index, song ->
                     appDatabase.playlistSongQueries.insert(
                         playlist_name = playlist.name,
                         song_path = song.path,
+                        position = index.toLong(),
                     )
                 }
+            }
+        }
+    }
+
+    suspend fun delete(name: String) {
+        if (isRemote) {
+            LibraryClient.deletePlaylist(name)
+            return
+        }
+        sharedDatabase { appDatabase ->
+            appDatabase.playlistQueries.transaction {
+                appDatabase.playlistSongQueries.deleteByPlaylist(name)
+                appDatabase.playlistQueries.deleteByName(name)
             }
         }
     }

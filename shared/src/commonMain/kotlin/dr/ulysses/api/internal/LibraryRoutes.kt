@@ -1,6 +1,7 @@
 package dr.ulysses.api.internal
 
 import dr.ulysses.entities.DuplicateGroup
+import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 import kotlinx.serialization.Serializable
 
@@ -23,7 +24,8 @@ internal object LibraryRoutes {
     const val PLAYLIST_SONGS = "/api/playlists/songs"
     const val PLAYLIST_ARTWORK = "/api/playlists/artwork"
     const val PLAYLISTS_SEARCH = "/api/playlists/search"
-    const val PLAYLIST_INSERT = "/api/playlists/insert"
+    const val PLAYLIST_SAVE = "/api/playlists/save"
+    const val PLAYLIST_DELETE = "/api/playlists/delete"
 
     const val ORGANIZE_PLAN = "/api/organize/plan"
     const val ORGANIZE = "/api/organize"
@@ -37,6 +39,15 @@ internal object LibraryRoutes {
      */
     const val TASKS_ROUTE = "/api/tasks"
 }
+
+/**
+ * A playlist to store in place of the one named [oldName], or as a new one when that's null.
+ */
+@Serializable
+internal data class PlaylistSaveRequest(
+    val playlist: Playlist,
+    val oldName: String?,
+)
 
 @Serializable
 internal data class SaveRequest(

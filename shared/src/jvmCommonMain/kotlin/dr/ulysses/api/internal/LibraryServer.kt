@@ -64,9 +64,13 @@ internal fun Route.libraryApi() {
     serve(LibraryRoutes.PLAYLIST_SONGS) { name: String -> PlaylistRepository.getPlaylistSongs(name).withoutArtwork() }
     serve(LibraryRoutes.PLAYLIST_ARTWORK) { name: String -> PlaylistRepository.getArtwork(name) }
     serve(LibraryRoutes.PLAYLISTS_SEARCH) { query: String -> PlaylistRepository.search(query) }
-    serve(LibraryRoutes.PLAYLIST_INSERT) { playlist: Playlist ->
-        PlaylistRepository.insert(playlist)
+    serve(LibraryRoutes.PLAYLIST_SAVE) { request: PlaylistSaveRequest ->
+        PlaylistRepository.save(
+            playlist = request.playlist,
+            oldName = request.oldName
+        )
     }
+    serve(LibraryRoutes.PLAYLIST_DELETE) { name: String -> PlaylistRepository.delete(name) }
 
     serve(LibraryRoutes.ORGANIZE_PLAN) { _: Unit -> planOrganize() }
     serve(LibraryRoutes.ORGANIZE) { paths: List<String> ->

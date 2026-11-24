@@ -36,8 +36,11 @@ data object CurrentQueue : NavKey
 @Serializable
 data object Search : NavKey
 
+/**
+ * A new playlist, or the stored one named [originalName].
+ */
 @Serializable
-data object ManagePlaylist : NavKey
+data class ManagePlaylist(val originalName: String? = null) : NavKey
 
 @Serializable
 data object ManageUnsortedList : NavKey
