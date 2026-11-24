@@ -24,8 +24,9 @@ internal suspend fun writeNewFile(
     }
     runCatching {
         target.parent?.let(SystemFileSystem::createDirectories)
-        // Written aside first, so a canceled download never leaves a cut-off song behind
-        val partial = Path("$file.part")
+        // Written aside first, so a canceled download never leaves a cut-off song behind. It keeps the song's
+        // extension: Android lets apps create only audio files in the music folder
+        val partial = Path("${file.substringBeforeLast('.')}.part.${file.substringAfterLast('.')}")
         SystemFileSystem.sink(partial).buffered().use { it.write(bytes) }
         SystemFileSystem.atomicMove(
             source = partial,

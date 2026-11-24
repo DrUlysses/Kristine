@@ -124,22 +124,13 @@ suspend fun findDuplicates(onProgress: (step: String, done: Int, total: Int) -> 
     val songs = SongRepository.getAllSongs().filter { it.state != Song.State.NotDownloaded }
     val candidates = sameNameOrTags(songs)
     val toCompare = candidates.flatten().filter { it.path !in fingerprints }
-    coroutineScope {
-        // Each print decodes two minutes of audio; a few at a time keep the machine responsive
-        toCompare.chunked(PARALLEL_FINGERPRINTS).forEachIndexed { index, chunk ->
-            chunk.map { song -> async(Dispatchers.Default) { song.path to rawFingerprint(song.path) } }
-                .awaitAll()
-                .forEach { (path, print) -> fingerprints[path] = print }
-            onProgress(
-                "Comparing the sound of",
-                minOf(
-                    a = (index + 1) * PARALLEL_FINGERPRINTS,
-                    b = toCompare.size
-                ),
-                toCompare.size
-            )
-        }
-    }
+    // Each print decodes two minutes of audio; a few at a time keep the machine responsive
+    toCompare.mapParallel(
+        parallel = PARALLEL_FINGERPRINTS,
+        onDone = { done -> onProgress("Comparing the sound of", done, toCompare.size) }
+    ) { song ->
+        song.path to withContext(Dispatchers.Default) { rawFingerprint(song.path) }
+    }.forEach { (path, print) -> fingerprints[path] = print }
     val bySound = candidates.map { group ->
         sameSound(
             group = group,
@@ -149,22 +140,13 @@ suspend fun findDuplicates(onProgress: (step: String, done: Int, total: Int) -> 
 
     // Copies that sound the same are one song for sure; only different recordings need the catalog
     val toLookUp = bySound.filter { it.size > 1 }.flatten().map(::bestOf).filter { it.path !in matches }
-    coroutineScope {
-        // Few at a time: the catalogs limit how often they may be asked
-        toLookUp.chunked(PARALLEL_LOOKUPS).forEachIndexed { index, chunk ->
-            chunk.map { song -> async { song.path to identify(song) } }
-                .awaitAll()
-                .forEach { (path, match) -> matches[path] = match }
-            onProgress(
-                "Looking up online",
-                minOf(
-                    a = (index + 1) * PARALLEL_LOOKUPS,
-                    b = toLookUp.size
-                ),
-                toLookUp.size
-            )
-        }
-    }
+    // Few at a time: the catalogs limit how often they may be asked
+    toLookUp.mapParallel(
+        parallel = PARALLEL_LOOKUPS,
+        onDone = { done -> onProgress("Looking up online", done, toLookUp.size) }
+    ) { song ->
+        song.path to identify(song)
+    }.forEach { (path, match) -> matches[path] = match }
     val keptTogether = KeptTogether.pairs()
     return bySound.flatMap { copiesBySound ->
         val recordings = copiesBySound.map { copies ->
@@ -459,7 +441,7 @@ internal fun similarity(
     return best
 }
 
-private const val PARALLEL_FINGERPRINTS = 4
+internal const val PARALLEL_FINGERPRINTS = 4
 private const val PARALLEL_LOOKUPS = 2
 private const val MIN_MATCH_SCORE = 0.6 // a title and artist that mostly agree, see MetadataSearch.score
 internal const val SAME_RECORDING = 0.85

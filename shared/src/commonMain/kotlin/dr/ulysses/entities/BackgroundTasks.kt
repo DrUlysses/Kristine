@@ -1,8 +1,10 @@
 package dr.ulysses.entities
 
-import dr.ulysses.ui.elements.songs
+import dr.ulysses.ui.elements.count
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 /**
  * Where a running task is shown in full.
@@ -115,10 +117,16 @@ object BackgroundTasks {
             DuplicateSearch.state,
             Maintenance.running
         ) { downloads, duplicates, maintenance ->
+            // A playlist is one download of many songs
             val downloading = downloads.count { it.value == SongDownloader.Status.Running }
+            val label = count(
+                number = downloading,
+                one = "download",
+                many = "downloads"
+            )
             listOfNotNull(
                 RunningTask(
-                    name = "Downloading ${songs(downloading)}",
+                    name = "Downloading ($label)",
                     screen = TaskScreen.Unsorted
                 ).takeIf { downloading > 0 },
                 duplicates.step?.let {
@@ -144,4 +152,22 @@ object BackgroundTasks {
         started = SharingStarted.Eagerly,
         initialValue = emptyList()
     )
+}
+
+/**
+ * [transform] of each item, [parallel] at a time, in the items' order; [onDone] gets how many are done after each,
+ * maybe out of order.
+ */
+suspend fun <T, R> List<T>.mapParallel(
+    parallel: Int,
+    onDone: (Int) -> Unit = {},
+    transform: suspend (T) -> R,
+): List<R> = coroutineScope {
+    val limit = Semaphore(parallel)
+    val done = MutableStateFlow(0)
+    map { item ->
+        async {
+            limit.withPermit { transform(item) }.also { onDone(done.updateAndGet { it + 1 }) }
+        }
+    }.awaitAll()
 }

@@ -100,6 +100,9 @@ kotlin {
             implementation(libs.androidx.media3.session)
             implementation(libs.androidx.media3.ui)
             implementation(libs.koin.android)
+            // yt-dlp with Python and ffmpeg, for downloading missing songs
+            implementation(libs.youtubedl.android)
+            implementation(libs.youtubedl.android.ffmpeg)
             implementation(libs.sqldelight.android.driver)
         }
         jvmMain.dependencies {

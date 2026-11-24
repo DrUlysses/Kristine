@@ -4,20 +4,14 @@ import dr.ulysses.Logger
 import dr.ulysses.api.external.Catalog
 import dr.ulysses.api.external.CatalogAlbum
 import dr.ulysses.api.external.MetadataSearch
-import dr.ulysses.api.internal.DownloadCommand
-import dr.ulysses.api.internal.DownloadFromLinkCommand
-import dr.ulysses.api.internal.LibraryTasks
-import dr.ulysses.api.internal.isRemote
+import dr.ulysses.api.internal.*
 import dr.ulysses.models.MainViewModel
 import dr.ulysses.ui.views.onSongSave
 import io.ktor.http.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 /**
@@ -34,6 +28,19 @@ expect suspend fun downloadAudio(
     query: String,
     fileName: String,
 ): String
+
+/**
+ * A video of a YouTube link: its page, and its name, "Channel - Title".
+ */
+data class YouTubeVideo(
+    val url: String,
+    val name: String,
+)
+
+/**
+ * The YouTube video at [link], or every video of the playlist there, without downloading them.
+ */
+expect suspend fun youTubeVideos(link: String): List<YouTubeVideo>
 
 /**
  * Gets the file of a song whose file is missing ([Song.State.NotDownloaded]) with yt-dlp.
@@ -186,6 +193,74 @@ object SongDownloader {
                 // Tagged and filed in its Artist / Album folder like any sorted song
                 MainViewModel.saveSong(song)
             }.onFailure { Logger.e(it) { "Downloading $artist - $title from $link failed" } }
+            localStatus.update {
+                if (result.isSuccess) {
+                    it - key
+                } else {
+                    it + (key to Status.Failed(result.exceptionOrNull()?.message.orEmpty()))
+                }
+            }
+            MainViewModel.loadSongs()
+        }
+    }
+
+    private suspend fun <T> retryOnce(block: suspend () -> T): Result<T> = runCatching { block() }
+        .onFailure { currentCoroutineContext().ensureActive() }
+        .recoverCatching { block() }
+        .onFailure { currentCoroutineContext().ensureActive() }
+
+    /**
+     * Downloads the YouTube video, or every video of the playlist, at [link] as unsorted songs; their status is kept
+     * by the link.
+     */
+    fun downloadLink(link: String) {
+        if (isRemote) {
+            LibraryTasks.send(DownloadLinkCommand(link))
+            return
+        }
+        val key = link.trim()
+        if (!isYouTubeLink(key) || localStatus.value[key] == Status.Running) {
+            return
+        }
+        localStatus.update { it + (key to Status.Running) }
+        scope.launch {
+            val result = runCatching {
+                val videos = youTubeVideos(key)
+                // One by one: yt-dlp's own playlist downloads get refused by YouTube on Android
+                val downloaded = videos.count { video ->
+                    val name = video.name.replace(
+                        regex = UNSAFE_IN_FILE_NAME,
+                        replacement = "_"
+                    )
+                    // YouTube refuses a download now and then (403); the second try usually gets it
+                    retryOnce {
+                        downloadAudio(
+                            query = video.url,
+                            fileName = name
+                        )
+                    }
+                        // Removed or private, or a song the library has already
+                        .onFailure { Logger.w(it) { "Downloading ${video.url} of $key failed" } }
+                        .onSuccess { path ->
+                            // "Channel - Title" until the song is sorted
+                            SongRepository.upsert(
+                                Song(
+                                    path = path,
+                                    title = name.substringAfter(" - "),
+                                    artist = name.substringBefore(
+                                        delimiter = " - ",
+                                        missingDelimiterValue = ""
+                                    ),
+                                    duration = getDurationFromMetadata(path)
+                                )
+                            )
+                        }
+                        .isSuccess
+                }
+                check(downloaded > 0) { "None of the ${videos.size} videos could be downloaded: they failed, or are here already" }
+            }
+                .onFailure { currentCoroutineContext().ensureActive() }
+                .onFailure { Logger.e(it) { "Downloading from $key failed" } }
             localStatus.update {
                 if (result.isSuccess) {
                     it - key

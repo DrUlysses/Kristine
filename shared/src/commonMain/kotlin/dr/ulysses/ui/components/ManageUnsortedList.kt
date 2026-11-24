@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import dr.ulysses.entities.Song
 import dr.ulysses.ui.views.AUTO_SORT
+import dr.ulysses.ui.views.DownloadFromYouTubeChip
 import dr.ulysses.ui.views.MERGE_NAMES
 import dr.ulysses.ui.views.OrganizeFoldersChip
 
@@ -63,6 +64,7 @@ fun ManageUnsortedList(
                 onClick = onMergeNamesClick
             )
             OrganizeFoldersChip()
+            DownloadFromYouTubeChip()
         }
         // A song without its file can't be played or tagged: it waits for its file in a tab of its own
         val (toSort, missing) = unsortedSongs.partition { it.state != Song.State.NotDownloaded }
