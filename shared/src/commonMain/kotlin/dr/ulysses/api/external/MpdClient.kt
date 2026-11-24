@@ -2,6 +2,7 @@ package dr.ulysses.api.external
 
 import dr.ulysses.Logger
 import dr.ulysses.api.internal.LibraryRoutes
+import dr.ulysses.api.internal.PlaylistSaveRequest
 import dr.ulysses.entities.Playlist
 import dr.ulysses.entities.Song
 import dr.ulysses.network.*
@@ -190,10 +191,23 @@ internal class MpdClient {
             Json.encodeToString(songs(command("listplaylistinfo ${quote(name)}")))
         }
 
-        // A stored playlist on MPD, which its other clients can play too
-        LibraryRoutes.PLAYLIST_INSERT -> {
-            val playlist = Json.decodeFromString<Playlist>(body)
-            commandList(playlist.songs.map { "playlistadd ${quote(playlist.name)} ${quote(it.path)}" })
+        // A stored playlist on MPD, which its other clients can play too; MPD keeps no artwork
+        LibraryRoutes.PLAYLIST_SAVE -> {
+            val request = Json.decodeFromString<PlaylistSaveRequest>(body)
+            val name = request.playlist.name
+            // playlistadd would add to the other playlist of that name
+            if (name != request.oldName && playlists().any { it.name == name }) {
+                throw MpdException("A playlist named $name exists")
+            }
+            commandList(
+                listOfNotNull(request.oldName?.let { "rm ${quote(it)}" }) +
+                        request.playlist.songs.map { "playlistadd ${quote(name)} ${quote(it.path)}" }
+            )
+            Json.encodeToString(Unit)
+        }
+
+        LibraryRoutes.PLAYLIST_DELETE -> {
+            command("rm ${quote(Json.decodeFromString<String>(body))}")
             Json.encodeToString(Unit)
         }
 

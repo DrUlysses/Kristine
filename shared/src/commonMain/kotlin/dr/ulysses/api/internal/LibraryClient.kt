@@ -112,9 +112,15 @@ internal object LibraryClient {
         fallback = emptyList()
     )
 
-    suspend fun insertPlaylist(playlist: Playlist): Unit = call(
-        route = LibraryRoutes.PLAYLIST_INSERT,
-        body = playlist,
+    suspend fun savePlaylist(request: PlaylistSaveRequest): Unit = call(
+        route = LibraryRoutes.PLAYLIST_SAVE,
+        body = request,
+        fallback = Unit
+    )
+
+    suspend fun deletePlaylist(name: String): Unit = call(
+        route = LibraryRoutes.PLAYLIST_DELETE,
+        body = name,
         fallback = Unit
     )
 

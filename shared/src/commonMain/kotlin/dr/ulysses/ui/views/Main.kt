@@ -147,6 +147,12 @@ fun Main() {
             MainViewModel.setTopBarText(MainViewModel.state.currentArtist)
             return
         }
+        // Edits left unsaved: back to the playlist's page under its stored name
+        if (leaving is ManagePlaylist && leaving.originalName != null) {
+            MainViewModel.setCurrentPlaylist(MainViewModel.state.currentPlaylist.copy(name = leaving.originalName))
+            MainViewModel.setTopBarText(leaving.originalName)
+            return
+        }
         MainViewModel.closeDetail()
         scope.launch { pagerState.scrollToPage(MainViewModel.state.previousTabIndex) }
         // Tags edited there show up in the lists, like after "Refresh songs"
@@ -167,7 +173,7 @@ fun Main() {
         MainViewModel.setCurrentPlaylist(Playlist())
         open(
             title = addPlaylistText,
-            route = ManagePlaylist
+            route = ManagePlaylist()
         )
     }
 
@@ -337,10 +343,23 @@ fun Main() {
                                     }
                                 )
                             }
-                            entry<ManagePlaylist> {
+                            entry<ManagePlaylist> { key ->
                                 ManagePlaylist(
                                     playlist = state.currentPlaylist,
-                                    onPlaylistChanged = MainViewModel::setCurrentPlaylist
+                                    onPlaylistChanged = MainViewModel::setCurrentPlaylist,
+                                    onDelete = key.originalName?.let { name ->
+                                        {
+                                            scope.launch {
+                                                runCatching { PlaylistRepository.delete(name) }
+                                                    .onFailure { currentCoroutineContext().ensureActive() }
+                                                    .onFailure { Logger.e(it) { "Deleting playlist $name failed" } }
+                                                MainViewModel.loadPlaylists()
+                                                // Its page goes too: back to the list
+                                                navStack.removeLastOrNull()
+                                                close()
+                                            }
+                                        }
+                                    }
                                 )
                             }
                             entry<ManageUnsortedList> {
@@ -573,17 +592,51 @@ fun Main() {
                         )
                     }
 
-                route == ManagePlaylist ->
+                route == PlaylistSongs ->
+                    FloatingActionButton(
+                        onClick = {
+                            scope.launch {
+                                val playlist = MainViewModel.state.currentPlaylist
+                                // Read again: unsaved edits of an earlier visit may still be in the current playlist
+                                MainViewModel.setCurrentPlaylist(
+                                    playlist.copy(
+                                        songs = MainViewModel.playlistSongs(playlist.name),
+                                        artwork = PlaylistRepository.getArtwork(playlist.name)
+                                    )
+                                )
+                                MainViewModel.setTopBarText(editText)
+                                navStack.add(ManagePlaylist(originalName = playlist.name))
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = editText
+                        )
+                    }
+
+                route is ManagePlaylist ->
                     FloatingActionButton(
                         onClick = {
                             scope.launch {
                                 val playlist = MainViewModel.state.currentPlaylist
                                 // Fails when the name is taken; the user stays on the screen to change it
-                                runCatching { PlaylistRepository.insert(playlist) }
+                                runCatching {
+                                    PlaylistRepository.save(
+                                        playlist = playlist,
+                                        oldName = route.originalName
+                                    )
+                                }
                                     .onFailure { currentCoroutineContext().ensureActive() }
                                     .onSuccess {
                                         MainViewModel.loadPlaylists()
-                                        close()
+                                        if (route.originalName == null) {
+                                            close()
+                                        } else {
+                                            // Back to the playlist's page, under its new name
+                                            navStack.removeLastOrNull()
+                                            MainViewModel.setTopBarText(playlist.name)
+                                        }
                                     }
                                     .onFailure { Logger.e(it) { "Saving playlist ${playlist.name} failed" } }
                             }
@@ -591,7 +644,7 @@ fun Main() {
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Check,
-                            contentDescription = searchTooltip
+                            contentDescription = "Save playlist"
                         )
                     }
 
@@ -624,7 +677,7 @@ fun Main() {
                             )
                             open(
                                 title = addPlaylistText,
-                                route = ManagePlaylist
+                                route = ManagePlaylist()
                             )
                         }
                     ) {

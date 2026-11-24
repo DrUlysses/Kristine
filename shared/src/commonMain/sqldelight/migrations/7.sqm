@@ -1,0 +1,2 @@
+-- The order of a playlist's songs; rows from before keep 0, and their old order by rowid
+ALTER TABLE playlist_song ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
