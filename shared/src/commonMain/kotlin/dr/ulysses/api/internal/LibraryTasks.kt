@@ -51,6 +51,12 @@ internal data class DownloadFromLinkCommand(
     val title: String,
 ) : TaskCommand
 
+/**
+ * A YouTube video or playlist to download as unsorted songs.
+ */
+@Serializable
+internal data class DownloadLinkCommand(val link: String) : TaskCommand
+
 @Serializable
 internal data object RemoveMissingSongsCommand : TaskCommand
 

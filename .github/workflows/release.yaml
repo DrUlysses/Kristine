@@ -1,0 +1,83 @@
+name: Release Kristine
+
+# Actions → Release Kristine → Run workflow: raises the version on dev, merges dev into main, then builds and deploys
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'What changed'
+        type: choice
+        required: true
+        default: Bugfix
+        options:
+          - Bugfix
+          - Minor
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Raise version and merge dev into main
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Raise the version
+        id: bump
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          file=gradle/libs.versions.toml
+          current=$(sed -n 's/^kristine = "\([0-9]*\.[0-9]*\.[0-9]*\)"$/\1/p' "$file")
+          if [ -z "$current" ]; then
+            echo "::error::No 'kristine = \"x.y.z\"' line in $file"
+            exit 1
+          fi
+          IFS=. read -r major minor patch <<< "$current"
+          if [ "$BUMP" = Minor ]; then
+            next="$major.$((minor + 1)).0"
+          else
+            next="$major.$minor.$((patch + 1))"
+          fi
+          sed -i "s/^kristine = \"$current\"$/kristine = \"$next\"/" "$file"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+          echo "$current → $next"
+
+      - name: Commit to dev and merge into main
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Version $VERSION"
+          git push origin dev
+          git checkout main
+          git merge --no-ff dev -m "Merge branch 'dev'"
+          git push origin main
+
+  # A push made with the workflow's own token starts no workflows, so these are called here
+  build:
+    needs: release
+    uses: ./.github/workflows/build.yaml
+    secrets: inherit
+    with:
+      ref: main
+
+  deploy:
+    needs: release
+    uses: ./.github/workflows/deploy.yaml
+    secrets: inherit
+    with:
+      ref: main

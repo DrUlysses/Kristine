@@ -8,3 +8,6 @@ actual suspend fun downloadAudio(
     fileName: String,
 ): String =
     throw UnsupportedOperationException("Downloading songs isn't possible in the browser")
+
+actual suspend fun youTubeVideos(link: String): List<YouTubeVideo> =
+    throw UnsupportedOperationException("Downloading songs isn't possible in the browser")

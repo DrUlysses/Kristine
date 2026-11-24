@@ -163,6 +163,8 @@ private suspend fun WebSocketServerSession.handle(command: TaskCommand) {
             title = command.title
         )
 
+        is DownloadLinkCommand -> SongDownloader.downloadLink(command.link)
+
         RemoveMissingSongsCommand -> launch {
             SongRepository.removeNonExistingSongs().collect { send(MaintenanceUpdate(it)) }
         }
