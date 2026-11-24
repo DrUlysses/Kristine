@@ -10,7 +10,7 @@ as a remote control for another Kristine or an MPD server.
    [Actions](https://github.com/DrUlysses/Kristine/actions) run.
 2. In **Settings**, set the **Music folder**, and optionally:
     - **AcoustID key**: a free key from [acoustid.org](https://acoustid.org), to identify songs by their sound.
-    - **yt-dlp program** (desktop): custom path to yt-dlp.
+    - **yt-dlp program** (desktop): custom path to yt-dlp executable.
 3. To use another device's library: **Connections**, then pick a nearby server or enter its address.
 
 ### Server (Docker)
