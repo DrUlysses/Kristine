@@ -1,6 +1,8 @@
 name: Release Kristine
 
-# Actions → Release Kristine → Run workflow: raises the version on dev, merges dev into main, then builds and deploys
+# Actions → Release Kristine → Run workflow: raises the version on dev and merges dev into main, whose push builds and deploys
+# Needs the secret RELEASE_TOKEN: a token of an admin (Contents read/write), since main only takes pull requests and
+# admins may push past that; pushes made with it also start the build and deploy workflows, the built-in token's don't
 on:
   workflow_dispatch:
     inputs:
@@ -14,8 +16,7 @@ on:
           - Minor
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 concurrency:
   group: release
@@ -25,14 +26,22 @@ jobs:
   release:
     name: Raise version and merge dev into main
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.bump.outputs.version }}
     steps:
+      - name: Check the token
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo "::error::The RELEASE_TOKEN secret is missing: main only takes pull requests, the built-in token can't push to it"
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v5
         with:
           ref: dev
           fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Raise the version
         id: bump
@@ -67,17 +76,3 @@ jobs:
           git merge --no-ff dev -m "Merge branch 'dev'"
           git push origin main
 
-  # A push made with the workflow's own token starts no workflows, so these are called here
-  build:
-    needs: release
-    uses: ./.github/workflows/build.yaml
-    secrets: inherit
-    with:
-      ref: main
-
-  deploy:
-    needs: release
-    uses: ./.github/workflows/deploy.yaml
-    secrets: inherit
-    with:
-      ref: main
