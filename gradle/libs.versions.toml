@@ -1,6 +1,6 @@
 [versions]
 # Main
-kristine = "1.8.2"
+kristine = "1.8.3"
 kotlin = "2.4.21"
 ktor = "3.6.1"
 koin = "4.2.2"
